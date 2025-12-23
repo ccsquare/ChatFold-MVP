@@ -1,0 +1,272 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Karla:wght@400;500;600;700&display=swap');
+
+@layer base {
+  :root {
+    --radius: 0.5rem;
+  }
+
+  /* Light theme */
+  .light {
+    --cf-bg: #ffffff;
+    --cf-bg-secondary: #f8f8f8;
+    --cf-bg-tertiary: #f0f0f0;
+    --cf-bg-input: #e8e8e8;
+    --cf-border: rgba(0, 0, 0, 0.1);
+    --cf-border-strong: rgba(0, 0, 0, 0.15);
+    --cf-text: rgba(0, 0, 0, 0.85);
+    --cf-text-secondary: rgba(0, 0, 0, 0.65);
+    --cf-text-muted: rgba(0, 0, 0, 0.45);
+    --cf-accent: #7c4daa;
+    --cf-success: #22c55e;
+    --cf-highlight: rgba(0, 0, 0, 0.08);
+    --cf-highlight-strong: rgba(0, 0, 0, 0.12);
+
+    --background: 0 0% 100%;
+    --foreground: 0 0% 9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 9%;
+    --primary: 270 41% 45%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 270 41% 45%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 270 41% 45%;
+  }
+
+  /* Dark theme (default) */
+  .dark {
+    --cf-bg: #1e1e1e;
+    --cf-bg-secondary: #1c1c1c;
+    --cf-bg-tertiary: #242424;
+    --cf-bg-input: #292929;
+    --cf-border: rgba(255, 255, 255, 0.12);
+    --cf-border-strong: rgba(255, 255, 255, 0.16);
+    --cf-text: rgba(255, 255, 255, 0.8);
+    --cf-text-secondary: rgba(255, 255, 255, 0.6);
+    --cf-text-muted: rgba(255, 255, 255, 0.4);
+    --cf-accent: #623b8b;
+    --cf-success: #67da7a;
+    --cf-highlight: rgba(255, 255, 255, 0.1);
+    --cf-highlight-strong: rgba(255, 255, 255, 0.15);
+
+    --background: 0 0% 12%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 11%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 14%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 270 41% 39%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 18%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 18%;
+    --muted-foreground: 0 0% 60%;
+    --accent: 270 41% 39%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 20%;
+    --input: 0 0% 16%;
+    --ring: 270 41% 39%;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Theme transition */
+html.transitioning,
+html.transitioning *,
+html.transitioning *::before,
+html.transitioning *::after {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.2s ease !important;
+  transition-delay: 0s !important;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+body {
+  background-color: var(--cf-bg);
+  color: var(--cf-text);
+  font-family: 'Karla', 'PingFang SC', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Custom scrollbar - theme aware */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.light ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.light ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+}
+
+/* Animation utilities */
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 3s linear infinite;
+}
+
+/* Viewer container */
+.molstar-viewer-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+/* Only apply full size to the first child (Mol* container), not overlays */
+.molstar-viewer-container > div:first-child {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Molstar plugin dark theme overrides */
+.msp-plugin {
+  background-color: transparent !important;
+}
+
+.msp-plugin-content {
+  background-color: transparent !important;
+}
+
+.msp-viewport {
+  background-color: var(--cf-bg) !important;
+}
+
+.msp-layout-main {
+  background-color: transparent !important;
+}
+
+.msp-layout-static {
+  background-color: transparent !important;
+}
+
+/* Fix Molstar semi-transparent button backgrounds */
+/* This class is used as a backdrop for viewport control buttons.
+   It should only fill its parent button container, not the viewport. */
+.msp-semi-transparent-background {
+  background-color: rgba(30, 30, 30, 0.7) !important;
+  opacity: 0.5 !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  z-index: -1 !important;
+  pointer-events: none !important;
+}
+
+/* Ensure viewport control button containers are properly sized */
+.msp-viewport-controls-buttons > div {
+  position: relative !important;
+  display: inline-block !important;
+}
+
+/* Ensure hover box wrappers don't expand unexpectedly */
+.msp-hover-box-wrapper {
+  position: relative !important;
+  display: inline-block !important;
+}
+
+/* Animation controls should also be constrained */
+.msp-animation-viewport-controls > div {
+  position: relative !important;
+  display: inline-block !important;
+}
+
+/* Dark theme for Molstar UI controls */
+.msp-hover-box-body {
+  background-color: var(--cf-bg-tertiary) !important;
+  border: 1px solid var(--cf-border) !important;
+}
+
+/* Ensure Mol* highlight tooltip (hover info) appears above other overlays */
+.msp-highlight-info {
+  z-index: 10 !important;
+}
+
+.msp-btn {
+  background-color: var(--cf-bg-tertiary) !important;
+  color: var(--cf-text) !important;
+}
+
+.msp-btn:hover {
+  background-color: var(--cf-bg-input) !important;
+}
+
+.msp-icon {
+  color: var(--cf-text-secondary) !important;
+}
+
+/* Molstar canvas should have dark background */
+.msp-viewport canvas {
+  background-color: var(--cf-bg) !important;
+  background-image: none !important;
+}
+
+/* Hide the checkered transparency indicator pattern */
+.msp-viewport > div > canvas {
+  background-image: none !important;
+  background-color: transparent !important;
+}
