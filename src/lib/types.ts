@@ -37,6 +37,15 @@ export interface Asset {
   uploadedAt: number;
 }
 
+// File reference for @ mentions in chat input
+export interface MentionableFile {
+  id: string;           // Unique identifier (full path or unique key)
+  name: string;         // Display name (filename)
+  path: string;         // Full path for disambiguation
+  type: string;         // File type: 'fasta', 'pdb', 'structure', etc.
+  source?: 'project' | 'conversation' | 'task';  // Optional context
+}
+
 // Project represents a folder containing input sequences and output structures
 export interface Project {
   id: string;
@@ -147,6 +156,9 @@ export interface FoldStep {
   pdbData?: string;
 }
 
+// Layout mode determines the main content area display
+export type LayoutMode = 'chat-focus' | 'viewer-focus';
+
 // Store state types
 export interface AppState {
   // Conversations
@@ -156,6 +168,10 @@ export interface AppState {
   // Projects (folder-based file management)
   projects: Project[];
   activeProjectId: string | null;
+
+  // Layout mode (chat-focus: full-width chat, viewer-focus: Canvas + Console)
+  layoutMode: LayoutMode;
+  isLayoutTransitioning: boolean;
 
   // Sidebar state
   sidebarWidth: number;
@@ -210,4 +226,9 @@ export interface AppState {
   setThumbnail: (structureId: string, thumbnail: string) => void;
   setTabSelection: (tabId: string, selection: AtomInfo | null) => void;
   setTabAtomCount: (tabId: string, atomCount: number) => void;
+
+  // Layout mode actions
+  setLayoutMode: (mode: LayoutMode) => void;
+  switchToViewerMode: () => void;
+  switchToChatMode: () => void;
 }
