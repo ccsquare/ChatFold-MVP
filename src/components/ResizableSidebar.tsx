@@ -65,7 +65,10 @@ export function ResizableSidebar({ children }: ResizableSidebarProps) {
   return (
     <div
       ref={sidebarRef}
-      className="relative flex flex-shrink-0 bg-cf-bg border-r border-cf-border h-full"
+      className={cn(
+        "relative flex flex-shrink-0 bg-cf-bg border-r border-cf-border h-full",
+        !isResizing && "transition-[width] duration-300 ease-out"
+      )}
       style={{ width: sidebarWidth }}
     >
       {/* Sidebar Content */}

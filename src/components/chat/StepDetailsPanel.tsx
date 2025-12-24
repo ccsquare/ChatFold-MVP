@@ -2,6 +2,8 @@
 
 import { FoldStep } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { useAppStore } from '@/lib/store';
+import { Maximize2 } from 'lucide-react';
 
 interface StepDetailsPanelProps {
   step: FoldStep | null;
@@ -9,6 +11,25 @@ interface StepDetailsPanelProps {
 }
 
 export function StepDetailsPanel({ step, className }: StepDetailsPanelProps) {
+  const openStructureTab = useAppStore(state => state.openStructureTab);
+
+  const handleOpenInCanvas = () => {
+    if (!step || !step.pdbData) return;
+
+    const structure = {
+      structureId: step.structureId,
+      label: step.label,
+      filename: `step-${step.stepNumber}.pdb`,
+      metrics: {
+        plddtAvg: step.metrics.rmsd * 20, // Approximate conversion
+        paeAvg: step.metrics.energy
+      },
+      pdbData: step.pdbData
+    };
+
+    openStructureTab(structure, step.pdbData);
+  };
+
   if (!step) {
     return (
       <div
@@ -47,6 +68,17 @@ export function StepDetailsPanel({ step, className }: StepDetailsPanelProps) {
             Stage: {stage}
           </p>
         </div>
+
+        {/* Open in Canvas button */}
+        {step.pdbData && (
+          <button
+            onClick={handleOpenInCanvas}
+            className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium text-cf-text-secondary hover:text-cf-text bg-white/5 hover:bg-white/10 border border-white/10 rounded-cf transition-colors"
+          >
+            <Maximize2 className="w-3 h-3" />
+            Open in Canvas
+          </button>
+        )}
 
         {/* Metrics */}
         <div className="space-y-3">

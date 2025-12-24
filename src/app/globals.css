@@ -205,73 +205,18 @@ body {
 .molstar-viewer-container .msp-viewport {
   width: 100% !important;
   height: 100% !important;
-}
-
-/* Molstar plugin dark theme overrides */
-.msp-plugin {
+  /* CRITICAL: Override Mol*'s default viewport background color
+     When panels are 'collapsed', Mol* sets a beige background that covers the WebGL canvas */
   background-color: transparent !important;
 }
 
-.msp-plugin-content {
-  background-color: transparent !important;
-}
-
-.msp-viewport {
-  background-color: var(--cf-bg) !important;
-}
-
-.msp-layout-main {
-  background-color: transparent !important;
-}
-
-.msp-layout-static {
-  background-color: transparent !important;
-}
-
-/* Molstar viewport controls - ensure proper stacking without breaking layout */
+/* Molstar - only layout/size overrides, preserve Molstar's native styling */
 .msp-viewport-controls {
   position: absolute !important;
   z-index: 5 !important;
 }
 
-/* Semi-transparent backgrounds should only apply within button contexts */
-.msp-btn .msp-semi-transparent-background,
-.msp-viewport-controls .msp-semi-transparent-background {
-  background-color: rgba(30, 30, 30, 0.7) !important;
-}
-
-/* Dark theme for Molstar UI controls */
-.msp-hover-box-body {
-  background-color: var(--cf-bg-tertiary) !important;
-  border: 1px solid var(--cf-border) !important;
-}
-
-/* Ensure Mol* highlight tooltip (hover info) appears above other overlays */
+/* Ensure Mol* highlight tooltip appears above other overlays */
 .msp-highlight-info {
   z-index: 10 !important;
-}
-
-.msp-btn {
-  background-color: var(--cf-bg-tertiary) !important;
-  color: var(--cf-text) !important;
-}
-
-.msp-btn:hover {
-  background-color: var(--cf-bg-input) !important;
-}
-
-.msp-icon {
-  color: var(--cf-text-secondary) !important;
-}
-
-/* Molstar canvas should have dark background */
-.msp-viewport canvas {
-  background-color: var(--cf-bg) !important;
-  background-image: none !important;
-}
-
-/* Hide the checkered transparency indicator pattern */
-.msp-viewport > div > canvas {
-  background-image: none !important;
-  background-color: transparent !important;
 }
