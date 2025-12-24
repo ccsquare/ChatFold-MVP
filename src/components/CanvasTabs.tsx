@@ -34,7 +34,7 @@ export function CanvasTabs() {
             )}
             onClick={() => setActiveTab(tab.id)}
           >
-            <HelixIcon className="w-4 h-4 opacity-60 text-cf-success flex-shrink-0" />
+            <HelixIcon className="w-4 h-4 text-cf-success/60 flex-shrink-0" />
             <span className={cn(
               "text-[13px] truncate max-w-[120px]",
               tab.id === activeTabId ? "text-cf-text" : "text-cf-text-muted"
@@ -46,13 +46,13 @@ export function CanvasTabs() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-5 w-5 p-0.5 opacity-0 group-hover:opacity-60 hover:opacity-100 hover:bg-cf-highlight"
+                  className="h-5 w-5 p-0.5 opacity-0 group-hover:opacity-60 hover:opacity-100 hover:bg-cf-highlight transition-all"
                   onClick={(e) => {
                     e.stopPropagation();
                     closeTab(tab.id);
                   }}
                 >
-                  <X className="w-3 h-3" />
+                  <X className="w-3 h-3 text-cf-text-secondary hover:text-cf-text" />
                   <span className="sr-only">Close tab</span>
                 </Button>
               </TooltipTrigger>

@@ -121,24 +121,24 @@ function ProjectItem({
           >
             {/* Expand/Collapse Toggle */}
             <button
-              className="p-0.5 hover:bg-cf-highlight-strong rounded"
+              className="p-0.5 hover:bg-cf-highlight-strong rounded group/toggle"
               onClick={(e) => {
                 e.stopPropagation();
                 onToggle();
               }}
             >
               {project.isExpanded ? (
-                <ChevronDown className="w-3.5 h-3.5 opacity-60" />
+                <ChevronDown className="w-3.5 h-3.5 text-cf-text-secondary group-hover/toggle:text-cf-text transition-colors" />
               ) : (
-                <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+                <ChevronRight className="w-3.5 h-3.5 text-cf-text-secondary group-hover/toggle:text-cf-text transition-colors" />
               )}
             </button>
 
             {/* Folder Icon */}
             {project.isExpanded ? (
-              <FolderOpen className="w-4 h-4 opacity-60 text-yellow-500 flex-shrink-0" />
+              <FolderOpen className="w-4 h-4 text-yellow-500/60 flex-shrink-0" />
             ) : (
-              <FolderClosed className="w-4 h-4 opacity-60 text-yellow-500 flex-shrink-0" />
+              <FolderClosed className="w-4 h-4 text-yellow-500/60 flex-shrink-0" />
             )}
 
             {/* Name (Editable) */}
@@ -190,7 +190,7 @@ function ProjectItem({
                           className="flex items-center gap-1 px-1 py-0.5 hover:bg-cf-highlight rounded cursor-pointer group"
                           onClick={() => onOpenAsset(input)}
                         >
-                          <FileInput className="w-3.5 h-3.5 opacity-60 text-blue-400 flex-shrink-0" />
+                          <FileInput className="w-3.5 h-3.5 text-blue-400/60 flex-shrink-0" />
                           <span className="text-[12px] truncate text-cf-text-secondary">
                             {input.name}
                           </span>
@@ -228,7 +228,7 @@ function ProjectItem({
                           className="flex items-center gap-1 px-1 py-0.5 hover:bg-cf-highlight rounded cursor-pointer group"
                           onClick={() => onOpenStructure(output)}
                         >
-                          <HelixIcon className="w-3.5 h-3.5 opacity-60 text-cf-success flex-shrink-0" />
+                          <HelixIcon className="w-3.5 h-3.5 text-cf-success/60 flex-shrink-0" />
                           <span className="text-[12px] truncate text-cf-text-secondary">
                             {output.filename}
                           </span>
@@ -271,6 +271,7 @@ export function Sidebar() {
     activeConversationId,
     createConversation,
     setActiveConversation,
+    deleteConversation,
     addAsset,
     activeTask,
     projects,
@@ -286,10 +287,16 @@ export function Sidebar() {
   } = useAppStore();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
 
   const handleNewChat = () => {
     createConversation();
   };
+
+  const handleDeleteConversation = useCallback((convId: string) => {
+    deleteConversation(convId);
+    setConfirmingDeleteId(null);
+  }, [deleteConversation]);
 
   const handleNewProject = () => {
     createProject();
@@ -369,7 +376,7 @@ export function Sidebar() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 opacity-60 hover:opacity-100"
+                  className="h-7 w-7 text-cf-text-secondary hover:text-cf-text transition-colors"
                   onClick={() => setSidebarCollapsed(true)}
                 >
                   <PanelLeftClose className="w-4 h-4" aria-hidden="true" />
@@ -384,7 +391,7 @@ export function Sidebar() {
         {/* Project Files Header */}
         <div className="flex items-center justify-between px-2 py-1">
           <div className="flex items-center gap-1">
-            <FolderOpen className="w-4 h-4 opacity-60" aria-hidden="true" />
+            <FolderOpen className="w-4 h-4 text-cf-text-secondary" aria-hidden="true" />
             <span className="text-[13px] font-medium text-cf-text">Projects</span>
           </div>
           <div className="flex items-center gap-0.5">
@@ -393,7 +400,7 @@ export function Sidebar() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 opacity-60 hover:opacity-100"
+                  className="h-6 w-6 text-cf-text-secondary hover:text-cf-text transition-colors"
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <Upload className="w-3.5 h-3.5" aria-hidden="true" />
@@ -407,7 +414,7 @@ export function Sidebar() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 opacity-60 hover:opacity-100"
+                  className="h-6 w-6 text-cf-text-secondary hover:text-cf-text transition-colors"
                   onClick={handleNewProject}
                 >
                   <Plus className="w-3.5 h-3.5" aria-hidden="true" />
@@ -481,37 +488,65 @@ export function Sidebar() {
 
         {/* Conversations List */}
         <nav className="px-2 py-2" aria-label="Recent conversations">
-          <div className="flex items-center justify-between px-1 mb-1">
+          <div className="flex items-center px-1 mb-1">
             <div className="flex items-center gap-1">
-              <MessageCircle className="w-3 h-3 opacity-40" aria-hidden="true" />
+              <MessageCircle className="w-3 h-3 text-cf-text-muted" aria-hidden="true" />
               <span className="text-xs text-cf-text-muted">Recent Chats</span>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-5 w-5 opacity-60 hover:opacity-100"
-              onClick={handleNewChat}
-            >
-              <Plus className="w-3 h-3" />
-            </Button>
           </div>
           <ScrollArea className="max-h-[160px]">
             <ul role="list">
               {conversations.map(conv => (
-                <li key={conv.id}>
-                  <Button
-                    variant="ghost"
-                    className={cn(
-                      "w-full justify-start h-auto px-2 py-1",
-                      conv.id === activeConversationId ? "bg-cf-highlight-strong" : "hover:bg-cf-highlight"
-                    )}
-                    onClick={() => setActiveConversation(conv.id)}
-                  >
-                    <div className="flex-1 min-w-0 text-left">
-                      <p className="text-[12px] font-medium text-cf-text truncate">{conv.title}</p>
-                      <p className="text-[10px] text-cf-text-muted">{formatTimestamp(conv.updatedAt)}</p>
+                <li key={conv.id} className="group relative">
+                  {confirmingDeleteId === conv.id ? (
+                    // Confirmation UI
+                    <div className="flex items-center justify-between px-2 py-1.5 bg-red-500/10 rounded">
+                      <span className="text-[11px] text-red-400">Delete?</span>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-5 px-2 text-[10px] text-cf-text-muted hover:text-cf-text"
+                          onClick={() => setConfirmingDeleteId(null)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-5 px-2 text-[10px] text-red-400 hover:text-red-300 hover:bg-red-500/20"
+                          onClick={() => handleDeleteConversation(conv.id)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
                     </div>
-                  </Button>
+                  ) : (
+                    // Normal conversation item
+                    <div
+                      className={cn(
+                        "flex items-center w-full h-auto px-2 py-1 rounded cursor-pointer",
+                        conv.id === activeConversationId ? "bg-cf-highlight-strong" : "hover:bg-cf-highlight"
+                      )}
+                      onClick={() => setActiveConversation(conv.id)}
+                    >
+                      <div className="flex-1 min-w-0 text-left">
+                        <p className="text-[12px] font-medium text-cf-text truncate">{conv.title}</p>
+                        <p className="text-[10px] text-cf-text-muted">{formatTimestamp(conv.updatedAt)}</p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 opacity-0 group-hover:opacity-100 text-cf-text-muted hover:text-red-400 transition-all"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setConfirmingDeleteId(conv.id);
+                        }}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  )}
                 </li>
               ))}
               {conversations.length === 0 && (

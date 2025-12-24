@@ -2,12 +2,32 @@
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['molstar'],
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
     config.resolve.fallback = { fs: false, path: false };
     // Handle molstar's ES modules and WebAssembly
     config.resolve.extensionAlias = {
       '.js': ['.ts', '.tsx', '.js', '.jsx'],
     };
+
+    // Fix chunk naming for molstar dynamic imports
+    if (!isServer) {
+      config.optimization = {
+        ...config.optimization,
+        splitChunks: {
+          ...config.optimization?.splitChunks,
+          cacheGroups: {
+            ...config.optimization?.splitChunks?.cacheGroups,
+            molstar: {
+              test: /[\\/]node_modules[\\/]molstar[\\/]/,
+              name: 'molstar',
+              chunks: 'async',
+              priority: 10,
+            },
+          },
+        },
+      };
+    }
+
     return config;
   },
 };

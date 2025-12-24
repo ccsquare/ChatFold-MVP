@@ -13,4 +13,3 @@ export { InspectorPanel } from './InspectorPanel';
 // Console components
 export { StepsPanel } from './StepsPanel';
 export { ChatPanel } from './ChatPanel';
-export { ChartsPanel } from './ChartsPanel';

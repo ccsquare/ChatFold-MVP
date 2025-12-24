@@ -66,3 +66,5 @@ tmp/
 .gemini-clipboard/
 .cursor/
 .playwright-mcp/
+.gemini/
+.trees/

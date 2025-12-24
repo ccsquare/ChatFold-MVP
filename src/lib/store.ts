@@ -61,7 +61,6 @@ export const useAppStore = create<AppState>()(
   // Console
   consoleWidth: DEFAULT_CONSOLE_WIDTH,
   consoleCollapsed: false,
-  activeConsoleTab: 'chat',
 
   activeTask: null,
   isStreaming: false,
@@ -132,6 +131,20 @@ export const useAppStore = create<AppState>()(
           : conv
       )
     }));
+  },
+
+  deleteConversation: (conversationId) => {
+    set(state => {
+      const filteredConversations = state.conversations.filter(conv => conv.id !== conversationId);
+      // If deleting the active conversation, switch to another one or null
+      const newActiveId = state.activeConversationId === conversationId
+        ? (filteredConversations.length > 0 ? filteredConversations[0].id : null)
+        : state.activeConversationId;
+      return {
+        conversations: filteredConversations,
+        activeConversationId: newActiveId
+      };
+    });
   },
 
   // Project actions
@@ -299,10 +312,6 @@ export const useAppStore = create<AppState>()(
 
   setConsoleCollapsed: (collapsed) => {
     set({ consoleCollapsed: collapsed });
-  },
-
-  setActiveConsoleTab: (tab) => {
-    set({ activeConsoleTab: tab });
   },
 
   // Task actions

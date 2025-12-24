@@ -149,7 +149,6 @@ export interface AppState {
   // Console state
   consoleWidth: number;
   consoleCollapsed: boolean;
-  activeConsoleTab: 'chat' | 'charts';
 
   // Running task
   activeTask: Task | null;
@@ -163,6 +162,7 @@ export interface AppState {
   setActiveConversation: (id: string | null) => void;
   addMessage: (conversationId: string, message: Omit<ChatMessage, 'id' | 'timestamp'>) => void;
   addAsset: (conversationId: string, asset: Omit<Asset, 'id' | 'uploadedAt'>) => void;
+  deleteConversation: (conversationId: string) => void;
 
   // Project actions
   createProject: (name?: string) => string;
@@ -183,7 +183,6 @@ export interface AppState {
 
   setConsoleWidth: (width: number) => void;
   setConsoleCollapsed: (collapsed: boolean) => void;
-  setActiveConsoleTab: (tab: 'chat' | 'charts') => void;
 
   setActiveTask: (task: Task | null) => void;
   updateTask: (taskId: string, updates: Partial<Task>) => void;
