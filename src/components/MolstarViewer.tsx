@@ -232,6 +232,7 @@ export const MolstarViewer = memo(function MolstarViewer({
   const initPromiseRef = useRef<Promise<void> | null>(null);
   const isMountedRef = useRef(true);
   const [useFallback, setUseFallback] = useState(false);
+  const [pluginReady, setPluginReady] = useState(false);
 
   // Parse PDB to count atoms (for display purposes)
   const parseAtomCount = useCallback((pdb: string): number => {
@@ -297,6 +298,8 @@ export const MolstarViewer = memo(function MolstarViewer({
         containerRef.current.innerHTML = '';
 
         // Create a separate div for molstar (not managed by React)
+        // Use percentage-based sizing initially to ensure proper layout
+        // The resize handler will update to pixel dimensions once the container is laid out
         const molstarDiv = document.createElement('div');
         molstarDiv.style.width = '100%';
         molstarDiv.style.height = '100%';
@@ -307,6 +310,8 @@ export const MolstarViewer = memo(function MolstarViewer({
         molstarContainerRef.current = molstarDiv;
 
         // Create plugin with minimal or full UI based on prop
+        // For minimalUI: hide all panels completely
+        // For full UI: use 'collapsed' panels from the start - we'll wait for layout before loading structure
         const spec = minimalUI ? {
           ...DefaultPluginUISpec(),
           layout: {
@@ -342,10 +347,11 @@ export const MolstarViewer = memo(function MolstarViewer({
               isExpanded: false,
               showControls: true,
               controlsDisplay: 'reactive' as const,
+              // Note: top/right can only be 'hidden' or 'full', left can be 'collapsed'
               regionState: {
-                left: 'hidden' as const,
-                right: 'hidden' as const,
-                top: 'full' as const,
+                left: 'collapsed' as const,    // State Tree - can be collapsed
+                right: 'hidden' as const,      // Structure Tools
+                top: 'hidden' as const,        // Sequence View
                 bottom: 'hidden' as const,
               }
             }
@@ -383,6 +389,60 @@ export const MolstarViewer = memo(function MolstarViewer({
             transparentBackground: false,
           });
         }
+
+        // CRITICAL: Wait for Mol*'s internal React layout to fully render before loading structure
+        // When panels are 'collapsed', Mol* creates a complex React UI that needs time to mount
+        // We need to wait for BOTH the canvas AND the collapsed panel elements to be ready
+        await new Promise<void>((resolve) => {
+          let frameCount = 0;
+          const maxFrames = 60; // ~1 second at 60fps - longer wait for collapsed panels
+
+          const waitForLayout = () => {
+            if (!isMountedRef.current || !plugin.canvas3d) {
+              resolve();
+              return;
+            }
+
+            // Check if Mol*'s canvas element has valid dimensions
+            const canvas = molstarDiv.querySelector('canvas');
+            // Also check if the msp-plugin container has stabilized (for collapsed panels)
+            const mspPlugin = molstarDiv.querySelector('.msp-plugin');
+
+            if (canvas && mspPlugin) {
+              const canvasRect = canvas.getBoundingClientRect();
+              const pluginRect = mspPlugin.getBoundingClientRect();
+
+              // Canvas should have valid dimensions AND be within the plugin container
+              if (canvasRect.width > 10 && canvasRect.height > 10 &&
+                  pluginRect.width > 10 && pluginRect.height > 10) {
+                // Multiple resize calls to ensure dimensions are correct
+                plugin.canvas3d.handleResize();
+                // Wait one more frame then resolve
+                requestAnimationFrame(() => {
+                  plugin.canvas3d?.handleResize();
+                  resolve();
+                });
+                return;
+              }
+            }
+
+            // Keep waiting up to maxFrames
+            frameCount++;
+            if (frameCount >= maxFrames) {
+              // Timeout - try resize anyway
+              plugin.canvas3d.handleResize();
+              resolve();
+              return;
+            }
+
+            requestAnimationFrame(waitForLayout);
+          };
+
+          requestAnimationFrame(waitForLayout);
+        });
+
+        // Mark plugin as ready to trigger dependent effects
+        setPluginReady(true);
       } catch (err) {
         console.error('Failed to initialize Mol* viewer:', err);
         if (isMountedRef.current) {
@@ -421,7 +481,7 @@ export const MolstarViewer = memo(function MolstarViewer({
       // Clear existing structures
       await plugin.clear();
 
-      // Set white background color for WebGL rendering
+      // Ensure canvas has valid dimensions before loading structure
       if (plugin.canvas3d) {
         // Import Color dynamically
         const { Color } = await import('molstar/lib/mol-util/color');
@@ -432,6 +492,9 @@ export const MolstarViewer = memo(function MolstarViewer({
           },
           transparentBackground: false,
         });
+
+        // Force resize to ensure canvas has correct dimensions
+        plugin.canvas3d.handleResize();
       }
 
       // Import Asset for URL loading
@@ -492,68 +555,63 @@ export const MolstarViewer = memo(function MolstarViewer({
         );
       }
 
-      // Apply custom camera angle and zoom
-      // Position camera at a nice viewing angle (slightly from above and side)
-      const applyCameraView = () => {
+      // Reset camera to fit structure after it loads
+      // Use Mol*'s PluginCommands for reliable centering
+      const resetCamera = async () => {
         const plugin = pluginRef.current;
         if (!plugin?.canvas3d) return;
 
-        // Force resize first
+        // First ensure the canvas knows its current size
         plugin.canvas3d.handleResize();
 
-        const camera = plugin.canvas3d.camera;
-        if (!camera) return;
+        // Force a draw to ensure the canvas renders
+        plugin.canvas3d.requestDraw(true);
 
-        // Get structure center from bounding sphere
-        const boundingSphere = plugin.canvas3d.boundingSphere;
-        if (!boundingSphere || boundingSphere.radius < 1) return;
+        try {
+          // Import and use PluginCommands.Camera.Reset for proper centering
+          const { PluginCommands } = await import('molstar/lib/mol-plugin/commands');
+          await PluginCommands.Camera.Reset(plugin, {});
+        } catch (e) {
+          console.warn('Camera reset via PluginCommands failed:', e);
+          // Fallback to canvas3d methods
+          try {
+            if (typeof plugin.canvas3d.resetCamera === 'function') {
+              plugin.canvas3d.resetCamera();
+            } else {
+              plugin.canvas3d.requestCameraReset();
+            }
+          } catch (e2) {
+            plugin.canvas3d.requestCameraReset();
+          }
+        }
 
-        const target = [boundingSphere.center[0], boundingSphere.center[1], boundingSphere.center[2]];
-        const radius = boundingSphere.radius;
-
-        // We want the camera at a comfortable distance - about 1.5x the structure radius
-        const desiredDistance = Math.max(radius * 1.5, 20);
-
-        // Position camera at a nice viewing angle:
-        // - 30 degrees rotated around Y axis (horizontal rotation for 3D depth)
-        // - 20 degrees from above (vertical tilt for better perspective)
-        const horizontalAngle = Math.PI / 6;  // 30 degrees
-        const verticalAngle = Math.PI / 9;    // 20 degrees
-
-        // Calculate camera position using spherical coordinates
-        const newPosition = [
-          target[0] + desiredDistance * Math.cos(verticalAngle) * Math.sin(horizontalAngle),
-          target[1] + desiredDistance * Math.sin(verticalAngle),
-          target[2] + desiredDistance * Math.cos(verticalAngle) * Math.cos(horizontalAngle)
-        ];
-
-        console.log('[MolstarViewer] Setting camera at distance', desiredDistance.toFixed(1),
-          'angle (h:', (horizontalAngle * 180 / Math.PI).toFixed(0), '°, v:', (verticalAngle * 180 / Math.PI).toFixed(0), '°)');
-
-        const snapshot = camera.getSnapshot();
-        camera.setState({
-          ...snapshot,
-          target: target,
-          position: newPosition,
-          up: [0, 1, 0],
-          radius: radius,
-          radiusMax: radius * 10
-        });
-        plugin.canvas3d.commit(true);
+        // Force another draw after camera reset
+        plugin.canvas3d.requestDraw(true);
       };
 
-      // Apply view immediately and on layout transitions
-      // Use requestAnimationFrame to ensure rendering is ready
-      requestAnimationFrame(() => {
-        applyCameraView();
-        // Re-apply on layout transitions (200ms duration in Canvas.tsx)
-        setTimeout(applyCameraView, 100);
-        setTimeout(applyCameraView, 300);
+      // Series of resets to ensure proper centering as layout settles
+      // Use more aggressive timing for initial renders
+      const resetDelays = [50, 150, 300, 500, 800, 1200];
+      resetDelays.forEach((delay) => {
+        setTimeout(resetCamera, delay);
       });
 
       // Count atoms and notify parent
       if (pdbData) {
         onAtomCountChange?.(parseAtomCount(pdbData));
+      }
+
+      // For non-minimal UI, ensure canvas is properly sized after structure loads
+      // Panels are already 'collapsed' from initialization (user requirement)
+      if (!minimalUI && plugin.canvas3d) {
+        // Extra resize and camera reset sequence for collapsed panel layout
+        setTimeout(() => {
+          if (plugin.canvas3d) {
+            plugin.canvas3d.handleResize();
+            plugin.canvas3d.requestDraw(true);
+            resetCamera();
+          }
+        }, 300);
       }
 
       // Generate thumbnail after a short delay
@@ -567,7 +625,7 @@ export const MolstarViewer = memo(function MolstarViewer({
       setError('Failed to load structure. Using fallback renderer.');
       renderFallback();
     }
-  }, [pdbData, structureId, parseAtomCount]);
+  }, [pdbData, structureId, parseAtomCount, minimalUI]);
 
   // Generate thumbnail from canvas
   const generateThumbnail = useCallback(() => {
@@ -721,36 +779,23 @@ export const MolstarViewer = memo(function MolstarViewer({
   }, [pdbData, structureId, setThumbnail]);
 
   // Memoized control handlers - use pre-loaded PluginCommands
-  const handleResetView = useCallback(() => {
+  const handleResetView = useCallback(async () => {
     const plugin = pluginRef.current;
     if (!plugin?.canvas3d) return;
 
-    const camera = plugin.canvas3d.camera;
-    const boundingSphere = plugin.canvas3d.boundingSphere;
-    if (!camera || !boundingSphere || boundingSphere.radius < 1) return;
+    plugin.canvas3d.handleResize();
 
-    const target = [boundingSphere.center[0], boundingSphere.center[1], boundingSphere.center[2]];
-    const radius = boundingSphere.radius;
-    const desiredDistance = Math.max(radius * 1.5, 20);
-
-    const horizontalAngle = Math.PI / 6;
-    const verticalAngle = Math.PI / 9;
-
-    const newPosition = [
-      target[0] + desiredDistance * Math.cos(verticalAngle) * Math.sin(horizontalAngle),
-      target[1] + desiredDistance * Math.sin(verticalAngle),
-      target[2] + desiredDistance * Math.cos(verticalAngle) * Math.cos(horizontalAngle)
-    ];
-
-    const snapshot = camera.getSnapshot();
-    camera.setState({
-      ...snapshot,
-      target: target,
-      position: newPosition,
-      up: [0, 1, 0],
-      radius: radius,
-      radiusMax: radius * 10
-    }, 250); // Animate over 250ms
+    // Use pre-loaded PluginCommands for reliable reset
+    const PluginCommands = pluginCommandsRef.current;
+    if (PluginCommands) {
+      try {
+        await PluginCommands.Camera.Reset(plugin, {});
+      } catch (e) {
+        plugin.canvas3d.requestCameraReset();
+      }
+    } else {
+      plugin.canvas3d.requestCameraReset();
+    }
   }, []);
 
   const handleZoomIn = useCallback(() => {
@@ -838,7 +883,7 @@ export const MolstarViewer = memo(function MolstarViewer({
 
   // Handle reset view event
   useEffect(() => {
-    const handleReset = () => {
+    const handleReset = async () => {
       if (useFallback) {
         renderFallback();
         return;
@@ -847,33 +892,17 @@ export const MolstarViewer = memo(function MolstarViewer({
       const plugin = pluginRef.current;
       if (!plugin?.canvas3d) return;
 
-      const camera = plugin.canvas3d.camera;
-      const boundingSphere = plugin.canvas3d.boundingSphere;
-      if (!camera || !boundingSphere || boundingSphere.radius < 1) return;
+      plugin.canvas3d.handleResize();
 
-      const target = [boundingSphere.center[0], boundingSphere.center[1], boundingSphere.center[2]];
-      const radius = boundingSphere.radius;
-      const desiredDistance = Math.max(radius * 1.5, 20);
-
-      const horizontalAngle = Math.PI / 6;
-      const verticalAngle = Math.PI / 9;
-
-      const newPosition = [
-        target[0] + desiredDistance * Math.cos(verticalAngle) * Math.sin(horizontalAngle),
-        target[1] + desiredDistance * Math.sin(verticalAngle),
-        target[2] + desiredDistance * Math.cos(verticalAngle) * Math.cos(horizontalAngle)
-      ];
-
-      const snapshot = camera.getSnapshot();
-      camera.setState({
-        ...snapshot,
-        target: target,
-        position: newPosition,
-        up: [0, 1, 0],
-        radius: radius,
-        radiusMax: radius * 10
-      });
-      plugin.canvas3d.commit(true);
+      try {
+        if (typeof plugin.canvas3d.resetCamera === 'function') {
+          plugin.canvas3d.resetCamera();
+        } else {
+          plugin.canvas3d.requestCameraReset();
+        }
+      } catch (e) {
+        plugin.canvas3d.requestCameraReset();
+      }
     };
 
     window.addEventListener('molstar-reset-view', handleReset);
@@ -910,13 +939,57 @@ export const MolstarViewer = memo(function MolstarViewer({
   useEffect(() => {
     isMountedRef.current = true;
 
-    // Try Molstar first, fallback to canvas if it fails
-    initViewer()
-      .then(() => {
+    // Wait for container to have valid dimensions before initializing Mol*
+    // This is critical for WebGL canvas to initialize correctly
+    const waitForDimensionsAndInit = async () => {
+      // Check if container has valid dimensions
+      const checkDimensions = () => {
+        if (!containerRef.current) return false;
+        const rect = containerRef.current.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      };
+
+      // If dimensions are already valid, proceed immediately
+      if (checkDimensions()) {
+        return initViewer().then(() => {
+          if (isMountedRef.current) {
+            return loadStructure();
+          }
+        });
+      }
+
+      // Otherwise, wait for dimensions using requestAnimationFrame
+      // with a timeout to prevent infinite waiting
+      await new Promise<void>((resolve) => {
+        let attempts = 0;
+        const maxAttempts = 100; // ~1.6 seconds at 60fps
+
+        const checkLoop = () => {
+          if (!isMountedRef.current) {
+            resolve();
+            return;
+          }
+          if (checkDimensions() || attempts >= maxAttempts) {
+            resolve();
+            return;
+          }
+          attempts++;
+          requestAnimationFrame(checkLoop);
+        };
+        requestAnimationFrame(checkLoop);
+      });
+
+      if (!isMountedRef.current) return;
+
+      return initViewer().then(() => {
         if (isMountedRef.current) {
           return loadStructure();
         }
-      })
+      });
+    };
+
+    // Try Molstar first, fallback to canvas if it fails
+    waitForDimensionsAndInit()
       .catch((err) => {
         console.warn('Molstar initialization failed, using fallback:', err);
         if (isMountedRef.current) {
@@ -993,6 +1066,19 @@ export const MolstarViewer = memo(function MolstarViewer({
     if (!containerRef.current) return;
 
     const handleResize = () => {
+      // Update molstarDiv dimensions explicitly to match new container size
+      if (molstarContainerRef.current && containerRef.current) {
+        const containerRect = containerRef.current.getBoundingClientRect();
+        const pixelWidth = Math.floor(containerRect.width);
+        const pixelHeight = Math.floor(containerRect.height);
+
+        // Only update if dimensions are valid (non-zero)
+        if (pixelWidth > 0 && pixelHeight > 0) {
+          molstarContainerRef.current.style.width = `${pixelWidth}px`;
+          molstarContainerRef.current.style.height = `${pixelHeight}px`;
+        }
+      }
+
       // Handle Mol* resize
       if (pluginRef.current?.canvas3d) {
         pluginRef.current.canvas3d.handleResize();
@@ -1012,17 +1098,96 @@ export const MolstarViewer = memo(function MolstarViewer({
         handleResize();
       });
     });
-    
+
     resizeObserver.observe(containerRef.current);
-    
+
     // Also listen to window resize as a backup
     window.addEventListener('resize', handleResize);
-    
+
     return () => {
       resizeObserver.disconnect();
       window.removeEventListener('resize', handleResize);
     };
   }, [renderFallback, useFallback]);
+
+  // Subscribe to Mol* layout events to recenter view when panels open/close
+  useEffect(() => {
+    if (!pluginReady) return;
+
+    const plugin = pluginRef.current;
+    if (!plugin?.layout) return;
+
+    // Debounce timer for layout updates
+    let layoutUpdateTimer: NodeJS.Timeout | null = null;
+
+    // Helper function to update molstar container dimensions
+    const updateMolstarDimensions = () => {
+      if (molstarContainerRef.current && containerRef.current) {
+        const containerRect = containerRef.current.getBoundingClientRect();
+        const pixelWidth = Math.floor(containerRect.width);
+        const pixelHeight = Math.floor(containerRect.height);
+
+        if (pixelWidth > 0 && pixelHeight > 0) {
+          molstarContainerRef.current.style.width = `${pixelWidth}px`;
+          molstarContainerRef.current.style.height = `${pixelHeight}px`;
+        }
+      }
+    };
+
+    // When Mol* panels (Structure Tools, State Tree, etc.) open/close,
+    // recenter the camera to keep the structure visible and centered
+    const subscription = plugin.layout.events.updated.subscribe(() => {
+      if (!plugin.canvas3d) return;
+
+      // Cancel any pending reset
+      if (layoutUpdateTimer) {
+        clearTimeout(layoutUpdateTimer);
+      }
+
+      // Update container dimensions immediately
+      updateMolstarDimensions();
+
+      // Immediate resize to update viewport dimensions
+      plugin.canvas3d.handleResize();
+
+      // Debounced camera reset sequence - wait for layout animation to complete
+      layoutUpdateTimer = setTimeout(async () => {
+        if (!plugin.canvas3d) return;
+
+        // Helper function to reset camera using built-in method
+        const resetCameraView = () => {
+          if (!plugin.canvas3d) return;
+
+          // Update dimensions again in case they changed during animation
+          updateMolstarDimensions();
+          plugin.canvas3d.handleResize();
+
+          try {
+            if (typeof plugin.canvas3d.resetCamera === 'function') {
+              plugin.canvas3d.resetCamera();
+            } else {
+              plugin.canvas3d.requestCameraReset();
+            }
+          } catch (e) {
+            plugin.canvas3d.requestCameraReset();
+          }
+        };
+
+        // Series of resets to ensure proper centering after panel animation
+        const resetSequence = [50, 150, 350, 600];
+        resetSequence.forEach((delay) => {
+          setTimeout(resetCameraView, delay);
+        });
+      }, 50);
+    });
+
+    return () => {
+      if (layoutUpdateTimer) {
+        clearTimeout(layoutUpdateTimer);
+      }
+      subscription.unsubscribe();
+    };
+  }, [pluginReady]);
 
   if (error && !pdbData) {
     return (

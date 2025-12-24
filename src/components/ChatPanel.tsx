@@ -4,15 +4,10 @@ import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { useAppStore } from '@/lib/store';
 import { cn, formatTimestamp } from '@/lib/utils';
 import { parseFasta } from '@/lib/mock/generators';
-import { Task, StepEvent, StructureArtifact, ChatMessage } from '@/lib/types';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { Task, StepEvent, StructureArtifact, ChatMessage, MentionableFile } from '@/lib/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  Tooltip,
-  TooltipContent,
   TooltipProvider,
-  TooltipTrigger,
 } from '@/components/ui/tooltip';
 import {
   DropdownMenu,
@@ -33,6 +28,7 @@ import {
 } from 'lucide-react';
 import { HelixIcon } from '@/components/icons/ProteinIcon';
 import { StructureArtifactCard } from './StructureArtifactCard';
+import { ChatInputBase, ThinkingIntensity } from './chat/ChatInputBase';
 
 // Type for unified timeline items
 type TimelineItem =
@@ -84,17 +80,9 @@ export function ChatPanel() {
 
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const [thinkingIntensity, setThinkingIntensity] = useState<'high' | 'medium' | 'low'>('high');
-  const [showIntensityMenu, setShowIntensityMenu] = useState(false);
-  const [showFileMentions, setShowFileMentions] = useState(false);
-  const [mentionSearch, setMentionSearch] = useState('');
-  const [mentionPosition, setMentionPosition] = useState(0);
-  const [mentionedFiles, setMentionedFiles] = useState<Array<{ name: string; type: string }>>([]);
-  const mentionInputRef = useRef<HTMLInputElement>(null);
+  const [thinkingIntensity, setThinkingIntensity] = useState<ThinkingIntensity>('high');
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const activeConversation = conversations.find(c => c.id === activeConversationId);
 
@@ -146,15 +134,22 @@ export function ChatPanel() {
     return `sequence_${timestamp}.fasta`;
   };
 
-  const handleSubmit = async () => {
-    if (!input.trim() || isSending) return;
+  // Handle send from ChatInputBase
+  const handleSend = useCallback(async (content: string, mentionedFiles?: MentionableFile[]) => {
+    if (!content.trim() || isSending) return;
 
     let convId = activeConversationId;
     if (!convId) {
       convId = createConversation();
     }
 
-    const userMessage = input.trim();
+    // Build message content with mentioned files info
+    let userMessage = content.trim();
+    if (mentionedFiles && mentionedFiles.length > 0) {
+      const fileRefs = mentionedFiles.map(f => `@${f.path}`).join(', ');
+      userMessage = `${userMessage}\n\n[引用文件: ${fileRefs}]`;
+    }
+
     setInput('');
     setIsSending(true);
 
@@ -247,113 +242,50 @@ export function ChatPanel() {
     } finally {
       setIsSending(false);
     }
-  };
+  }, [activeConversationId, activeProjectId, addMessage, addProjectInput, createConversation, createProject, isSending, setActiveTask, startTaskStream]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit();
-    }
-  };
+  // Build available files for @ mentions with full path identification (no deduplication by name)
+  const availableFiles = useMemo(() => {
+    const files: MentionableFile[] = [];
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
-      if (content) {
-        // Add file content to input
-        setInput(content);
-        // Focus input
-        inputRef.current?.focus();
-      }
-    };
-    reader.readAsText(file);
-
-    // Reset file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
-    const cursorPos = e.target.selectionStart;
-
-    setInput(value);
-
-    // Check for @ symbol to trigger file mentions
-    // Support Chinese characters, alphanumerics, dots, underscores, hyphens
-    const beforeCursor = value.slice(0, cursorPos);
-    const atMatch = beforeCursor.match(/@([\w\u4e00-\u9fa5._-]*)$/);
-
-    if (atMatch) {
-      setShowFileMentions(true);
-      setMentionSearch(atMatch[1]);
-      setMentionPosition(cursorPos - atMatch[0].length);
-    } else {
-      setShowFileMentions(false);
-    }
-  };
-
-  const insertFileMention = (file: { name: string; type: string }) => {
-    // Add file to mentioned files if not already there
-    if (!mentionedFiles.some(f => f.name === file.name)) {
-      setMentionedFiles(prev => [...prev, file]);
-    }
-
-    // Remove the @ trigger from input
-    const before = input.slice(0, mentionPosition);
-    const after = input.slice(inputRef.current?.selectionStart || input.length);
-    setInput(before + after);
-
-    setShowFileMentions(false);
-    setMentionSearch('');
-
-    // Focus back to input
-    setTimeout(() => {
-      inputRef.current?.focus();
-    }, 0);
-  };
-
-  const removeFileMention = (filename: string) => {
-    setMentionedFiles(prev => prev.filter(f => f.name !== filename));
-  };
-
-  // Get available files for mentions
-  const availableFiles = React.useMemo(() => {
-    const files: Array<{ name: string; type: string }> = [];
-    const seenNames = new Set<string>();
-
-    // Add files from active project (inputs and outputs)
-    const activeProject = projects.find(p => p.id === activeProjectId);
-    if (activeProject) {
+    // Add files from all projects (with project path for disambiguation)
+    projects.forEach(project => {
       // Add input files (sequences)
-      activeProject.inputs.forEach(input => {
-        if (!seenNames.has(input.name)) {
-          files.push({ name: input.name, type: input.type });
-          seenNames.add(input.name);
-        }
+      project.inputs.forEach(input => {
+        files.push({
+          id: `${project.id}/${input.name}`,
+          name: input.name,
+          path: `${project.name}/${input.name}`,
+          type: input.type,
+          source: 'project'
+        });
       });
 
       // Add output files (structures)
-      activeProject.outputs.forEach(output => {
-        if (!seenNames.has(output.filename)) {
-          files.push({ name: output.filename, type: 'structure' });
-          seenNames.add(output.filename);
-        }
+      project.outputs.forEach(output => {
+        files.push({
+          id: `${project.id}/outputs/${output.filename}`,
+          name: output.filename,
+          path: `${project.name}/outputs/${output.filename}`,
+          type: 'structure',
+          source: 'project'
+        });
       });
-    }
+    });
 
     // Add files from activeTask
     if (activeTask?.steps) {
       activeTask.steps.forEach(step => {
         step.artifacts?.forEach(artifact => {
-          if (!seenNames.has(artifact.filename)) {
-            files.push({ name: artifact.filename, type: 'structure' });
-            seenNames.add(artifact.filename);
+          const id = `task/${activeTask.id}/${artifact.filename}`;
+          if (!files.some(f => f.id === id)) {
+            files.push({
+              id,
+              name: artifact.filename,
+              path: `task/${activeTask.id}/${artifact.filename}`,
+              type: 'structure',
+              source: 'task'
+            });
           }
         });
       });
@@ -362,24 +294,25 @@ export function ChatPanel() {
     // Add assets from active conversation
     if (activeConversation?.assets) {
       activeConversation.assets.forEach(asset => {
-        if (!seenNames.has(asset.name)) {
-          files.push({ name: asset.name, type: asset.type });
-          seenNames.add(asset.name);
+        const id = `conversation/${activeConversation.id}/${asset.name}`;
+        if (!files.some(f => f.id === id)) {
+          files.push({
+            id,
+            name: asset.name,
+            path: `conversation/${activeConversation.id}/${asset.name}`,
+            type: asset.type,
+            source: 'conversation'
+          });
         }
       });
     }
 
     return files;
-  }, [projects, activeProjectId, activeTask, activeConversation]);
-
-  const filteredFiles = availableFiles.filter(file =>
-    file.name.toLowerCase().includes(mentionSearch.toLowerCase())
-  );
+  }, [projects, activeTask, activeConversation]);
 
   // Handler to insert example sequence
   const handleExampleClick = useCallback((sequence: string) => {
     setInput(sequence);
-    inputRef.current?.focus();
   }, []);
 
   // Create unified timeline merging messages and structure artifacts
@@ -647,212 +580,21 @@ export function ChatPanel() {
           </div>
         </ScrollArea>
 
-        {/* Input */}
+        {/* Input - using shared ChatInputBase component */}
         <div className="flex-shrink-0 p-3 border-t border-cf-border">
-          <div className="relative">
-            {/* File mentions dropdown - Cursor style */}
-            {showFileMentions && (
-              <div className="absolute bottom-full left-0 mb-2 bg-cf-bg-tertiary border border-cf-border rounded-lg shadow-2xl min-w-[360px] max-h-[320px] overflow-hidden z-50">
-                {/* Search input */}
-                <div className="flex items-center gap-2 px-3 py-2.5 border-b border-cf-border/50">
-                  <input
-                    ref={mentionInputRef}
-                    type="text"
-                    value={mentionSearch}
-                    onChange={(e) => setMentionSearch(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Escape') {
-                        setShowFileMentions(false);
-                        setMentionSearch('');
-                        inputRef.current?.focus();
-                      } else if (e.key === 'Enter' && filteredFiles.length > 0) {
-                        e.preventDefault();
-                        insertFileMention(filteredFiles[0]);
-                      }
-                    }}
-                    placeholder="搜索文件..."
-                    className="flex-1 bg-transparent text-sm text-cf-text placeholder:text-cf-text-muted outline-none"
-                    autoFocus
-                  />
-                </div>
-
-                {/* File list */}
-                <div className="py-1 max-h-[260px] overflow-y-auto">
-                  {filteredFiles.length > 0 ? (
-                    filteredFiles.map((file, index) => {
-                      // Determine icon based on file type
-                      const isStructure = file.type === 'structure' || file.name.endsWith('.pdb');
-                      const Icon = isStructure ? HelixIcon : FileText;
-                      const iconColor = isStructure ? 'text-cf-success' : 'text-blue-400';
-
-                      // Extract path info (project name or type)
-                      const pathInfo = file.type === 'fasta' ? 'sequence' : file.type;
-
-                      return (
-                        <button
-                          key={index}
-                          onClick={() => insertFileMention(file)}
-                          className={cn(
-                            "w-full flex items-center gap-2.5 px-3 py-2 text-left",
-                            "hover:bg-cf-highlight transition-colors",
-                            "focus:outline-none focus:bg-cf-highlight"
-                          )}
-                        >
-                          <Icon className={cn("w-4 h-4 flex-shrink-0", iconColor)} />
-                          <span className="text-sm text-cf-text font-medium truncate">
-                            {file.name}
-                          </span>
-                          <span className="text-xs text-cf-text-muted truncate ml-auto">
-                            {pathInfo}
-                          </span>
-                        </button>
-                      );
-                    })
-                  ) : (
-                    <div className="px-3 py-4 text-center">
-                      <p className="text-sm text-cf-text-muted">没有找到匹配的文件</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            <div className="bg-cf-bg-input rounded-xl border border-cf-border focus-within:border-cf-accent/50 transition-colors">
-              {/* File chips - Cursor style */}
-              {mentionedFiles.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 px-3 pt-3">
-                  {mentionedFiles.map((file, index) => {
-                    const isStructure = file.type === 'structure' || file.name.endsWith('.pdb');
-                    const Icon = isStructure ? HelixIcon : FileText;
-                    const iconColor = isStructure ? 'text-cf-success' : 'text-blue-400';
-
-                    return (
-                      <div
-                        key={index}
-                        className={cn(
-                          "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md",
-                          "bg-cf-bg-tertiary border border-cf-border/60",
-                          "text-sm text-cf-text",
-                          "group hover:border-cf-accent/50 transition-colors"
-                        )}
-                      >
-                        <Icon className={cn("w-3.5 h-3.5 flex-shrink-0", iconColor)} />
-                        <span className="font-medium truncate max-w-[150px]">{file.name}</span>
-                        <button
-                          onClick={() => removeFileMention(file.name)}
-                          className="ml-0.5 p-0.5 rounded hover:bg-cf-highlight transition-colors"
-                        >
-                          <X className="w-3 h-3 text-cf-text-muted hover:text-cf-text" />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              <Textarea
-                ref={inputRef}
-                value={input}
-                onChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                placeholder={mentionedFiles.length > 0 ? "输入消息..." : "输入序列或问题... (输入 @ 引用文件)"}
-                className={cn(
-                  "w-full bg-transparent border-0 px-4 text-sm text-cf-text placeholder:text-cf-text-muted resize-none focus-visible:ring-0 focus-visible:ring-offset-0",
-                  mentionedFiles.length > 0 ? "pt-2 pb-3" : "py-3"
-                )}
-                rows={2}
-                disabled={isSending}
-              />
-              <div className="flex items-center justify-between px-3 py-2 border-t border-cf-border/50">
-                <div className="flex items-center gap-1">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".fasta,.fa,.pdb,.txt"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                  />
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-cf-text-secondary hover:text-cf-text hover:bg-cf-highlight"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        <Paperclip className="w-4 h-4" />
-                        <span className="sr-only">Upload sequence file</span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Upload sequence file (.fasta, .fa, .pdb)</TooltipContent>
-                  </Tooltip>
-
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 px-2 text-xs rounded-full bg-cf-accent text-white hover:bg-cf-accent/90"
-                      >
-                        {thinkingIntensity === 'high' && <Sparkles className="w-3.5 h-3.5 mr-0.5" />}
-                        {thinkingIntensity === 'medium' && <Scale className="w-3.5 h-3.5 mr-0.5" />}
-                        {thinkingIntensity === 'low' && <Zap className="w-3.5 h-3.5 mr-0.5" />}
-                        {thinkingIntensity === 'high' ? 'Pro' : thinkingIntensity === 'medium' ? 'Balanced' : 'Fast'}
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="min-w-[140px]">
-                      <DropdownMenuItem
-                        onSelect={() => setThinkingIntensity('high')}
-                        className={cn("flex items-center gap-2", thinkingIntensity === 'high' && "text-cf-accent")}
-                      >
-                        <Sparkles className="w-3.5 h-3.5" />
-                        Pro
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onSelect={() => setThinkingIntensity('medium')}
-                        className={cn("flex items-center gap-2", thinkingIntensity === 'medium' && "text-cf-accent")}
-                      >
-                        <Scale className="w-3.5 h-3.5" />
-                        Balanced
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onSelect={() => setThinkingIntensity('low')}
-                        className={cn("flex items-center gap-2", thinkingIntensity === 'low' && "text-cf-accent")}
-                      >
-                        <Zap className="w-3.5 h-3.5" />
-                        Fast
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className={cn(
-                        "h-8 w-8",
-                        input.trim() && !isSending
-                          ? "bg-cf-highlight hover:bg-cf-highlight-strong text-cf-text"
-                          : "text-cf-text-muted"
-                      )}
-                      onClick={handleSubmit}
-                      disabled={!input.trim() || isSending}
-                    >
-                      {isSending ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <ArrowUp className="w-4 h-4" />
-                      )}
-                      <span className="sr-only">Send message</span>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Send message</TooltipContent>
-                </Tooltip>
-              </div>
-            </div>
-          </div>
+          <ChatInputBase
+            value={input}
+            onChange={setInput}
+            onSend={handleSend}
+            availableFiles={availableFiles}
+            placeholder="输入序列或问题... (输入 @ 引用文件)"
+            isSending={isSending}
+            thinkingIntensity={thinkingIntensity}
+            onThinkingIntensityChange={setThinkingIntensity}
+            enableFileMentions={true}
+            enableThinkingMode={true}
+            enableFileUpload={true}
+          />
         </div>
       </div>
     </TooltipProvider>
