@@ -491,51 +491,64 @@ export const MolstarViewer = memo(function MolstarViewer({
         );
       }
 
-      // Reset camera to fit the structure, then zoom in for better default view
-      // Use PluginCommands for more reliable state update
-      const doReset = (applyZoom: boolean = false) => {
+      // Apply custom camera angle and zoom
+      // Position camera at a nice viewing angle (slightly from above and side)
+      const applyCameraView = () => {
         const plugin = pluginRef.current;
         if (!plugin?.canvas3d) return;
 
-        requestAnimationFrame(() => {
-          // Force resize to ensure viewport is correct
-          plugin.canvas3d.handleResize();
+        // Force resize first
+        plugin.canvas3d.handleResize();
 
-          // Reset camera
-          if (pluginCommandsRef.current) {
-            pluginCommandsRef.current.Camera.Reset(plugin, { durationMs: 0 });
-          } else {
-            plugin.canvas3d.requestCameraReset({ durationMs: 0 });
-          }
+        const camera = plugin.canvas3d.camera;
+        if (!camera) return;
 
-          // Apply zoom after reset to make the structure appear larger
-          // Default Camera.Reset shows the whole structure with padding, which can look small
-          // Zoom factor of 0.6 means 40% closer (larger appearance)
-          if (applyZoom && pluginCommandsRef.current) {
-            setTimeout(() => {
-              const camera = plugin.canvas3d?.camera;
-              if (camera) {
-                const snapshot = camera.getSnapshot();
-                pluginCommandsRef.current.Camera.SetSnapshot(plugin, {
-                  snapshot: {
-                    ...snapshot,
-                    radius: snapshot.radius * 0.6  // Zoom in by 40%
-                  }
-                });
-              }
-            }, 50);
-          }
+        // Get structure center from bounding sphere
+        const boundingSphere = plugin.canvas3d.boundingSphere;
+        if (!boundingSphere || boundingSphere.radius < 1) return;
+
+        const target = [boundingSphere.center[0], boundingSphere.center[1], boundingSphere.center[2]];
+        const radius = boundingSphere.radius;
+
+        // We want the camera at a comfortable distance - about 1.5x the structure radius
+        const desiredDistance = Math.max(radius * 1.5, 20);
+
+        // Position camera at a nice viewing angle:
+        // - 30 degrees rotated around Y axis (horizontal rotation for 3D depth)
+        // - 20 degrees from above (vertical tilt for better perspective)
+        const horizontalAngle = Math.PI / 6;  // 30 degrees
+        const verticalAngle = Math.PI / 9;    // 20 degrees
+
+        // Calculate camera position using spherical coordinates
+        const newPosition = [
+          target[0] + desiredDistance * Math.cos(verticalAngle) * Math.sin(horizontalAngle),
+          target[1] + desiredDistance * Math.sin(verticalAngle),
+          target[2] + desiredDistance * Math.cos(verticalAngle) * Math.cos(horizontalAngle)
+        ];
+
+        console.log('[MolstarViewer] Setting camera at distance', desiredDistance.toFixed(1),
+          'angle (h:', (horizontalAngle * 180 / Math.PI).toFixed(0), '°, v:', (verticalAngle * 180 / Math.PI).toFixed(0), '°)');
+
+        const snapshot = camera.getSnapshot();
+        camera.setState({
+          ...snapshot,
+          target: target,
+          position: newPosition,
+          up: [0, 1, 0],
+          radius: radius,
+          radiusMax: radius * 10
         });
+        plugin.canvas3d.commit(true);
       };
 
-      // Initial reset without zoom (structure may not be fully ready)
-      doReset(false);
-
-      // Multiple resets to handle layout transitions (200ms duration in Canvas.tsx)
-      // Apply zoom on the final reset when layout is stable
-      setTimeout(() => doReset(false), 50);
-      setTimeout(() => doReset(false), 250); // Just after transition (200ms)
-      setTimeout(() => doReset(true), 450); // Final reset with zoom applied
+      // Apply view immediately and on layout transitions
+      // Use requestAnimationFrame to ensure rendering is ready
+      requestAnimationFrame(() => {
+        applyCameraView();
+        // Re-apply on layout transitions (200ms duration in Canvas.tsx)
+        setTimeout(applyCameraView, 100);
+        setTimeout(applyCameraView, 300);
+      });
 
       // Count atoms and notify parent
       if (pdbData) {
@@ -708,23 +721,35 @@ export const MolstarViewer = memo(function MolstarViewer({
 
   // Memoized control handlers - use pre-loaded PluginCommands
   const handleResetView = useCallback(() => {
-    if (pluginRef.current && pluginCommandsRef.current) {
-      pluginCommandsRef.current.Camera.Reset(pluginRef.current, { durationMs: 250 });
-      // Apply zoom after reset to match the default view
-      setTimeout(() => {
-        const camera = pluginRef.current?.canvas3d?.camera;
-        if (camera && pluginCommandsRef.current) {
-          const snapshot = camera.getSnapshot();
-          pluginCommandsRef.current.Camera.SetSnapshot(pluginRef.current, {
-            snapshot: {
-              ...snapshot,
-              radius: snapshot.radius * 0.6  // Zoom in by 40%
-            },
-            durationMs: 250
-          });
-        }
-      }, 300);
-    }
+    const plugin = pluginRef.current;
+    if (!plugin?.canvas3d) return;
+
+    const camera = plugin.canvas3d.camera;
+    const boundingSphere = plugin.canvas3d.boundingSphere;
+    if (!camera || !boundingSphere || boundingSphere.radius < 1) return;
+
+    const target = [boundingSphere.center[0], boundingSphere.center[1], boundingSphere.center[2]];
+    const radius = boundingSphere.radius;
+    const desiredDistance = Math.max(radius * 1.5, 20);
+
+    const horizontalAngle = Math.PI / 6;
+    const verticalAngle = Math.PI / 9;
+
+    const newPosition = [
+      target[0] + desiredDistance * Math.cos(verticalAngle) * Math.sin(horizontalAngle),
+      target[1] + desiredDistance * Math.sin(verticalAngle),
+      target[2] + desiredDistance * Math.cos(verticalAngle) * Math.cos(horizontalAngle)
+    ];
+
+    const snapshot = camera.getSnapshot();
+    camera.setState({
+      ...snapshot,
+      target: target,
+      position: newPosition,
+      up: [0, 1, 0],
+      radius: radius,
+      radiusMax: radius * 10
+    }, 250); // Animate over 250ms
   }, []);
 
   const handleZoomIn = useCallback(() => {
@@ -813,26 +838,41 @@ export const MolstarViewer = memo(function MolstarViewer({
   // Handle reset view event
   useEffect(() => {
     const handleReset = () => {
-      if (pluginRef.current?.canvas3d && pluginCommandsRef.current) {
-        // Reset camera using PluginCommands
-        pluginCommandsRef.current.Camera.Reset(pluginRef.current, { durationMs: 0 });
-        // Apply zoom after reset to match the default view
-        setTimeout(() => {
-          const camera = pluginRef.current?.canvas3d?.camera;
-          if (camera && pluginCommandsRef.current) {
-            const snapshot = camera.getSnapshot();
-            pluginCommandsRef.current.Camera.SetSnapshot(pluginRef.current, {
-              snapshot: {
-                ...snapshot,
-                radius: snapshot.radius * 0.6  // Zoom in by 40%
-              }
-            });
-          }
-        }, 50);
-      } else if (useFallback) {
-        // Only re-render fallback if we're in fallback mode
+      if (useFallback) {
         renderFallback();
+        return;
       }
+
+      const plugin = pluginRef.current;
+      if (!plugin?.canvas3d) return;
+
+      const camera = plugin.canvas3d.camera;
+      const boundingSphere = plugin.canvas3d.boundingSphere;
+      if (!camera || !boundingSphere || boundingSphere.radius < 1) return;
+
+      const target = [boundingSphere.center[0], boundingSphere.center[1], boundingSphere.center[2]];
+      const radius = boundingSphere.radius;
+      const desiredDistance = Math.max(radius * 1.5, 20);
+
+      const horizontalAngle = Math.PI / 6;
+      const verticalAngle = Math.PI / 9;
+
+      const newPosition = [
+        target[0] + desiredDistance * Math.cos(verticalAngle) * Math.sin(horizontalAngle),
+        target[1] + desiredDistance * Math.sin(verticalAngle),
+        target[2] + desiredDistance * Math.cos(verticalAngle) * Math.cos(horizontalAngle)
+      ];
+
+      const snapshot = camera.getSnapshot();
+      camera.setState({
+        ...snapshot,
+        target: target,
+        position: newPosition,
+        up: [0, 1, 0],
+        radius: radius,
+        radiusMax: radius * 10
+      });
+      plugin.canvas3d.commit(true);
     };
 
     window.addEventListener('molstar-reset-view', handleReset);
