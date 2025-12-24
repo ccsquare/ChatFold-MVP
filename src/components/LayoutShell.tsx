@@ -19,29 +19,32 @@ export function LayoutShell({ sidebar, canvas, console: consoleContent }: Layout
     sidebarCollapsed,
     setSidebarCollapsed,
     consoleCollapsed,
-    setConsoleCollapsed
+    setConsoleCollapsed,
+    isMolstarExpanded
   } = useAppStore();
 
   return (
     <div className="h-screen w-screen flex overflow-hidden bg-cf-bg">
-      {/* Left Sidebar (Resizable) */}
-      {sidebarCollapsed ? (
-        <div className="flex-shrink-0 w-10 border-r border-cf-border bg-cf-bg-secondary flex flex-col items-center">
-          <div className="h-10 flex items-center justify-center">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 opacity-60 hover:opacity-100"
-              onClick={() => setSidebarCollapsed(false)}
-            >
-              <PanelLeftOpen className="w-4 h-4" />
-            </Button>
+      {/* Left Sidebar (Resizable) - hide when Mol* is expanded */}
+      {!isMolstarExpanded && (
+        sidebarCollapsed ? (
+          <div className="flex-shrink-0 w-10 border-r border-cf-border bg-cf-bg-secondary flex flex-col items-center">
+            <div className="h-10 flex items-center justify-center">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 opacity-60 hover:opacity-100"
+                onClick={() => setSidebarCollapsed(false)}
+              >
+                <PanelLeftOpen className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
-        </div>
-      ) : (
-        <ResizableSidebar>
-          {sidebar}
-        </ResizableSidebar>
+        ) : (
+          <ResizableSidebar>
+            {sidebar}
+          </ResizableSidebar>
+        )
       )}
 
       {/* Main Content Area */}
@@ -51,24 +54,26 @@ export function LayoutShell({ sidebar, canvas, console: consoleContent }: Layout
           {canvas}
         </div>
 
-        {/* Right Console (Resizable) */}
-        {consoleCollapsed ? (
-          <div className="flex-shrink-0 w-10 border-l border-cf-border bg-cf-bg-tertiary flex flex-col items-center">
-            <div className="h-10 flex items-center justify-center">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 opacity-60 hover:opacity-100"
-                onClick={() => setConsoleCollapsed(false)}
-              >
-                <PanelRightOpen className="w-4 h-4" />
-              </Button>
+        {/* Right Console (Resizable) - hide when Mol* is expanded */}
+        {!isMolstarExpanded && (
+          consoleCollapsed ? (
+            <div className="flex-shrink-0 w-10 border-l border-cf-border bg-cf-bg-tertiary flex flex-col items-center">
+              <div className="h-10 flex items-center justify-center">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 opacity-60 hover:opacity-100"
+                  onClick={() => setConsoleCollapsed(false)}
+                >
+                  <PanelRightOpen className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
-          </div>
-        ) : (
-          <ResizableConsole>
-            {consoleContent}
-          </ResizableConsole>
+          ) : (
+            <ResizableConsole>
+              {consoleContent}
+            </ResizableConsole>
+          )
         )}
       </main>
     </div>

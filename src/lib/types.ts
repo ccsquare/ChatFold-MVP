@@ -176,6 +176,9 @@ export interface AppState {
   // Thumbnails cache
   thumbnails: Record<string, string>;
 
+  // Molstar expanded state (for hiding overlays when Mol* is in fullscreen)
+  isMolstarExpanded: boolean;
+
   // Actions
   createConversation: () => string;
   setActiveConversation: (id: string | null) => void;
@@ -210,4 +213,5 @@ export interface AppState {
   setThumbnail: (structureId: string, thumbnail: string) => void;
   setTabSelection: (tabId: string, selection: AtomInfo | null) => void;
   setTabAtomCount: (tabId: string, atomCount: number) => void;
+  setMolstarExpanded: (expanded: boolean) => void;
 }

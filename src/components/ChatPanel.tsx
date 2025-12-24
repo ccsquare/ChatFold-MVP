@@ -22,17 +22,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   Paperclip,
-  BotMessageSquare,
-  User,
   Loader2,
   Sparkles,
   Scale,
   Zap,
   ArrowUp,
-  FlaskConical,
   FileText,
-  AtSign,
-  X
+  X,
+  Trophy
 } from 'lucide-react';
 import { HelixIcon } from '@/components/icons/ProteinIcon';
 import { StructureArtifactCard } from './StructureArtifactCard';
@@ -388,6 +385,7 @@ export function ChatPanel() {
   // Create unified timeline merging messages and structure artifacts
   const unifiedTimeline = useMemo(() => {
     const items: TimelineItem[] = [];
+    const seenStructureIds = new Set<string>();
 
     // Add messages
     if (activeConversation?.messages) {
@@ -397,12 +395,26 @@ export function ChatPanel() {
     }
 
     // Add artifacts from activeTask steps (only steps with artifacts)
+    // These are the live streaming artifacts
     if (activeTask?.steps) {
       activeTask.steps.forEach(step => {
         if (step.artifacts && step.artifacts.length > 0) {
           step.artifacts.forEach(artifact => {
+            seenStructureIds.add(artifact.structureId);
             items.push({ type: 'artifact', data: artifact, timestamp: step.ts });
           });
+        }
+      });
+    }
+
+    // Also add artifacts from persisted project outputs (for page refresh)
+    // Only add if not already present from activeTask
+    const activeProject = projects.find(p => p.id === activeProjectId);
+    if (activeProject?.outputs) {
+      activeProject.outputs.forEach(artifact => {
+        if (!seenStructureIds.has(artifact.structureId)) {
+          seenStructureIds.add(artifact.structureId);
+          items.push({ type: 'artifact', data: artifact, timestamp: activeProject.updatedAt });
         }
       });
     }
@@ -415,7 +427,7 @@ export function ChatPanel() {
     });
 
     return items;
-  }, [activeConversation?.messages, activeTask?.steps]);
+  }, [activeConversation?.messages, activeTask?.steps, projects, activeProjectId]);
 
   // Calculate current progress for the progress bar
   const currentProgress = useMemo(() => {
@@ -434,71 +446,131 @@ export function ChatPanel() {
                 <Loader2 className="w-4 h-4 text-cf-success animate-spin" />
                 <span className="text-xs font-medium text-cf-text">Processing...</span>
               </div>
-              <span className="text-xs text-cf-text-secondary">{currentProgress}%</span>
-            </div>
-            <div className="h-1 bg-cf-bg">
-              <div
-                className="h-full bg-cf-success transition-all duration-300"
-                style={{ width: `${currentProgress}%` }}
-              />
             </div>
           </div>
         )}
 
         {/* Unified Timeline */}
         <ScrollArea className="flex-1 min-h-0 p-3">
-          <div className="space-y-3">
-            {unifiedTimeline.map((item, index) => {
-              if (item.type === 'message') {
-                const message = item.data;
-                return (
-                  <div
-                    key={message.id}
-                    className={cn(
-                      "flex gap-2",
-                      message.role === 'user' ? "justify-end" : "justify-start"
-                    )}
-                  >
-                    {message.role !== 'user' && (
-                      <div className="w-6 h-6 rounded-full bg-cf-accent/20 flex items-center justify-center flex-shrink-0">
-                        <BotMessageSquare className="w-3.5 h-3.5 text-cf-accent" />
-                      </div>
-                    )}
+          <div className="flex flex-col">
+            {(() => {
+              // Pre-calculate artifact metadata for step numbering and delta
+              const allArtifacts = unifiedTimeline.filter(i => i.type === 'artifact') as Array<{ type: 'artifact'; data: StructureArtifact; timestamp: number }>;
 
-                    <div className={cn(
-                      "max-w-[80%] rounded-lg px-3 py-2 overflow-hidden",
-                      message.role === 'user'
-                        ? "bg-cf-accent text-white"
-                        : "bg-cf-bg border border-cf-border text-cf-text"
-                    )}>
-                      <p className="text-sm whitespace-pre-wrap break-all [overflow-wrap:anywhere]">{message.content}</p>
-                      <p className={cn(
-                        "text-[10px] mt-1",
-                        message.role === 'user' ? "text-white/60" : "text-cf-text-muted"
-                      )}>
-                        {formatTimestamp(message.timestamp)}
-                      </p>
-                    </div>
+              // Group timeline items: messages standalone, artifacts grouped together
+              const groups: Array<{ type: 'message'; data: ChatMessage } | { type: 'artifact-group'; artifacts: Array<{ data: StructureArtifact; timestamp: number; index: number }> }> = [];
+              let currentArtifactGroup: Array<{ data: StructureArtifact; timestamp: number; index: number }> = [];
+              let globalArtifactIndex = 0;
 
-                    {message.role === 'user' && (
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
-                        <User className="w-3.5 h-3.5 text-white" />
-                      </div>
-                    )}
-                  </div>
-                );
-              } else {
-                // Artifact card
-                const artifact = item.data;
-                return (
-                  <StructureArtifactCard
-                    key={artifact.structureId}
-                    artifact={artifact}
-                    timestamp={item.timestamp}
-                  />
-                );
+              unifiedTimeline.forEach((item) => {
+                if (item.type === 'message') {
+                  // Flush any pending artifact group
+                  if (currentArtifactGroup.length > 0) {
+                    groups.push({ type: 'artifact-group', artifacts: currentArtifactGroup });
+                    currentArtifactGroup = [];
+                  }
+                  groups.push({ type: 'message', data: item.data });
+                } else {
+                  currentArtifactGroup.push({
+                    data: item.data,
+                    timestamp: item.timestamp,
+                    index: globalArtifactIndex++
+                  });
+                }
+              });
+              // Flush remaining artifacts
+              if (currentArtifactGroup.length > 0) {
+                groups.push({ type: 'artifact-group', artifacts: currentArtifactGroup });
               }
-            })}
+
+              return groups.map((group, groupIndex) => {
+                if (group.type === 'message') {
+                  const message = group.data;
+                  const isUser = message.role === 'user';
+
+                  return (
+                    <div key={message.id} className={cn("flex pb-3", isUser ? "justify-end" : "justify-start")}>
+                      {/* Message content - no timeline, no icons */}
+                      <div className={cn(
+                        "max-w-[85%] rounded-lg px-3 py-2 overflow-hidden shadow-sm",
+                        isUser
+                          ? "bg-cf-accent text-white"
+                          : "bg-cf-bg border border-cf-border text-cf-text"
+                      )}>
+                        <p className="text-sm whitespace-pre-wrap break-all [overflow-wrap:anywhere]">{message.content}</p>
+                        <p className={cn(
+                          "text-[10px] mt-1",
+                          isUser ? "text-white/60" : "text-cf-text-muted"
+                        )}>
+                          {formatTimestamp(message.timestamp)}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                } else {
+                  // Artifact group with continuous timeline
+                  return (
+                    <div key={`artifact-group-${groupIndex}`}>
+                      {/* Artifact cards with nodes and connecting lines */}
+                      {group.artifacts.map((artifactItem, localIndex) => {
+                        const artifact = artifactItem.data;
+                        const currentArtifactIndex = artifactItem.index;
+                        const isFinal = artifact.label === 'final';
+                        const hasNextInGroup = localIndex < group.artifacts.length - 1;
+                        const hasNextArtifact = currentArtifactIndex < allArtifacts.length - 1;
+                        const nodeCenter = isFinal ? 12 : 6; // Half of node diameter (24px or 12px)
+
+                        // Get previous artifact's pLDDT for delta calculation
+                        const previousPlddt = currentArtifactIndex > 0
+                          ? allArtifacts[currentArtifactIndex - 1].data.metrics.plddtAvg
+                          : undefined;
+
+                        return (
+                          <div
+                            key={artifact.structureId}
+                            className={cn("flex gap-3 group relative", hasNextInGroup && "pb-4")}
+                          >
+                            {/* Timeline node column with connecting line */}
+                            <div className="relative flex-shrink-0 w-6 self-stretch">
+                              {/* Connecting line - spans full height, behind node */}
+                              {hasNextArtifact && (
+                                <div
+                                  aria-hidden="true"
+                                  className="absolute left-1/2 -translate-x-1/2 w-0.5 bg-cf-success/40"
+                                  style={{
+                                    top: `${nodeCenter}px`,
+                                    bottom: 0
+                                  }}
+                                />
+                              )}
+                              {/* Timeline node */}
+                              <div className={cn(
+                                "relative z-10 flex items-center justify-center rounded-full border-2 transition-all duration-300",
+                                "mx-auto", // Center horizontally
+                                isFinal
+                                  ? "w-6 h-6 border-cf-success bg-cf-bg text-cf-success shadow-[0_0_12px_rgba(34,197,94,0.3)] dark:shadow-[0_0_15px_rgba(103,218,122,0.2)]"
+                                  : "w-3 h-3 border-cf-success/60 bg-cf-bg group-hover:border-cf-success group-hover:scale-110 group-hover:shadow-[0_0_8px_rgba(103,218,122,0.15)]"
+                              )}>
+                                {isFinal && <Trophy className="w-3 h-3" />}
+                              </div>
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <StructureArtifactCard
+                                artifact={artifact}
+                                timestamp={artifactItem.timestamp}
+                                stepNumber={currentArtifactIndex + 1}
+                                previousPlddt={previousPlddt}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                }
+              });
+            })()}
 
             {/* Empty state */}
             {unifiedTimeline.length === 0 && (

@@ -275,3 +275,63 @@ body {
   background-image: none !important;
   background-color: transparent !important;
 }
+
+/* Mol* expanded viewport - must cover entire screen above all other elements */
+/* Use multiple high-specificity selectors and !important to override Mol* default styles */
+/* The expanded class is applied to .msp-plugin-content element */
+div.msp-plugin-content.msp-layout-expanded,
+.msp-plugin > .msp-plugin-content.msp-layout-expanded,
+.msp-layout-expanded[class*="msp-plugin-content"],
+.msp-layout-expanded {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 99999 !important;
+  background-color: var(--cf-bg, #1e1e1e) !important;
+}
+
+/* Ensure the expanded layout's children also fill the viewport */
+.msp-layout-expanded .msp-plugin-content,
+.msp-layout-expanded .msp-layout-main,
+.msp-layout-expanded .msp-viewport {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Ensure the canvas fills the expanded viewport */
+.msp-layout-expanded .msp-viewport canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Hide other UI elements when Mol* is expanded */
+/* Using :has() selector - supported in modern browsers */
+/* Target the main layout container and its siblings */
+body:has(.msp-layout-expanded) .h-screen.w-screen > *:not(:has(.msp-layout-expanded)) {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Also hide right-side console inside the main area when Mol* is expanded */
+body:has(.msp-layout-expanded) .h-screen.w-screen main > *:not(:has(.msp-layout-expanded)) {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Ensure elements containing the expanded viewer remain visible */
+body:has(.msp-layout-expanded) .h-screen.w-screen *:has(.msp-layout-expanded),
+body:has(.msp-layout-expanded) .msp-layout-expanded,
+body:has(.msp-layout-expanded) .msp-layout-expanded * {
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+/* Ensure the expanded Mol* and its contents remain visible */
+.msp-layout-expanded,
+.msp-layout-expanded * {
+  visibility: visible !important;
+}

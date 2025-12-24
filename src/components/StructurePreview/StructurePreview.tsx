@@ -27,6 +27,7 @@ export function StructurePreview({
   const [autoAdvance, setAutoAdvance] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
   const openStructureTab = useAppStore(state => state.openStructureTab);
+  const isMolstarExpanded = useAppStore(state => state.isMolstarExpanded);
 
   // Auto-advance to newest structure when streaming
   useEffect(() => {
@@ -155,15 +156,17 @@ export function StructurePreview({
         role="region"
         aria-label="Structure preview"
       >
-        {/* Timeline at top */}
-        <div className="flex-shrink-0 border-b border-cf-border bg-cf-bg-secondary/50">
-          <StructureTimeline
-            structures={structures}
-            currentIndex={currentIndex}
-            onSelect={handleSelect}
-            isStreaming={isStreaming}
-          />
-        </div>
+        {/* Timeline at top - hide when Mol* is expanded */}
+        {!isMolstarExpanded && (
+          <div className="flex-shrink-0 border-b border-cf-border bg-cf-bg-secondary/50">
+            <StructureTimeline
+              structures={structures}
+              currentIndex={currentIndex}
+              onSelect={handleSelect}
+              isStreaming={isStreaming}
+            />
+          </div>
+        )}
 
         {/* Main preview area */}
         <div
@@ -176,12 +179,14 @@ export function StructurePreview({
         >
           {currentStructure && (
             <>
-              {/* Preview badge */}
-              <div className="absolute top-3 left-3 z-10 pointer-events-none">
-                <span className="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-medium uppercase tracking-wider bg-cf-bg/80 backdrop-blur-sm text-cf-text-muted border border-cf-border/50">
-                  Preview
-                </span>
-              </div>
+              {/* Preview badge - hide when Mol* is expanded */}
+              {!isMolstarExpanded && (
+                <div className="absolute top-3 left-3 z-10 pointer-events-none">
+                  <span className="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-medium uppercase tracking-wider bg-cf-bg/80 backdrop-blur-sm text-cf-text-muted border border-cf-border/50">
+                    Preview
+                  </span>
+                </div>
+              )}
 
               {/* Molstar viewer with minimal UI - must fill the container */}
               <div className="absolute inset-0">
@@ -195,27 +200,31 @@ export function StructurePreview({
                 />
               </div>
 
-              {/* Metrics overlay */}
-              <PreviewMetrics structure={currentStructure} />
+              {/* Metrics overlay - hide when Mol* is expanded */}
+              {!isMolstarExpanded && <PreviewMetrics structure={currentStructure} />}
 
-              {/* Navigation controls */}
-              <PreviewControls
-                currentIndex={currentIndex}
-                totalCount={structures.length}
-                onPrevious={handlePrevious}
-                onNext={handleNext}
-                onOpenFull={handleOpenFull}
-                onResetView={handleResetView}
-                canGoPrevious={currentIndex > 0}
-                canGoNext={currentIndex < structures.length - 1}
-              />
+              {/* Navigation controls - hide when Mol* is expanded */}
+              {!isMolstarExpanded && (
+                <PreviewControls
+                  currentIndex={currentIndex}
+                  totalCount={structures.length}
+                  onPrevious={handlePrevious}
+                  onNext={handleNext}
+                  onOpenFull={handleOpenFull}
+                  onResetView={handleResetView}
+                  canGoPrevious={currentIndex > 0}
+                  canGoNext={currentIndex < structures.length - 1}
+                />
+              )}
 
-              {/* Double-click hint */}
-              <div className="absolute top-3 right-3 z-10 pointer-events-none">
-                <span className="text-[10px] text-cf-text-muted opacity-60">
-                  Double-click to open full viewer
-                </span>
-              </div>
+              {/* Double-click hint - hide when Mol* is expanded */}
+              {!isMolstarExpanded && (
+                <div className="absolute top-3 right-3 z-10 pointer-events-none">
+                  <span className="text-[10px] text-cf-text-muted opacity-60">
+                    Double-click to open full viewer
+                  </span>
+                </div>
+              )}
             </>
           )}
         </div>

@@ -6,6 +6,7 @@ import { TimelineBar } from './TimelineBar';
 import { StepDetailsPanel } from './StepDetailsPanel';
 import { MolstarViewer } from '@/components/MolstarViewer';
 import { cn } from '@/lib/utils';
+import { useAppStore } from '@/lib/store';
 
 interface FoldingTimelineViewerProps {
   steps: FoldStep[];
@@ -19,6 +20,7 @@ export function FoldingTimelineViewer({
   className,
 }: FoldingTimelineViewerProps) {
   const [activeStepIndex, setActiveStepIndex] = useState(0);
+  const isMolstarExpanded = useAppStore(state => state.isMolstarExpanded);
 
   // Ensure we have at least one step to display
   const validSteps = steps.length > 0 ? steps : [];
@@ -63,16 +65,18 @@ export function FoldingTimelineViewer({
       )}
     >
       <div className="flex h-[600px]">
-        {/* Left: Timeline navigation */}
-        <TimelineBar
-          steps={validSteps}
-          activeIndex={activeStepIndex}
-          onStepClick={handleStepClick}
-          onPrevious={handlePrevious}
-          onNext={handleNext}
-          canGoPrevious={canGoPrevious}
-          canGoNext={canGoNext}
-        />
+        {/* Left: Timeline navigation - hide when Mol* is expanded */}
+        {!isMolstarExpanded && (
+          <TimelineBar
+            steps={validSteps}
+            activeIndex={activeStepIndex}
+            onStepClick={handleStepClick}
+            onPrevious={handlePrevious}
+            onNext={handleNext}
+            canGoPrevious={canGoPrevious}
+            canGoNext={canGoNext}
+          />
+        )}
 
         {/* Center: Mol* Viewer */}
         <div className="flex-1 relative bg-white">
@@ -92,14 +96,16 @@ export function FoldingTimelineViewer({
             </div>
           )}
 
-          {/* Glass-morphism overlay for controls hint */}
-          <div className="absolute top-4 left-4 px-3 py-2 rounded-cf bg-black/20 backdrop-blur-sm text-white text-xs">
-            Drag to rotate • Scroll to zoom
-          </div>
+          {/* Glass-morphism overlay for controls hint - hide when Mol* is expanded */}
+          {!isMolstarExpanded && (
+            <div className="absolute top-4 left-4 px-3 py-2 rounded-cf bg-black/20 backdrop-blur-sm text-white text-xs">
+              Drag to rotate • Scroll to zoom
+            </div>
+          )}
         </div>
 
-        {/* Right: Details panel */}
-        <StepDetailsPanel step={activeStep} />
+        {/* Right: Details panel - hide when Mol* is expanded */}
+        {!isMolstarExpanded && <StepDetailsPanel step={activeStep} />}
       </div>
     </div>
   );

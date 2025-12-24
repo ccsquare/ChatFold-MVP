@@ -10,6 +10,9 @@ import { cn } from '@/lib/utils';
 import { Upload } from 'lucide-react';
 import { generateMockFoldSteps } from '@/lib/mock/foldSteps';
 
+// Note: ChatView is an alternative chat view that uses FoldingTimelineViewer
+// The main app uses ChatPanel instead
+
 export function ChatView() {
   const {
     activeConversationId,

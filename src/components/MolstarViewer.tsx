@@ -228,6 +228,7 @@ export const MolstarViewer = memo(function MolstarViewer({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const setThumbnail = useAppStore(state => state.setThumbnail);
+  const setMolstarExpanded = useAppStore(state => state.setMolstarExpanded);
   const initPromiseRef = useRef<Promise<void> | null>(null);
   const isMountedRef = useRef(true);
   const [useFallback, setUseFallback] = useState(false);
@@ -935,6 +936,58 @@ export const MolstarViewer = memo(function MolstarViewer({
     }
   }, [pdbData, useFallback]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Watch for Mol* expanded state changes via MutationObserver
+  // This detects when the user clicks Mol*'s built-in "Toggle Expanded Viewport" button
+  const lastExpandedRef = useRef<boolean | null>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const checkExpanded = () => {
+      // Check if any element has the .msp-layout-expanded class
+      const expandedElement = document.querySelector('.msp-layout-expanded');
+      const isExpanded = !!expandedElement;
+
+      // Only update state if value actually changed to prevent infinite loop
+      if (lastExpandedRef.current !== isExpanded) {
+        lastExpandedRef.current = isExpanded;
+        setMolstarExpanded(isExpanded);
+      }
+    };
+
+    // Create observer to watch for class changes in the DOM
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+          checkExpanded();
+          break;
+        }
+        // Also check for added/removed nodes (in case the expanded element is added dynamically)
+        if (mutation.type === 'childList') {
+          checkExpanded();
+          break;
+        }
+      }
+    });
+
+    // Observe the entire document for class changes
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['class'],
+      subtree: true,
+      childList: true
+    });
+
+    // Initial check
+    checkExpanded();
+
+    return () => {
+      observer.disconnect();
+      // Reset expanded state when component unmounts
+      setMolstarExpanded(false);
+    };
+  }, [setMolstarExpanded]);
+
   // Handle resize
   useEffect(() => {
     if (!containerRef.current) return;
@@ -944,7 +997,7 @@ export const MolstarViewer = memo(function MolstarViewer({
       if (pluginRef.current?.canvas3d) {
         pluginRef.current.canvas3d.handleResize();
       }
-      
+
       // Only re-render fallback if we're in fallback mode
       if (useFallback) {
         renderFallback();
@@ -994,10 +1047,10 @@ export const MolstarViewer = memo(function MolstarViewer({
       aria-label="3D protein structure viewer"
     >
       {/* Molstar container - MUST have NO React children to avoid DOM conflicts */}
+      {/* Note: removed isolation: isolate to allow Mol* expanded viewport to cover other elements */}
       <div
         ref={containerRef}
         className="absolute inset-0"
-        style={{ isolation: 'isolate' }}
       />
 
       {/* Loading overlay - sibling of containerRef, not child */}
