@@ -55,6 +55,7 @@ export interface ChatMessage {
   content: string;
   timestamp: number;
   artifacts?: StructureArtifact[];
+  foldSteps?: FoldStep[];  // For assistant messages with folding timeline
 }
 
 export interface Task {
@@ -126,6 +127,24 @@ export interface ViewerTab {
   thumbnail?: string;
   selection?: AtomInfo | null;
   atomCount?: number;
+}
+
+// Folding step for timeline viewer
+export interface FoldStep {
+  id: string;
+  stepNumber: number;
+  status: 'completed' | 'active' | 'pending';
+  structureId: string;
+  label: string;
+  stage: StageType;
+  metrics: {
+    rmsd: number;
+    energy: number;
+    time: number;
+    hBonds: number;
+    hydrophobic: number;
+  };
+  pdbData?: string;
 }
 
 // Store state types
