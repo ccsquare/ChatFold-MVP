@@ -492,7 +492,32 @@ export const MolstarViewer = memo(function MolstarViewer({
       }
 
       // Reset camera to fit the structure
-      plugin.canvas3d?.requestCameraReset();
+      // Use PluginCommands for more reliable state update
+      const doReset = () => {
+        const plugin = pluginRef.current;
+        if (!plugin?.canvas3d) return;
+
+        requestAnimationFrame(() => {
+          // Force resize to ensure viewport is correct
+          plugin.canvas3d.handleResize();
+          
+          // Reset camera
+          if (pluginCommandsRef.current) {
+            pluginCommandsRef.current.Camera.Reset(plugin, { durationMs: 0 });
+          } else {
+            plugin.canvas3d.requestCameraReset({ durationMs: 0 });
+          }
+        });
+      };
+
+      // Initial reset
+      doReset();
+
+      // Multiple resets to handle layout transitions (200ms duration in Canvas.tsx)
+      // We check at various intervals to ensure the final layout is captured
+      setTimeout(doReset, 50);
+      setTimeout(doReset, 250); // Just after transition (200ms)
+      setTimeout(doReset, 450); // Safety buffer
 
       // Count atoms and notify parent
       if (pdbData) {
@@ -832,15 +857,38 @@ export const MolstarViewer = memo(function MolstarViewer({
 
   // Handle resize
   useEffect(() => {
+    if (!containerRef.current) return;
+
     const handleResize = () => {
+      // Handle Mol* resize
+      if (pluginRef.current?.canvas3d) {
+        pluginRef.current.canvas3d.handleResize();
+      }
+      
       // Only re-render fallback if we're in fallback mode
       if (useFallback) {
         renderFallback();
       }
     };
 
+    // Use ResizeObserver for container resize events
+    // This ensures the viewer resizes correctly when the layout changes (e.g. sidebar toggles)
+    const resizeObserver = new ResizeObserver(() => {
+      // Use requestAnimationFrame to avoid "ResizeObserver loop limit exceeded" error
+      requestAnimationFrame(() => {
+        handleResize();
+      });
+    });
+    
+    resizeObserver.observe(containerRef.current);
+    
+    // Also listen to window resize as a backup
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', handleResize);
+    };
   }, [renderFallback, useFallback]);
 
   if (error && !pdbData) {
