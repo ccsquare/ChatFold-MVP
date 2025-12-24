@@ -10,7 +10,8 @@ import {
   ViewerTab,
   StructureArtifact,
   Project,
-  AtomInfo
+  AtomInfo,
+  LayoutMode
 } from './types';
 
 // Default sidebar width
@@ -50,6 +51,10 @@ export const useAppStore = create<AppState>()(
   // Projects
   projects: [],
   activeProjectId: null,
+
+  // Layout mode
+  layoutMode: 'chat-focus' as LayoutMode,
+  isLayoutTransitioning: false,
 
   // Sidebar
   sidebarWidth: DEFAULT_SIDEBAR_WIDTH,
@@ -267,7 +272,12 @@ export const useAppStore = create<AppState>()(
     );
 
     if (existingTab) {
-      set({ activeTabId: existingTab.id });
+      // Auto-switch to viewer mode when opening a structure
+      set({
+        activeTabId: existingTab.id,
+        layoutMode: 'viewer-focus',
+        consoleCollapsed: false
+      });
       return;
     }
 
@@ -280,9 +290,12 @@ export const useAppStore = create<AppState>()(
       metrics: structure.metrics
     };
 
+    // Auto-switch to viewer mode and ensure console is visible
     set(state => ({
       viewerTabs: [...state.viewerTabs, tab],
-      activeTabId: tab.id
+      activeTabId: tab.id,
+      layoutMode: 'viewer-focus',
+      consoleCollapsed: false
     }));
   },
 
@@ -300,9 +313,13 @@ export const useAppStore = create<AppState>()(
         }
       }
 
+      // Auto-switch back to chat mode when closing last tab (and not streaming)
+      const shouldSwitchToChat = newTabs.length === 0 && !state.isStreaming;
+
       return {
         viewerTabs: newTabs,
-        activeTabId: newActiveTabId
+        activeTabId: newActiveTabId,
+        layoutMode: shouldSwitchToChat ? 'chat-focus' : state.layoutMode
       };
     });
   },
@@ -323,7 +340,14 @@ export const useAppStore = create<AppState>()(
 
   // Task actions
   setActiveTask: (task) => {
-    set({ activeTask: task, isStreaming: task?.status === 'running' });
+    const isRunning = task?.status === 'running';
+    set({
+      activeTask: task,
+      isStreaming: isRunning,
+      // Auto-switch to viewer-focus when a task starts running
+      layoutMode: isRunning ? 'viewer-focus' : get().layoutMode,
+      consoleCollapsed: isRunning ? false : get().consoleCollapsed
+    });
   },
 
   updateTask: (taskId, updates) => {
@@ -415,6 +439,34 @@ export const useAppStore = create<AppState>()(
   // Molstar expanded state
   setMolstarExpanded: (expanded) => {
     set({ isMolstarExpanded: expanded });
+  },
+
+  // Layout mode actions
+  setLayoutMode: (mode) => {
+    set({ layoutMode: mode });
+  },
+
+  switchToViewerMode: () => {
+    set({
+      layoutMode: 'viewer-focus',
+      consoleCollapsed: false,
+      isLayoutTransitioning: true
+    });
+    // Reset transitioning flag after animation completes
+    setTimeout(() => {
+      set({ isLayoutTransitioning: false });
+    }, 300);
+  },
+
+  switchToChatMode: () => {
+    set({
+      layoutMode: 'chat-focus',
+      isLayoutTransitioning: true
+    });
+    // Reset transitioning flag after animation completes
+    setTimeout(() => {
+      set({ isLayoutTransitioning: false });
+    }, 300);
   }
     }),
     {
@@ -424,6 +476,7 @@ export const useAppStore = create<AppState>()(
         // Note: active task and streaming state are not persisted
         conversations: state.conversations,
         activeConversationId: state.activeConversationId,
+        layoutMode: state.layoutMode,
         sidebarWidth: state.sidebarWidth,
         sidebarCollapsed: state.sidebarCollapsed,
         consoleWidth: state.consoleWidth,

@@ -4,6 +4,7 @@ import { useCallback, useRef, useEffect, useState } from 'react';
 import { useAppStore, MIN_CONSOLE_WIDTH, MAX_CONSOLE_WIDTH } from '@/lib/store';
 import { cn } from '@/lib/utils';
 
+
 interface ResizableConsoleProps {
   children: React.ReactNode;
 }
@@ -66,7 +67,10 @@ export function ResizableConsole({ children }: ResizableConsoleProps) {
   return (
     <div
       ref={consoleRef}
-      className="relative flex flex-shrink-0 bg-cf-bg-tertiary border-l border-cf-border h-full"
+      className={cn(
+        "relative flex flex-shrink-0 bg-cf-bg-tertiary border-l border-cf-border h-full",
+        !isResizing && "transition-[width] duration-300 ease-out"
+      )}
       style={{ width: consoleWidth }}
     >
       {/* Resize Handle - centered on border */}
