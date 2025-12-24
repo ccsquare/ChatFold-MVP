@@ -491,33 +491,51 @@ export const MolstarViewer = memo(function MolstarViewer({
         );
       }
 
-      // Reset camera to fit the structure
+      // Reset camera to fit the structure, then zoom in for better default view
       // Use PluginCommands for more reliable state update
-      const doReset = () => {
+      const doReset = (applyZoom: boolean = false) => {
         const plugin = pluginRef.current;
         if (!plugin?.canvas3d) return;
 
         requestAnimationFrame(() => {
           // Force resize to ensure viewport is correct
           plugin.canvas3d.handleResize();
-          
+
           // Reset camera
           if (pluginCommandsRef.current) {
             pluginCommandsRef.current.Camera.Reset(plugin, { durationMs: 0 });
           } else {
             plugin.canvas3d.requestCameraReset({ durationMs: 0 });
           }
+
+          // Apply zoom after reset to make the structure appear larger
+          // Default Camera.Reset shows the whole structure with padding, which can look small
+          // Zoom factor of 0.6 means 40% closer (larger appearance)
+          if (applyZoom && pluginCommandsRef.current) {
+            setTimeout(() => {
+              const camera = plugin.canvas3d?.camera;
+              if (camera) {
+                const snapshot = camera.getSnapshot();
+                pluginCommandsRef.current.Camera.SetSnapshot(plugin, {
+                  snapshot: {
+                    ...snapshot,
+                    radius: snapshot.radius * 0.6  // Zoom in by 40%
+                  }
+                });
+              }
+            }, 50);
+          }
         });
       };
 
-      // Initial reset
-      doReset();
+      // Initial reset without zoom (structure may not be fully ready)
+      doReset(false);
 
       // Multiple resets to handle layout transitions (200ms duration in Canvas.tsx)
-      // We check at various intervals to ensure the final layout is captured
-      setTimeout(doReset, 50);
-      setTimeout(doReset, 250); // Just after transition (200ms)
-      setTimeout(doReset, 450); // Safety buffer
+      // Apply zoom on the final reset when layout is stable
+      setTimeout(() => doReset(false), 50);
+      setTimeout(() => doReset(false), 250); // Just after transition (200ms)
+      setTimeout(() => doReset(true), 450); // Final reset with zoom applied
 
       // Count atoms and notify parent
       if (pdbData) {
@@ -691,7 +709,21 @@ export const MolstarViewer = memo(function MolstarViewer({
   // Memoized control handlers - use pre-loaded PluginCommands
   const handleResetView = useCallback(() => {
     if (pluginRef.current && pluginCommandsRef.current) {
-      pluginCommandsRef.current.Camera.Reset(pluginRef.current, {});
+      pluginCommandsRef.current.Camera.Reset(pluginRef.current, { durationMs: 250 });
+      // Apply zoom after reset to match the default view
+      setTimeout(() => {
+        const camera = pluginRef.current?.canvas3d?.camera;
+        if (camera && pluginCommandsRef.current) {
+          const snapshot = camera.getSnapshot();
+          pluginCommandsRef.current.Camera.SetSnapshot(pluginRef.current, {
+            snapshot: {
+              ...snapshot,
+              radius: snapshot.radius * 0.6  // Zoom in by 40%
+            },
+            durationMs: 250
+          });
+        }
+      }, 300);
     }
   }, []);
 
@@ -781,14 +813,22 @@ export const MolstarViewer = memo(function MolstarViewer({
   // Handle reset view event
   useEffect(() => {
     const handleReset = () => {
-      if (pluginRef.current?.canvas3d) {
-        // Correct Molstar API for resetting camera
-        const camera = pluginRef.current.canvas3d.camera;
-        if (camera && camera.setState) {
-          camera.setState({ position: camera.state.position, target: camera.state.target }, 0);
-          camera.focus();
-        }
-        pluginRef.current.canvas3d.requestCameraReset();
+      if (pluginRef.current?.canvas3d && pluginCommandsRef.current) {
+        // Reset camera using PluginCommands
+        pluginCommandsRef.current.Camera.Reset(pluginRef.current, { durationMs: 0 });
+        // Apply zoom after reset to match the default view
+        setTimeout(() => {
+          const camera = pluginRef.current?.canvas3d?.camera;
+          if (camera && pluginCommandsRef.current) {
+            const snapshot = camera.getSnapshot();
+            pluginCommandsRef.current.Camera.SetSnapshot(pluginRef.current, {
+              snapshot: {
+                ...snapshot,
+                radius: snapshot.radius * 0.6  // Zoom in by 40%
+              }
+            });
+          }
+        }, 50);
       } else if (useFallback) {
         // Only re-render fallback if we're in fallback mode
         renderFallback();
