@@ -1,7 +1,6 @@
 'use client';
 
 import { useAppStore } from '@/lib/store';
-import { StepsPanel } from './StepsPanel';
 import { ChatPanel } from './ChatPanel';
 import { Plus, PanelRightClose } from 'lucide-react';
 
@@ -34,9 +33,8 @@ export function ConsoleDrawer() {
         </div>
       </div>
 
-      {/* Content */}
+      {/* Content - Only ChatPanel, no StepsPanel */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        <StepsPanel />
         <ChatPanel />
       </div>
     </div>
