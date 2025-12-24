@@ -15,7 +15,6 @@ describe('AppStore', () => {
       activeTabId: null,
       consoleWidth: 410,
       consoleCollapsed: false,
-      activeConsoleTab: 'chat',
       activeTask: null,
       isStreaming: false,
       thumbnails: {},
@@ -163,12 +162,6 @@ describe('AppStore', () => {
       // Test max bound
       useAppStore.getState().setConsoleWidth(1000);
       expect(useAppStore.getState().consoleWidth).toBe(600);
-    });
-
-    it('should change active console tab', () => {
-      useAppStore.getState().setActiveConsoleTab('charts');
-
-      expect(useAppStore.getState().activeConsoleTab).toBe('charts');
     });
   });
 

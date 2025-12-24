@@ -29,9 +29,37 @@ import {
   Sparkles,
   Scale,
   Zap,
-  ArrowUp
+  ArrowUp,
+  FlaskConical,
+  FileText,
+  AtSign,
+  X
 } from 'lucide-react';
 import { HelixIcon } from '@/components/icons/ProteinIcon';
+
+// Example sequences for testing
+const EXAMPLE_SEQUENCES = [
+  {
+    name: '人类血红蛋白 β 链',
+    description: 'Human Hemoglobin Beta Chain (147 aa)',
+    sequence: 'MVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSHGSAQVKGHGKKVADALTNAVAHVDDMPNALSALSDLHAHKLRVDPVNFKLLSHCLLVTLAAHLPAEFTPAVHASLDKFLASVSTVLTSKYR'
+  },
+  {
+    name: '胰岛素 A 链',
+    description: 'Human Insulin A Chain (21 aa)',
+    sequence: 'GIVEQCCTSICSLYQLENYCN'
+  },
+  {
+    name: '绿色荧光蛋白 GFP',
+    description: 'Green Fluorescent Protein (238 aa)',
+    sequence: 'MSKGEELFTGVVPILVELDGDVNGHKFSVSGEGEGDATYGKLTLKFICTTGKLPVPWPTLVTTFSYGVQCFSRYPDHMKQHDFFKSAMPEGYVQERTIFFKDDGNYKTRAEVKFEGDTLVNRIELKGIDFKEDGNILGHKLEYNYNSHNVYIMADKQKNGIKVNFKIRHNIEDGSVQLADHYQQNTPIGDGPVLLPDNHYLSTQSALSKDPNEKRDHMVLLEFVTAAGITHGMDELYK'
+  },
+  {
+    name: '短测试肽段',
+    description: 'Short Test Peptide (30 aa)',
+    sequence: 'MAEGEITTFTALTEKFNLPPGNYKKPKLLY'
+  }
+];
 
 export function ChatPanel() {
   const {
@@ -59,6 +87,8 @@ export function ChatPanel() {
   const [showFileMentions, setShowFileMentions] = useState(false);
   const [mentionSearch, setMentionSearch] = useState('');
   const [mentionPosition, setMentionPosition] = useState(0);
+  const [mentionedFiles, setMentionedFiles] = useState<Array<{ name: string; type: string }>>([]);
+  const mentionInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -253,8 +283,9 @@ export function ChatPanel() {
     setInput(value);
 
     // Check for @ symbol to trigger file mentions
+    // Support Chinese characters, alphanumerics, dots, underscores, hyphens
     const beforeCursor = value.slice(0, cursorPos);
-    const atMatch = beforeCursor.match(/@(\w*)$/);
+    const atMatch = beforeCursor.match(/@([\w\u4e00-\u9fa5._-]*)$/);
 
     if (atMatch) {
       setShowFileMentions(true);
@@ -265,20 +296,28 @@ export function ChatPanel() {
     }
   };
 
-  const insertFileMention = (filename: string) => {
+  const insertFileMention = (file: { name: string; type: string }) => {
+    // Add file to mentioned files if not already there
+    if (!mentionedFiles.some(f => f.name === file.name)) {
+      setMentionedFiles(prev => [...prev, file]);
+    }
+
+    // Remove the @ trigger from input
     const before = input.slice(0, mentionPosition);
     const after = input.slice(inputRef.current?.selectionStart || input.length);
-    const newValue = before + `@${filename} ` + after;
+    setInput(before + after);
 
-    setInput(newValue);
     setShowFileMentions(false);
+    setMentionSearch('');
 
-    // Focus and set cursor position
+    // Focus back to input
     setTimeout(() => {
       inputRef.current?.focus();
-      const newPos = (before + `@${filename} `).length;
-      inputRef.current?.setSelectionRange(newPos, newPos);
     }, 0);
+  };
+
+  const removeFileMention = (filename: string) => {
+    setMentionedFiles(prev => prev.filter(f => f.name !== filename));
   };
 
   // Get available files for mentions
@@ -335,6 +374,12 @@ export function ChatPanel() {
     file.name.toLowerCase().includes(mentionSearch.toLowerCase())
   );
 
+  // Handler to insert example sequence
+  const handleExampleClick = useCallback((sequence: string) => {
+    setInput(sequence);
+    inputRef.current?.focus();
+  }, []);
+
   return (
     <TooltipProvider delayDuration={300}>
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
@@ -388,8 +433,8 @@ export function ChatPanel() {
 
             {/* Empty state */}
             {(!activeConversation || activeConversation.messages.length === 0) && (
-              <div className="flex-1 flex items-center justify-center min-h-[200px]">
-                <div className="text-center">
+              <div className="flex-1 flex flex-col items-center justify-center min-h-[200px]">
+                <div className="text-center mb-6">
                   <div className="w-16 h-16 mx-auto mb-4 opacity-40">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src="/window.svg" alt="" className="w-full h-full" />
@@ -398,6 +443,61 @@ export function ChatPanel() {
                   <p className="text-cf-text-muted text-xs">
                     Paste a protein sequence to predict its structure
                   </p>
+                </div>
+
+                {/* Example sequences - Modern chip cards */}
+                <div className="w-full max-w-lg px-2">
+                  {/* Section header */}
+                  <div className="flex items-center justify-center gap-2 mb-4">
+                    <Sparkles className="w-3.5 h-3.5 text-cf-accent/60" />
+                    <span className="text-xs font-medium text-cf-text-muted uppercase tracking-wide">
+                      试试示例序列
+                    </span>
+                  </div>
+
+                  {/* Cards grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {EXAMPLE_SEQUENCES.map((example, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleExampleClick(example.sequence)}
+                        style={{ animationDelay: `${index * 50}ms` }}
+                        className={cn(
+                          // Animation on mount
+                          "animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards",
+                          // Base card styling
+                          "group relative flex flex-col items-start gap-1.5 p-3 text-left",
+                          "rounded-xl border border-cf-border/60",
+                          "bg-cf-bg-tertiary/40",
+                          // Hover state - theme-aware with stronger contrast
+                          "hover:bg-[var(--cf-card-hover-bg)] hover:border-cf-accent/60",
+                          "hover:shadow-[var(--cf-card-shadow-hover)]",
+                          "hover:-translate-y-0.5",
+                          // Active/pressed state
+                          "active:scale-[0.98] active:shadow-none active:translate-y-0",
+                          // Focus state for keyboard navigation
+                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-accent",
+                          "focus-visible:ring-offset-2 focus-visible:ring-offset-cf-bg",
+                          // Smooth transitions
+                          "transition-all duration-200 ease-out",
+                          "cursor-pointer"
+                        )}
+                      >
+                        {/* Decorative icon */}
+                        <div className="absolute top-2.5 right-2.5">
+                          <HelixIcon className="w-4 h-4 text-cf-text-muted opacity-30 group-hover:text-cf-accent group-hover:opacity-100 group-hover:scale-110 transition-all duration-200" />
+                        </div>
+
+                        {/* Content */}
+                        <span className="text-sm font-medium text-cf-text group-hover:text-cf-text pr-6 transition-colors duration-200">
+                          {example.name}
+                        </span>
+                        <span className="text-xs text-cf-text-muted line-clamp-1">
+                          {example.description}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
@@ -409,39 +509,116 @@ export function ChatPanel() {
         {/* Input */}
         <div className="flex-shrink-0 p-3 border-t border-cf-border">
           <div className="relative">
-            {/* File mentions dropdown */}
-            {showFileMentions && filteredFiles.length > 0 && (
-              <div className="absolute bottom-full left-0 mb-2 bg-cf-bg-secondary border border-cf-border rounded-lg shadow-xl min-w-[280px] max-h-[200px] overflow-y-auto z-50">
-                <div className="px-3 py-1.5 border-b border-cf-border">
-                  <p className="text-xs text-cf-text-muted">Reference a file</p>
+            {/* File mentions dropdown - Cursor style */}
+            {showFileMentions && (
+              <div className="absolute bottom-full left-0 mb-2 bg-cf-bg-tertiary border border-cf-border rounded-lg shadow-2xl min-w-[360px] max-h-[320px] overflow-hidden z-50">
+                {/* Search input */}
+                <div className="flex items-center gap-2 px-3 py-2.5 border-b border-cf-border/50">
+                  <input
+                    ref={mentionInputRef}
+                    type="text"
+                    value={mentionSearch}
+                    onChange={(e) => setMentionSearch(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        setShowFileMentions(false);
+                        setMentionSearch('');
+                        inputRef.current?.focus();
+                      } else if (e.key === 'Enter' && filteredFiles.length > 0) {
+                        e.preventDefault();
+                        insertFileMention(filteredFiles[0]);
+                      }
+                    }}
+                    placeholder="搜索文件..."
+                    className="flex-1 bg-transparent text-sm text-cf-text placeholder:text-cf-text-muted outline-none"
+                    autoFocus
+                  />
                 </div>
-                <div className="py-1">
-                  {filteredFiles.map((file, index) => (
-                    <Button
-                      key={index}
-                      variant="ghost"
-                      onClick={() => insertFileMention(file.name)}
-                      className="w-full justify-start h-auto px-3 py-2 hover:bg-cf-highlight"
-                    >
-                      <HelixIcon className="w-4 h-4 text-cf-success flex-shrink-0 mr-2" />
-                      <div className="flex-1 min-w-0 text-left">
-                        <p className="text-xs text-cf-text truncate">{file.name}</p>
-                        <p className="text-[10px] text-cf-text-muted">{file.type}</p>
-                      </div>
-                    </Button>
-                  ))}
+
+                {/* File list */}
+                <div className="py-1 max-h-[260px] overflow-y-auto">
+                  {filteredFiles.length > 0 ? (
+                    filteredFiles.map((file, index) => {
+                      // Determine icon based on file type
+                      const isStructure = file.type === 'structure' || file.name.endsWith('.pdb');
+                      const Icon = isStructure ? HelixIcon : FileText;
+                      const iconColor = isStructure ? 'text-cf-success' : 'text-blue-400';
+
+                      // Extract path info (project name or type)
+                      const pathInfo = file.type === 'fasta' ? 'sequence' : file.type;
+
+                      return (
+                        <button
+                          key={index}
+                          onClick={() => insertFileMention(file)}
+                          className={cn(
+                            "w-full flex items-center gap-2.5 px-3 py-2 text-left",
+                            "hover:bg-cf-highlight transition-colors",
+                            "focus:outline-none focus:bg-cf-highlight"
+                          )}
+                        >
+                          <Icon className={cn("w-4 h-4 flex-shrink-0", iconColor)} />
+                          <span className="text-sm text-cf-text font-medium truncate">
+                            {file.name}
+                          </span>
+                          <span className="text-xs text-cf-text-muted truncate ml-auto">
+                            {pathInfo}
+                          </span>
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <div className="px-3 py-4 text-center">
+                      <p className="text-sm text-cf-text-muted">没有找到匹配的文件</p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
 
             <div className="bg-cf-bg-input rounded-xl border border-cf-border focus-within:border-cf-accent/50 transition-colors">
+              {/* File chips - Cursor style */}
+              {mentionedFiles.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 px-3 pt-3">
+                  {mentionedFiles.map((file, index) => {
+                    const isStructure = file.type === 'structure' || file.name.endsWith('.pdb');
+                    const Icon = isStructure ? HelixIcon : FileText;
+                    const iconColor = isStructure ? 'text-cf-success' : 'text-blue-400';
+
+                    return (
+                      <div
+                        key={index}
+                        className={cn(
+                          "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md",
+                          "bg-cf-bg-tertiary border border-cf-border/60",
+                          "text-sm text-cf-text",
+                          "group hover:border-cf-accent/50 transition-colors"
+                        )}
+                      >
+                        <Icon className={cn("w-3.5 h-3.5 flex-shrink-0", iconColor)} />
+                        <span className="font-medium truncate max-w-[150px]">{file.name}</span>
+                        <button
+                          onClick={() => removeFileMention(file.name)}
+                          className="ml-0.5 p-0.5 rounded hover:bg-cf-highlight transition-colors"
+                        >
+                          <X className="w-3 h-3 text-cf-text-muted hover:text-cf-text" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
               <Textarea
                 ref={inputRef}
                 value={input}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
-                placeholder="Paste a sequence or ask a question... (Type @ to reference files)"
-                className="w-full bg-transparent border-0 px-4 py-3 text-sm text-cf-text placeholder:text-cf-text-muted resize-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                placeholder={mentionedFiles.length > 0 ? "输入消息..." : "输入序列或问题... (输入 @ 引用文件)"}
+                className={cn(
+                  "w-full bg-transparent border-0 px-4 text-sm text-cf-text placeholder:text-cf-text-muted resize-none focus-visible:ring-0 focus-visible:ring-offset-0",
+                  mentionedFiles.length > 0 ? "pt-2 pb-3" : "py-3"
+                )}
                 rows={2}
                 disabled={isSending}
               />
@@ -459,7 +636,7 @@ export function ChatPanel() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-cf-text hover:text-cf-text hover:bg-cf-highlight"
+                        className="h-8 w-8 text-cf-text-secondary hover:text-cf-text hover:bg-cf-highlight"
                         onClick={() => fileInputRef.current?.click()}
                       >
                         <Paperclip className="w-4 h-4" />

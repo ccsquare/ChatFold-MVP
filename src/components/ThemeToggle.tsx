@@ -30,7 +30,7 @@ export function ThemeToggle() {
 
   if (!mounted) {
     return (
-      <Button variant="ghost" size="icon" className="h-7 w-7 opacity-60">
+      <Button variant="ghost" size="icon" className="h-7 w-7 text-cf-text-secondary">
         <Sun className="w-4 h-4" />
       </Button>
     );
@@ -44,7 +44,7 @@ export function ThemeToggle() {
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7 opacity-60 hover:opacity-100 transition-transform duration-200 hover:scale-110"
+          className="h-7 w-7 text-cf-text-secondary hover:text-cf-text transition-all duration-200 hover:scale-110"
           onClick={handleToggle}
         >
           <Sun className={`w-4 h-4 absolute transition-all duration-300 ${isDark ? 'rotate-0 scale-100 opacity-100' : 'rotate-90 scale-0 opacity-0'}`} />
