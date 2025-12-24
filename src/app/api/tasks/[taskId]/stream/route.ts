@@ -71,8 +71,10 @@ export async function GET(
     async start(controller) {
       const eventGenerator = generateStepEvents(taskId, sequence);
       let structureCount = 0;
+      let eventCount = 0;
 
       for (const event of eventGenerator) {
+        eventCount++;
         // Add PDB data to artifacts
         if (event.artifacts) {
           for (const artifact of event.artifacts) {

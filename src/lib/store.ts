@@ -65,6 +65,7 @@ export const useAppStore = create<AppState>()(
   activeTask: null,
   isStreaming: false,
   thumbnails: {},
+  isMolstarExpanded: false,
 
   // Conversation actions
   createConversation: () => {
@@ -83,6 +84,7 @@ export const useAppStore = create<AppState>()(
       conversations: [conversation, ...state.conversations],
       activeConversationId: id,
       activeTask: null, // Clear active task when creating new conversation
+      activeProjectId: null, // Clear active project for new conversation
       isStreaming: false
     }));
 
@@ -90,7 +92,12 @@ export const useAppStore = create<AppState>()(
   },
 
   setActiveConversation: (id) => {
-    set({ activeConversationId: id });
+    set({
+      activeConversationId: id,
+      activeTask: null, // Clear active task when switching conversation
+      activeProjectId: null, // Clear active project when switching conversation
+      isStreaming: false
+    });
   },
 
   addMessage: (conversationId, messageData) => {
@@ -333,39 +340,45 @@ export const useAppStore = create<AppState>()(
 
   addStepEvent: (taskId, event) => {
     set(state => {
-      if (state.activeTask?.id === taskId) {
-        const newSteps = [...state.activeTask.steps, event];
-        const newStructures = event.artifacts
-          ? [...state.activeTask.structures, ...event.artifacts]
-          : state.activeTask.structures;
-
-        // Also add outputs to the active project
-        let updatedProjects = state.projects;
-        if (event.artifacts && event.artifacts.length > 0 && state.activeProjectId) {
-          updatedProjects = state.projects.map(proj =>
-            proj.id === state.activeProjectId
-              ? {
-                  ...proj,
-                  outputs: [...proj.outputs, ...event.artifacts!],
-                  taskId: taskId,
-                  updatedAt: Date.now()
-                }
-              : proj
-          );
-        }
-
-        return {
-          activeTask: {
-            ...state.activeTask,
-            steps: newSteps,
-            structures: newStructures,
-            status: event.status === 'complete' && event.stage === 'DONE' ? 'complete' : 'running'
-          },
-          isStreaming: event.stage !== 'DONE',
-          projects: updatedProjects
-        };
+      if (state.activeTask?.id !== taskId) {
+        return state;
       }
-      return state;
+
+      const newSteps = [...state.activeTask.steps, event];
+      const newStructures = event.artifacts
+        ? [...state.activeTask.structures, ...event.artifacts]
+        : state.activeTask.structures;
+
+      const isDone = event.stage === 'DONE';
+
+      // Only update projects when the stream is complete (DONE event)
+      // This avoids race conditions with zustand persist
+      let updatedProjects = state.projects;
+      if (isDone && state.activeProjectId) {
+        const allStructures = newStructures;
+
+        updatedProjects = state.projects.map(proj =>
+          proj.id === state.activeProjectId
+            ? {
+                ...proj,
+                outputs: allStructures,
+                taskId: taskId,
+                updatedAt: Date.now()
+              }
+            : proj
+        );
+      }
+
+      return {
+        activeTask: {
+          ...state.activeTask,
+          steps: newSteps,
+          structures: newStructures,
+          status: isDone ? 'complete' : 'running'
+        },
+        isStreaming: !isDone,
+        projects: updatedProjects
+      };
     });
   },
 
@@ -397,17 +410,26 @@ export const useAppStore = create<AppState>()(
           : tab
       )
     }));
+  },
+
+  // Molstar expanded state
+  setMolstarExpanded: (expanded) => {
+    set({ isMolstarExpanded: expanded });
   }
     }),
     {
       name: 'chatfold-storage',
       partialize: (state) => ({
-        // Only persist layout settings and projects (not active task or streaming state)
+        // Persist layout settings, projects, and conversations
+        // Note: active task and streaming state are not persisted
+        conversations: state.conversations,
+        activeConversationId: state.activeConversationId,
         sidebarWidth: state.sidebarWidth,
         sidebarCollapsed: state.sidebarCollapsed,
         consoleWidth: state.consoleWidth,
         consoleCollapsed: state.consoleCollapsed,
-        projects: state.projects
+        projects: state.projects,
+        activeProjectId: state.activeProjectId
       })
     }
   )

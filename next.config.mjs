@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
+  reactStrictMode: false, // Temporarily disabled to debug SSE issues
   transpilePackages: ['molstar'],
   webpack: (config, { isServer }) => {
     config.resolve.fallback = { fs: false, path: false };

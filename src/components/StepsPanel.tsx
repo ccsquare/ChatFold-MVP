@@ -105,19 +105,6 @@ export function StepsPanel() {
               {isStreaming ? 'Processing...' : 'Complete'}
             </span>
           </div>
-          <span className="text-xs text-cf-text">
-            {(activeTask.steps?.length || 0) > 0 ? `${activeTask.steps[activeTask.steps.length - 1]?.progress || 0}%` : '0%'}
-          </span>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="h-1 bg-cf-bg">
-          <div
-            className="h-full bg-cf-success transition-all duration-300"
-            style={{
-              width: `${(activeTask.steps?.length || 0) > 0 ? activeTask.steps[activeTask.steps.length - 1]?.progress || 0 : 0}%`
-            }}
-          />
         </div>
 
         {/* Steps Timeline */}
