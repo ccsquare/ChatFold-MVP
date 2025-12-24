@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useAppStore } from '@/lib/store';
 import { cn, formatTimestamp } from '@/lib/utils';
 import { parseFasta } from '@/lib/mock/generators';
-import { Task, StepEvent } from '@/lib/types';
+import { Task, StepEvent, StructureArtifact, ChatMessage } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -21,7 +21,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  Send,
   Paperclip,
   BotMessageSquare,
   User,
@@ -32,6 +31,12 @@ import {
   ArrowUp
 } from 'lucide-react';
 import { HelixIcon } from '@/components/icons/ProteinIcon';
+import { StructureArtifactCard } from './StructureArtifactCard';
+
+// Type for unified timeline items
+type TimelineItem =
+  | { type: 'message'; data: ChatMessage }
+  | { type: 'artifact'; data: StructureArtifact; timestamp: number };
 
 export function ChatPanel() {
   const {
@@ -335,59 +340,123 @@ export function ChatPanel() {
     file.name.toLowerCase().includes(mentionSearch.toLowerCase())
   );
 
+  // Create unified timeline merging messages and structure artifacts
+  const unifiedTimeline = useMemo(() => {
+    const items: TimelineItem[] = [];
+
+    // Add messages
+    if (activeConversation?.messages) {
+      activeConversation.messages.forEach(message => {
+        items.push({ type: 'message', data: message });
+      });
+    }
+
+    // Add artifacts from activeTask steps (only steps with artifacts)
+    if (activeTask?.steps) {
+      activeTask.steps.forEach(step => {
+        if (step.artifacts && step.artifacts.length > 0) {
+          step.artifacts.forEach(artifact => {
+            items.push({ type: 'artifact', data: artifact, timestamp: step.ts });
+          });
+        }
+      });
+    }
+
+    // Sort by timestamp
+    items.sort((a, b) => {
+      const tsA = a.type === 'message' ? a.data.timestamp : a.timestamp;
+      const tsB = b.type === 'message' ? b.data.timestamp : b.timestamp;
+      return tsA - tsB;
+    });
+
+    return items;
+  }, [activeConversation?.messages, activeTask?.steps]);
+
+  // Calculate current progress for the progress bar
+  const currentProgress = useMemo(() => {
+    if (!activeTask?.steps || activeTask.steps.length === 0) return 0;
+    return activeTask.steps[activeTask.steps.length - 1]?.progress || 0;
+  }, [activeTask?.steps]);
+
   return (
     <TooltipProvider delayDuration={300}>
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        {/* Messages */}
+        {/* Progress indicator when streaming */}
+        {isStreaming && (
+          <div className="flex-shrink-0 bg-cf-bg-tertiary border-b border-cf-border">
+            <div className="flex items-center justify-between px-3 py-2">
+              <div className="flex items-center gap-2">
+                <Loader2 className="w-4 h-4 text-cf-success animate-spin" />
+                <span className="text-xs font-medium text-cf-text">Processing...</span>
+              </div>
+              <span className="text-xs text-cf-text-secondary">{currentProgress}%</span>
+            </div>
+            <div className="h-1 bg-cf-bg">
+              <div
+                className="h-full bg-cf-success transition-all duration-300"
+                style={{ width: `${currentProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Unified Timeline */}
         <ScrollArea className="flex-1 min-h-0 p-3">
           <div className="space-y-3">
-            {/* Status indicator */}
-            {isStreaming && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-cf-success/10 rounded-lg">
-                <Loader2 className="w-4 h-4 text-cf-success animate-spin" />
-                <span className="text-sm text-cf-success">Processing your sequence...</span>
-              </div>
-            )}
+            {unifiedTimeline.map((item, index) => {
+              if (item.type === 'message') {
+                const message = item.data;
+                return (
+                  <div
+                    key={message.id}
+                    className={cn(
+                      "flex gap-2",
+                      message.role === 'user' ? "justify-end" : "justify-start"
+                    )}
+                  >
+                    {message.role !== 'user' && (
+                      <div className="w-6 h-6 rounded-full bg-cf-accent/20 flex items-center justify-center flex-shrink-0">
+                        <BotMessageSquare className="w-3.5 h-3.5 text-cf-accent" />
+                      </div>
+                    )}
 
-            {activeConversation?.messages.map(message => (
-              <div
-                key={message.id}
-                className={cn(
-                  "flex gap-2",
-                  message.role === 'user' ? "justify-end" : "justify-start"
-                )}
-              >
-                {message.role !== 'user' && (
-                  <div className="w-6 h-6 rounded-full bg-cf-accent/20 flex items-center justify-center flex-shrink-0">
-                    <BotMessageSquare className="w-3.5 h-3.5 text-cf-accent" />
+                    <div className={cn(
+                      "max-w-[80%] rounded-lg px-3 py-2 overflow-hidden",
+                      message.role === 'user'
+                        ? "bg-cf-accent text-white"
+                        : "bg-cf-bg border border-cf-border text-cf-text"
+                    )}>
+                      <p className="text-sm whitespace-pre-wrap break-all [overflow-wrap:anywhere]">{message.content}</p>
+                      <p className={cn(
+                        "text-[10px] mt-1",
+                        message.role === 'user' ? "text-white/60" : "text-cf-text-muted"
+                      )}>
+                        {formatTimestamp(message.timestamp)}
+                      </p>
+                    </div>
+
+                    {message.role === 'user' && (
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
+                        <User className="w-3.5 h-3.5 text-white" />
+                      </div>
+                    )}
                   </div>
-                )}
-
-                <div className={cn(
-                  "max-w-[80%] rounded-lg px-3 py-2 overflow-hidden",
-                  message.role === 'user'
-                    ? "bg-cf-accent text-white"
-                    : "bg-cf-bg border border-cf-border text-cf-text"
-                )}>
-                  <p className="text-sm whitespace-pre-wrap break-all [overflow-wrap:anywhere]">{message.content}</p>
-                  <p className={cn(
-                    "text-[10px] mt-1",
-                    message.role === 'user' ? "text-white/60" : "text-cf-text-muted"
-                  )}>
-                    {formatTimestamp(message.timestamp)}
-                  </p>
-                </div>
-
-                {message.role === 'user' && (
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
-                    <User className="w-3.5 h-3.5 text-white" />
-                  </div>
-                )}
-              </div>
-            ))}
+                );
+              } else {
+                // Artifact card
+                const artifact = item.data;
+                return (
+                  <StructureArtifactCard
+                    key={artifact.structureId}
+                    artifact={artifact}
+                    timestamp={item.timestamp}
+                  />
+                );
+              }
+            })}
 
             {/* Empty state */}
-            {(!activeConversation || activeConversation.messages.length === 0) && (
+            {unifiedTimeline.length === 0 && (
               <div className="flex-1 flex items-center justify-center min-h-[200px]">
                 <div className="text-center">
                   <div className="w-16 h-16 mx-auto mb-4 opacity-40">

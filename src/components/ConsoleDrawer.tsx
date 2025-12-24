@@ -2,7 +2,6 @@
 
 import { useAppStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
-import { StepsPanel } from './StepsPanel';
 import { ChatPanel } from './ChatPanel';
 import { ChartsPanel } from './ChartsPanel';
 import {
@@ -24,7 +23,7 @@ export function ConsoleDrawer() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-3 h-10 border-b border-cf-border bg-cf-bg-secondary">
-        <span className="text-sm font-medium text-cf-text">Console</span>
+        <span className="text-sm font-medium text-cf-text">Chat</span>
         <div className="flex items-center gap-1">
           <button
             className="p-1.5 rounded hover:bg-cf-highlight opacity-60 hover:opacity-100"
@@ -73,10 +72,7 @@ export function ConsoleDrawer() {
       {/* Content */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {activeConsoleTab === 'chat' ? (
-          <>
-            <StepsPanel />
-            <ChatPanel />
-          </>
+          <ChatPanel />
         ) : (
           <ChartsPanel />
         )}
