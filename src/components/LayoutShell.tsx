@@ -37,7 +37,7 @@ export function LayoutShell({ sidebar, canvas, console: consoleContent, chat }: 
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 opacity-60 hover:opacity-100"
+                className="h-7 w-7 text-cf-text-secondary hover:text-cf-text hover:bg-cf-highlight transition-colors"
                 onClick={() => setSidebarCollapsed(false)}
               >
                 <PanelLeftOpen className="w-4 h-4" />
@@ -74,7 +74,7 @@ export function LayoutShell({ sidebar, canvas, console: consoleContent, chat }: 
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 opacity-60 hover:opacity-100"
+                      className="h-7 w-7 text-cf-text-secondary hover:text-cf-text hover:bg-cf-highlight transition-colors"
                       onClick={() => setConsoleCollapsed(false)}
                     >
                       <PanelRightOpen className="w-4 h-4" />
