@@ -1,0 +1,65 @@
+"""Conversations API router."""
+
+import time
+
+from fastapi import APIRouter, HTTPException
+
+from ..models.schemas import Conversation, CreateConversationRequest
+from ..services.storage import storage
+from ..utils.id_generator import generate_id
+
+router = APIRouter(prefix="/api/conversations", tags=["conversations"])
+
+
+@router.post("")
+async def create_conversation(request: CreateConversationRequest = None):
+    """Create a new conversation."""
+    if request is None:
+        request = CreateConversationRequest()
+
+    now = int(time.time() * 1000)
+    conversation = Conversation(
+        id=generate_id("conv"),
+        title=request.title or "New Conversation",
+        createdAt=now,
+        updatedAt=now,
+        messages=[],
+        tasks=[],
+        assets=[]
+    )
+
+    storage.save_conversation(conversation)
+
+    return {
+        "conversationId": conversation.id,
+        "conversation": conversation.model_dump()
+    }
+
+
+@router.get("")
+async def list_conversations():
+    """List all conversations sorted by updatedAt (newest first)."""
+    conversations = storage.list_conversations()
+    return {
+        "conversations": [c.model_dump() for c in conversations]
+    }
+
+
+@router.get("/{conversation_id}")
+async def get_conversation(conversation_id: str):
+    """Get a specific conversation by ID."""
+    conversation = storage.get_conversation(conversation_id)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    return {"conversation": conversation.model_dump()}
+
+
+@router.delete("/{conversation_id}")
+async def delete_conversation(conversation_id: str):
+    """Delete a conversation."""
+    deleted = storage.delete_conversation(conversation_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    return {"ok": True}
