@@ -7,7 +7,6 @@ import { cn } from '@/lib/utils';
 import { CanvasTabs } from './CanvasTabs';
 import { MolstarViewer } from './MolstarViewer';
 import { SequenceViewer } from './SequenceViewer';
-import { StructurePreview } from './StructurePreview';
 import { AtomInfo } from '@/lib/types';
 import { ViewerToolbar } from './ViewerToolbar';
 import { FlaskConical } from 'lucide-react';
@@ -17,16 +16,11 @@ export function Canvas() {
   const activeTabId = useAppStore(state => state.activeTabId);
   const setTabSelection = useAppStore(state => state.setTabSelection);
   const setTabAtomCount = useAppStore(state => state.setTabAtomCount);
-  const activeTask = useAppStore(state => state.activeTask);
-  const isStreaming = useAppStore(state => state.isStreaming);
   const isMolstarExpanded = useAppStore(state => state.isMolstarExpanded);
 
   const activeTab = viewerTabs.find(t => t.id === activeTabId);
   const [isExpanded, setIsExpanded] = useState(false);
   const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
-
-  // Get structures from active task for preview
-  const previewStructures = activeTask?.structures || [];
 
   // Set up portal container on mount
   useEffect(() => {
@@ -131,27 +125,18 @@ export function Canvas() {
             )}
           </>
         ) : (
-          /* Empty State or Structure Preview */
-          (previewStructures.length > 0 || isStreaming) ? (
-            /* Show preview when there are structures or streaming */
-            <StructurePreview
-              structures={previewStructures}
-              isStreaming={isStreaming}
-            />
-          ) : (
-            /* Default empty state */
-            <div className="flex-1 flex items-center justify-center" role="status" aria-label="No structure loaded">
-              <div className="text-center">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-cf-bg-tertiary flex items-center justify-center">
-                  <FlaskConical className="w-8 h-8 text-cf-text-muted" aria-hidden="true" />
-                </div>
-                <p className="text-cf-text-secondary mb-1">No structure loaded</p>
-                <p className="text-sm text-cf-text-muted">
-                  Upload a FASTA file or select a structure from steps
-                </p>
+          /* Empty State */
+          <div className="flex-1 flex items-center justify-center" role="status" aria-label="No structure loaded">
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-cf-bg-tertiary flex items-center justify-center">
+                <FlaskConical className="w-8 h-8 text-cf-text-muted" aria-hidden="true" />
               </div>
+              <p className="text-cf-text-secondary mb-1">No structure loaded</p>
+              <p className="text-sm text-cf-text-muted">
+                Upload a FASTA file or select a structure from steps
+              </p>
             </div>
-          )
+          </div>
         )}
       </div>
     </main>
