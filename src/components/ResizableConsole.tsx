@@ -1,9 +1,8 @@
 'use client';
 
-import { useCallback, useRef, useEffect, useState } from 'react';
-import { useAppStore, MIN_CONSOLE_WIDTH, MAX_CONSOLE_WIDTH } from '@/lib/store';
+import { useAppStore, MIN_CONSOLE_WIDTH, MAX_CONSOLE_WIDTH, DEFAULT_CONSOLE_WIDTH } from '@/lib/store';
 import { cn } from '@/lib/utils';
-
+import { useResizable } from '@/hooks/useResizable';
 
 interface ResizableConsoleProps {
   children: React.ReactNode;
@@ -11,54 +10,15 @@ interface ResizableConsoleProps {
 
 export function ResizableConsole({ children }: ResizableConsoleProps) {
   const { consoleWidth, consoleCollapsed, setConsoleWidth } = useAppStore();
-  const [isResizing, setIsResizing] = useState(false);
-  const consoleRef = useRef<HTMLDivElement>(null);
-  const startXRef = useRef(0);
-  const startWidthRef = useRef(0);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsResizing(true);
-    startXRef.current = e.clientX;
-    startWidthRef.current = consoleWidth;
-  }, [consoleWidth]);
-
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isResizing) return;
-
-    // For right panel, dragging left increases width
-    const delta = startXRef.current - e.clientX;
-    const newWidth = startWidthRef.current + delta;
-    setConsoleWidth(newWidth);
-  }, [isResizing, setConsoleWidth]);
-
-  const handleMouseUp = useCallback(() => {
-    setIsResizing(false);
-  }, []);
-
-  useEffect(() => {
-    if (isResizing) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
-    } else {
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    }
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
-  }, [isResizing, handleMouseMove, handleMouseUp]);
-
-  // Handle double-click to reset to default width
-  const handleDoubleClick = useCallback(() => {
-    setConsoleWidth(410);
-  }, [setConsoleWidth]);
+  const { isResizing, handleMouseDown, handleDoubleClick, handleKeyDown } = useResizable({
+    initialWidth: consoleWidth,
+    minWidth: MIN_CONSOLE_WIDTH,
+    maxWidth: MAX_CONSOLE_WIDTH,
+    direction: 'right',
+    defaultWidth: DEFAULT_CONSOLE_WIDTH,
+    onWidthChange: setConsoleWidth,
+  });
 
   if (consoleCollapsed) {
     return null;
@@ -66,7 +26,6 @@ export function ResizableConsole({ children }: ResizableConsoleProps) {
 
   return (
     <div
-      ref={consoleRef}
       className={cn(
         "relative flex flex-shrink-0 bg-cf-bg-tertiary border-l border-cf-border h-full",
         !isResizing && "transition-[width] duration-300 ease-out"
@@ -89,13 +48,7 @@ export function ResizableConsole({ children }: ResizableConsoleProps) {
         aria-valuemin={MIN_CONSOLE_WIDTH}
         aria-valuemax={MAX_CONSOLE_WIDTH}
         tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'ArrowLeft') {
-            setConsoleWidth(consoleWidth + 10);
-          } else if (e.key === 'ArrowRight') {
-            setConsoleWidth(consoleWidth - 10);
-          }
-        }}
+        onKeyDown={handleKeyDown}
       />
 
       {/* Console Content */}

@@ -420,9 +420,13 @@ export const MolstarViewer = memo(function MolstarViewer({
             remoteState: 'none' as const
           },
           config: [
-            // Hide built-in viewport controls (zoom in/out, reset camera)
-            // We use our own custom controls instead
+            // Hide ALL built-in viewport controls for minimal UI (timeline previews)
             [PluginConfig.Viewport.ShowControls, false] as [typeof PluginConfig.Viewport.ShowControls, boolean],
+            [PluginConfig.Viewport.ShowExpand, false] as [typeof PluginConfig.Viewport.ShowExpand, boolean],
+            [PluginConfig.Viewport.ShowAnimation, false] as [typeof PluginConfig.Viewport.ShowAnimation, boolean],
+            [PluginConfig.Viewport.ShowSettings, false] as [typeof PluginConfig.Viewport.ShowSettings, boolean],
+            [PluginConfig.Viewport.ShowSelectionMode, false] as [typeof PluginConfig.Viewport.ShowSelectionMode, boolean],
+            [PluginConfig.Viewport.ShowTrackball, false] as [typeof PluginConfig.Viewport.ShowTrackball, boolean],
           ]
         } : {
           ...DefaultPluginUISpec(),
@@ -1475,7 +1479,7 @@ export const MolstarViewer = memo(function MolstarViewer({
 
   return (
     <div
-      className="molstar-viewer-container h-full w-full relative"
+      className={`molstar-viewer-container h-full w-full relative ${minimalUI ? 'molstar-minimal-ui' : ''}`}
       role="img"
       aria-label="3D protein structure viewer"
       style={{

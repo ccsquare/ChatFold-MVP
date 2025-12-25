@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { StructureArtifact } from '@/lib/types';
 import { useAppStore } from '@/lib/store';
-import { cn } from '@/lib/utils';
+import { cn, downloadPDBFile, formatTimestamp, getPlddtQuality, getPaeQuality, getConstraintQuality } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -21,44 +21,6 @@ interface StructureArtifactCardProps {
   previousPlddt?: number;
   showPreview?: boolean;        // Enable inline Mol* preview
   defaultExpanded?: boolean;    // Default expanded state for preview
-}
-
-// pLDDT quality assessment following AlphaFold conventions
-function getPlddtQuality(plddt: number): { label: string; color: string; bgColor: string } {
-  if (plddt >= 90) return { label: 'Very High', color: 'text-cf-confidence-excellent', bgColor: 'bg-cf-confidence-excellent/15' };
-  if (plddt >= 70) return { label: 'Confident', color: 'text-cf-confidence-good', bgColor: 'bg-cf-confidence-good/15' };
-  if (plddt >= 50) return { label: 'Low', color: 'text-cf-confidence-fair', bgColor: 'bg-cf-confidence-fair/15' };
-  return { label: 'Very Low', color: 'text-cf-confidence-poor', bgColor: 'bg-cf-confidence-poor/15' };
-}
-
-// PAE quality (lower is better)
-function getPaeQuality(pae: number): { color: string; bgColor: string } {
-  if (pae <= 5) return { color: 'text-cf-confidence-excellent', bgColor: 'bg-cf-confidence-excellent/15' };
-  if (pae <= 10) return { color: 'text-cf-confidence-good', bgColor: 'bg-cf-confidence-good/15' };
-  if (pae <= 20) return { color: 'text-cf-confidence-fair', bgColor: 'bg-cf-confidence-fair/15' };
-  return { color: 'text-cf-confidence-poor', bgColor: 'bg-cf-confidence-poor/15' };
-}
-
-// Constraint satisfaction quality (higher is better)
-function getConstraintQuality(constraint: number): { label: string; color: string; bgColor: string } {
-  if (constraint >= 90) return { label: 'Excellent', color: 'text-cf-confidence-excellent', bgColor: 'bg-cf-confidence-excellent/15' };
-  if (constraint >= 70) return { label: 'Good', color: 'text-cf-confidence-good', bgColor: 'bg-cf-confidence-good/15' };
-  if (constraint >= 50) return { label: 'Fair', color: 'text-cf-confidence-fair', bgColor: 'bg-cf-confidence-fair/15' };
-  return { label: 'Poor', color: 'text-cf-confidence-poor', bgColor: 'bg-cf-confidence-poor/15' };
-}
-
-// Format relative time
-function formatRelativeTime(timestamp: number): string {
-  const now = Date.now();
-  const diff = now - timestamp;
-  const seconds = Math.floor(diff / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-
-  if (seconds < 60) return 'just now';
-  if (minutes < 60) return `${minutes}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  return new Date(timestamp).toLocaleDateString();
 }
 
 export function StructureArtifactCard({
@@ -93,13 +55,7 @@ export function StructureArtifactCard({
 
   const handleDownload = () => {
     if (artifact.pdbData) {
-      const blob = new Blob([artifact.pdbData], { type: 'chemical/x-pdb' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = artifact.filename;
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadPDBFile(artifact.pdbData, artifact.filename);
     }
   };
 
@@ -118,17 +74,17 @@ export function StructureArtifactCard({
 
   return (
     <div className={cn(
-      "flex-1 min-w-0 rounded-lg border transition-all duration-200 overflow-hidden",
+      "flex-1 min-w-0 rounded-lg border transition-all duration-200 overflow-hidden shadow-sm dark:shadow-none",
       isFinal
-        ? "bg-cf-success/10 border-cf-success/40 shadow-sm"
-        : "bg-cf-bg-tertiary/60 hover:bg-cf-bg-tertiary/80 border-cf-border-strong hover:border-cf-accent/40"
+        ? "bg-cf-success/10 border-cf-success/40"
+        : "bg-cf-bg-tertiary border-cf-border-strong hover:border-cf-accent/40"
     )}>
       {/* Header */}
       <div className={cn(
         "flex items-center justify-between gap-2 px-3 py-1.5 border-b",
         isFinal
           ? "border-cf-success/30 bg-cf-success/15"
-          : "border-cf-border/50 bg-cf-bg-secondary/60"
+          : "border-cf-border bg-cf-bg-secondary"
       )}>
         <div className="flex items-center gap-2 min-w-0">
           {isFinal ? (
@@ -164,7 +120,7 @@ export function StructureArtifactCard({
 
         {timestamp && (
           <span className="text-[10px] text-cf-text-muted/80 whitespace-nowrap">
-            {formatRelativeTime(timestamp)}
+            {formatTimestamp(timestamp)}
           </span>
         )}
       </div>
@@ -176,7 +132,7 @@ export function StructureArtifactCard({
           {/* pLDDT */}
           <div className={cn(
             "flex flex-col gap-0.5 p-2 rounded-md border",
-            "bg-cf-bg-secondary/60 border-cf-border/50"
+            "bg-cf-bg-input/60 border-cf-border"
           )}>
             <span className="text-[9px] font-bold uppercase tracking-widest text-cf-text-muted/80">pLDDT</span>
             <div className="flex items-baseline gap-1">
@@ -189,7 +145,7 @@ export function StructureArtifactCard({
           {/* PAE */}
           <div className={cn(
             "flex flex-col gap-0.5 p-2 rounded-md border",
-            "bg-cf-bg-secondary/60 border-cf-border/50"
+            "bg-cf-bg-input/60 border-cf-border"
           )}>
             <span className="text-[9px] font-bold uppercase tracking-widest text-cf-text-muted/80">PAE</span>
             <div className="flex items-baseline gap-1">
@@ -203,7 +159,7 @@ export function StructureArtifactCard({
           {/* Constraint */}
           <div className={cn(
             "flex flex-col gap-0.5 p-2 rounded-md border",
-            "bg-cf-bg-secondary/60 border-cf-border/50"
+            "bg-cf-bg-input/60 border-cf-border"
           )}>
             <span className="text-[9px] font-bold uppercase tracking-widest text-cf-text-muted/80">Constraint</span>
             <div className="flex items-baseline gap-1">
@@ -221,7 +177,7 @@ export function StructureArtifactCard({
             className={cn(
               "w-full flex items-center justify-center gap-1.5 py-1.5 mb-2 rounded-md",
               "text-[11px] font-medium text-cf-text-secondary",
-              "bg-cf-bg/50 hover:bg-cf-highlight border border-cf-border/50",
+              "bg-cf-bg hover:bg-cf-bg-secondary border border-cf-border",
               "transition-colors duration-150"
             )}
           >
