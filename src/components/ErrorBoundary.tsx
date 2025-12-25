@@ -43,7 +43,7 @@ export class ErrorBoundary extends Component<Props, State> {
           role="alert"
           aria-live="assertive"
         >
-          <AlertCircle className="w-12 h-12 text-red-500 mb-4" aria-hidden="true" />
+          <AlertCircle className="w-12 h-12 text-cf-error mb-4" aria-hidden="true" />
           <h2 className="text-lg font-semibold text-cf-text mb-2">Something went wrong</h2>
           <p className="text-sm text-cf-text-secondary mb-4 text-center max-w-md">
             {this.state.error?.message || 'An unexpected error occurred'}

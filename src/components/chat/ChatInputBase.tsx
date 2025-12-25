@@ -223,7 +223,7 @@ export function ChatInputBase({
                   // Determine icon based on file type
                   const isStructure = file.type === 'structure' || file.name.endsWith('.pdb');
                   const Icon = isStructure ? HelixIcon : FileText;
-                  const iconColor = isStructure ? 'text-cf-success' : 'text-blue-400';
+                  const iconColor = isStructure ? 'text-cf-success/70' : 'text-cf-info/70';
 
                   return (
                     <button
@@ -267,7 +267,7 @@ export function ChatInputBase({
               {mentionedFiles.map((file) => {
                 const isStructure = file.type === 'structure' || file.name.endsWith('.pdb');
                 const Icon = isStructure ? HelixIcon : FileText;
-                const iconColor = isStructure ? 'text-cf-success' : 'text-blue-400';
+                const iconColor = isStructure ? 'text-cf-success/70' : 'text-cf-info/70';
 
                 return (
                   <div
@@ -286,7 +286,7 @@ export function ChatInputBase({
                       onClick={() => removeFileMention(file.id)}
                       className="ml-0.5 p-0.5 rounded hover:bg-cf-highlight transition-colors"
                     >
-                      <X className="w-3 h-3 text-cf-text-muted hover:text-cf-text" />
+                      <X className="w-3 h-3 text-cf-text-secondary hover:text-cf-text" />
                     </button>
                   </div>
                 );
@@ -402,7 +402,7 @@ export function ChatInputBase({
                   disabled={!value.trim() || disabled || isSending}
                 >
                   {isSending ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="w-4 h-4 text-cf-success animate-spin" />
                   ) : (
                     <ArrowUp className="w-4 h-4" />
                   )}

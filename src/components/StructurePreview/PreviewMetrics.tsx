@@ -14,18 +14,18 @@ export function PreviewMetrics({ structure, className }: PreviewMetricsProps) {
 
   // Determine confidence level for pLDDT
   const getPlddtColor = (score: number) => {
-    if (score >= 90) return 'text-blue-400'; // Very high
-    if (score >= 70) return 'text-cyan-400'; // High
-    if (score >= 50) return 'text-yellow-400'; // Low
-    return 'text-orange-400'; // Very low
+    if (score >= 90) return 'text-cf-confidence-excellent'; // Very high
+    if (score >= 70) return 'text-cf-confidence-good'; // High
+    if (score >= 50) return 'text-cf-confidence-fair'; // Low
+    return 'text-cf-confidence-poor'; // Very low
   };
 
   // Determine quality level for PAE (lower is better)
   const getPaeColor = (score: number) => {
-    if (score <= 5) return 'text-blue-400'; // Excellent
-    if (score <= 10) return 'text-cyan-400'; // Good
-    if (score <= 20) return 'text-yellow-400'; // Fair
-    return 'text-orange-400'; // Poor
+    if (score <= 5) return 'text-cf-confidence-excellent'; // Excellent
+    if (score <= 10) return 'text-cf-confidence-good'; // Good
+    if (score <= 20) return 'text-cf-confidence-fair'; // Fair
+    return 'text-cf-confidence-poor'; // Poor
   };
 
   return (

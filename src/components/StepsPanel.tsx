@@ -130,15 +130,15 @@ export function StepsPanel() {
                     <div className={cn(
                       "w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0",
                       step.status === 'complete' ? "bg-cf-success/20" :
-                        step.status === 'running' ? "bg-blue-500/20" :
-                          step.status === 'failed' ? "bg-red-500/20" :
+                        step.status === 'running' ? "bg-cf-info/20" :
+                          step.status === 'failed' ? "bg-cf-error/20" :
                             "bg-cf-bg"
                     )}>
                       <Icon className={cn(
                         "w-3.5 h-3.5",
                         step.status === 'complete' ? "text-cf-success" :
-                          step.status === 'running' ? "text-blue-500" :
-                            step.status === 'failed' ? "text-red-500" :
+                          step.status === 'running' ? "text-cf-info" :
+                            step.status === 'failed' ? "text-cf-error" :
                               "text-cf-text-secondary"
                       )} />
                     </div>
@@ -203,10 +203,10 @@ export function StepsPanel() {
                                       onClick={() => handleOpenStructure(artifact)}
                                     >
                                       <ExternalLink className="w-3.5 h-3.5" />
-                                      <span className="sr-only">Open in viewer</span>
+                                      <span className="sr-only">Open in full viewer</span>
                                     </Button>
                                   </TooltipTrigger>
-                                  <TooltipContent>Open in viewer</TooltipContent>
+                                  <TooltipContent>Open in full viewer</TooltipContent>
                                 </Tooltip>
 
                                 <Tooltip>
@@ -228,10 +228,10 @@ export function StepsPanel() {
                                       }}
                                     >
                                       <Download className="w-3.5 h-3.5" />
-                                      <span className="sr-only">Download</span>
+                                      <span className="sr-only">Download PDB</span>
                                     </Button>
                                   </TooltipTrigger>
-                                  <TooltipContent>Download</TooltipContent>
+                                  <TooltipContent>Download PDB</TooltipContent>
                                 </Tooltip>
                               </div>
                             </div>

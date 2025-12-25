@@ -448,7 +448,12 @@ export function ChatPanel() {
                       {group.artifacts.map((artifactItem, localIndex) => {
                         const artifact = artifactItem.data;
                         const currentArtifactIndex = artifactItem.index;
-                        const isFinal = artifact.label === 'final';
+                        // Determine if this is the best result: check label (case-insensitive) OR highest pLDDT in the group
+                        const isFinalByLabel = artifact.label?.toLowerCase() === 'final';
+                        const isLastInGroup = localIndex === group.artifacts.length - 1;
+                        const highestPlddt = Math.max(...group.artifacts.map(a => a.data.metrics.plddtAvg));
+                        const isBestByPlddt = artifact.metrics.plddtAvg === highestPlddt && isLastInGroup;
+                        const isFinal = isFinalByLabel || isBestByPlddt;
                         const hasNextInGroup = localIndex < group.artifacts.length - 1;
                         const hasNextArtifact = currentArtifactIndex < allArtifacts.length - 1;
                         const nodeCenter = isFinal ? 12 : 6; // Half of node diameter (24px or 12px)
