@@ -161,7 +161,11 @@ export function ViewerToolbar({ isExpanded = false, onToggleExpand }: ViewerTool
               <Button
                 variant="ghost"
                 size="icon"
-                className={`h-8 w-8 transition-colors ${isToolsPanelVisible ? 'text-cf-accent' : 'text-cf-text-secondary hover:text-cf-text'}`}
+                className={`h-8 w-8 transition-colors ${
+                  isToolsPanelVisible
+                    ? 'text-cf-accent hover:text-cf-accent hover:bg-cf-accent/10'
+                    : 'text-cf-text-secondary hover:text-cf-text hover:bg-cf-highlight'
+                }`}
                 onClick={handleToggleToolsPanel}
               >
                 <Wrench className="w-4 h-4" />

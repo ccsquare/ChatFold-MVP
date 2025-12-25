@@ -8,7 +8,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { FoldStep } from '@/lib/types';
 import { MolstarViewer } from '@/components/MolstarViewer';
-import { cn } from '@/lib/utils';
+import { cn, downloadPDBFile } from '@/lib/utils';
 import { useAppStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -20,42 +20,16 @@ import {
 } from '@/components/ui/tooltip';
 import {
   Timer,
-  AlignJustify,
-  Brain,
-  Waves,
-  ShieldCheck,
-  CircleAlert,
   Loader2,
   Download,
   ExternalLink,
-  CheckCircle2,
   ChevronDown,
   ChevronUp,
   Trophy,
+  CheckCircle2,
 } from 'lucide-react';
 import { HelixIcon } from '@/components/icons/ProteinIcon';
-
-// Stage icons matching StepsPanel
-const stageIcons: Record<string, React.ComponentType<{ className?: string }>> = {
-  'QUEUED': Timer,
-  'MSA': AlignJustify,
-  'MODEL': Brain,
-  'RELAX': Waves,
-  'QA': ShieldCheck,
-  'DONE': CheckCircle2,
-  'ERROR': CircleAlert,
-};
-
-// Stage labels matching StepsPanel
-const stageLabels: Record<string, string> = {
-  'QUEUED': 'Queued',
-  'MSA': 'Sequence Alignment',
-  'MODEL': 'Structure Prediction',
-  'RELAX': 'Energy Relaxation',
-  'QA': 'Quality Assessment',
-  'DONE': 'Complete',
-  'ERROR': 'Error',
-};
+import { STAGE_ICONS, STAGE_LABELS } from '@/lib/constants/stages';
 
 // Module-level Set to track which messages have auto-opened their best structure
 // This persists across component remounts but resets on page refresh
@@ -148,14 +122,7 @@ export function FoldingTimelineViewer({
 
   const handleDownload = useCallback((step: FoldStep) => {
     if (!step.pdbData) return;
-
-    const blob = new Blob([step.pdbData], { type: 'chemical/x-pdb' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `step-${step.stepNumber}.pdb`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadPDBFile(step.pdbData, `step-${step.stepNumber}.pdb`);
   }, []);
 
   if (validSteps.length === 0) {
@@ -196,7 +163,7 @@ export function FoldingTimelineViewer({
         </div>
 
         {/* Timeline card - vertical list style matching StepsPanel */}
-        <div className="rounded-cf-lg border border-cf-border bg-cf-bg-secondary overflow-hidden">
+        <div className="rounded-cf-lg border border-cf-border bg-cf-bg-secondary shadow-sm dark:shadow-none overflow-hidden">
           {/* Progress Bar */}
           <div className="h-1 bg-cf-bg">
             <div className="h-full bg-cf-success w-full" />
@@ -206,7 +173,7 @@ export function FoldingTimelineViewer({
           <ScrollArea className="max-h-[600px]">
             <div className="p-3">
               {validSteps.map((step, index) => {
-                const Icon = stageIcons[step.stage] || Timer;
+                const Icon = STAGE_ICONS[step.stage] || Timer;
                 const isExpanded = expandedStepId === step.id;
                 const isCompleted = step.status === 'completed';
                 const isPending = step.status === 'pending';
@@ -251,7 +218,7 @@ export function FoldingTimelineViewer({
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-medium text-cf-text">
-                                Step {step.stepNumber}: {stageLabels[step.stage] || step.stage}
+                                Step {step.stepNumber}: {STAGE_LABELS[step.stage] || step.stage}
                               </span>
                               {isBest && (
                                 <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-cf-warning/20 text-cf-warning text-[10px] font-medium">
@@ -303,7 +270,7 @@ export function FoldingTimelineViewer({
                             </div>
 
                             {/* Detailed Metrics */}
-                            <div className="p-3 space-y-2 border-t border-cf-border">
+                            <div className="p-3 space-y-2 border-t border-cf-border bg-cf-bg-secondary/80">
                               {/* RMSD */}
                               <div>
                                 <div className="flex justify-between items-center mb-1">
@@ -312,7 +279,7 @@ export function FoldingTimelineViewer({
                                     {step.metrics.rmsd.toFixed(2)} Å
                                   </span>
                                 </div>
-                                <div className="h-1 bg-cf-bg-tertiary rounded-full overflow-hidden">
+                                <div className="h-1 bg-cf-bg-input rounded-full overflow-hidden">
                                   <div
                                     className="h-full bg-cf-accent"
                                     style={{ width: `${Math.min(100, (step.metrics.rmsd / 5) * 100)}%` }}
@@ -328,7 +295,7 @@ export function FoldingTimelineViewer({
                                     {step.metrics.energy.toFixed(1)} kcal/mol
                                   </span>
                                 </div>
-                                <div className="h-1 bg-cf-bg-tertiary rounded-full overflow-hidden">
+                                <div className="h-1 bg-cf-bg-input rounded-full overflow-hidden">
                                   <div
                                     className="h-full bg-cf-success"
                                     style={{ width: `${Math.min(100, Math.abs(step.metrics.energy) / 100 * 100)}%` }}
@@ -344,7 +311,7 @@ export function FoldingTimelineViewer({
                                     {step.metrics.hBonds}
                                   </span>
                                 </div>
-                                <div className="h-1 bg-cf-bg-tertiary rounded-full overflow-hidden">
+                                <div className="h-1 bg-cf-bg-input rounded-full overflow-hidden">
                                   <div
                                     className="h-full bg-cf-info"
                                     style={{ width: `${Math.min(100, (step.metrics.hBonds / 100) * 100)}%` }}
@@ -360,7 +327,7 @@ export function FoldingTimelineViewer({
                                     {step.metrics.hydrophobic}
                                   </span>
                                 </div>
-                                <div className="h-1 bg-cf-bg-tertiary rounded-full overflow-hidden">
+                                <div className="h-1 bg-cf-bg-input rounded-full overflow-hidden">
                                   <div
                                     className="h-full bg-cf-confidence-poor"
                                     style={{ width: `${Math.min(100, (step.metrics.hydrophobic / 100) * 100)}%` }}

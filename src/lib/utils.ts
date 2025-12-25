@@ -46,3 +46,39 @@ export function downloadFile(content: string, filename: string, mimeType: string
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+// Convenience function for downloading PDB files
+export function downloadPDBFile(pdbData: string, filename: string) {
+  downloadFile(pdbData, filename, 'chemical/x-pdb');
+}
+
+// Quality assessment types
+export interface QualityResult {
+  label: string;
+  color: string;
+  bgColor: string;
+}
+
+// pLDDT quality assessment following AlphaFold conventions
+export function getPlddtQuality(plddt: number): QualityResult {
+  if (plddt >= 90) return { label: 'Very High', color: 'text-cf-confidence-excellent', bgColor: 'bg-cf-confidence-excellent/15' };
+  if (plddt >= 70) return { label: 'Confident', color: 'text-cf-confidence-good', bgColor: 'bg-cf-confidence-good/15' };
+  if (plddt >= 50) return { label: 'Low', color: 'text-cf-confidence-fair', bgColor: 'bg-cf-confidence-fair/15' };
+  return { label: 'Very Low', color: 'text-cf-confidence-poor', bgColor: 'bg-cf-confidence-poor/15' };
+}
+
+// PAE quality (lower is better)
+export function getPaeQuality(pae: number): Omit<QualityResult, 'label'> {
+  if (pae <= 5) return { color: 'text-cf-confidence-excellent', bgColor: 'bg-cf-confidence-excellent/15' };
+  if (pae <= 10) return { color: 'text-cf-confidence-good', bgColor: 'bg-cf-confidence-good/15' };
+  if (pae <= 20) return { color: 'text-cf-confidence-fair', bgColor: 'bg-cf-confidence-fair/15' };
+  return { color: 'text-cf-confidence-poor', bgColor: 'bg-cf-confidence-poor/15' };
+}
+
+// Constraint satisfaction quality (higher is better)
+export function getConstraintQuality(constraint: number): QualityResult {
+  if (constraint >= 90) return { label: 'Excellent', color: 'text-cf-confidence-excellent', bgColor: 'bg-cf-confidence-excellent/15' };
+  if (constraint >= 70) return { label: 'Good', color: 'text-cf-confidence-good', bgColor: 'bg-cf-confidence-good/15' };
+  if (constraint >= 50) return { label: 'Fair', color: 'text-cf-confidence-fair', bgColor: 'bg-cf-confidence-fair/15' };
+  return { label: 'Poor', color: 'text-cf-confidence-poor', bgColor: 'bg-cf-confidence-poor/15' };
+}

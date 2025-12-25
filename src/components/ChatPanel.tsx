@@ -29,35 +29,12 @@ import {
 import { HelixIcon } from '@/components/icons/ProteinIcon';
 import { StructureArtifactCard } from './StructureArtifactCard';
 import { ChatInputBase, ThinkingIntensity } from './chat/ChatInputBase';
+import { EXAMPLE_SEQUENCES } from '@/lib/constants/sequences';
 
 // Type for unified timeline items
 type TimelineItem =
   | { type: 'message'; data: ChatMessage }
   | { type: 'artifact'; data: StructureArtifact; timestamp: number };
-
-// Example sequences for testing
-const EXAMPLE_SEQUENCES = [
-  {
-    name: '人类血红蛋白 β 链',
-    description: 'Human Hemoglobin Beta Chain (147 aa)',
-    sequence: 'MVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSHGSAQVKGHGKKVADALTNAVAHVDDMPNALSALSDLHAHKLRVDPVNFKLLSHCLLVTLAAHLPAEFTPAVHASLDKFLASVSTVLTSKYR'
-  },
-  {
-    name: '胰岛素 A 链',
-    description: 'Human Insulin A Chain (21 aa)',
-    sequence: 'GIVEQCCTSICSLYQLENYCN'
-  },
-  {
-    name: '绿色荧光蛋白 GFP',
-    description: 'Green Fluorescent Protein (238 aa)',
-    sequence: 'MSKGEELFTGVVPILVELDGDVNGHKFSVSGEGEGDATYGKLTLKFICTTGKLPVPWPTLVTTFSYGVQCFSRYPDHMKQHDFFKSAMPEGYVQERTIFFKDDGNYKTRAEVKFEGDTLVNRIELKGIDFKEDGNILGHKLEYNYNSHNVYIMADKQKNGIKVNFKIRHNIEDGSVQLADHYQQNTPIGDGPVLLPDNHYLSTQSALSKDPNEKRDHMVLLEFVTAAGITHGMDELYK'
-  },
-  {
-    name: '短测试肽段',
-    description: 'Short Test Peptide (30 aa)',
-    sequence: 'MAEGEITTFTALTEKFNLPPGNYKKPKLLY'
-  }
-];
 
 export function ChatPanel() {
   const {
@@ -443,7 +420,7 @@ export function ChatPanel() {
                 } else {
                   // Artifact group with continuous timeline
                   return (
-                    <div key={`artifact-group-${groupIndex}`}>
+                    <div key={`artifact-group-${groupIndex}`} className="pb-4">
                       {/* Artifact cards with nodes and connecting lines */}
                       {group.artifacts.map((artifactItem, localIndex) => {
                         const artifact = artifactItem.data;

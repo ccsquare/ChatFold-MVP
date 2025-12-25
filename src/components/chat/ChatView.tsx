@@ -7,6 +7,7 @@ import { MessageBubble } from './MessageBubble';
 import { ChatInput } from './ChatInput';
 import { cn, formatTimestamp } from '@/lib/utils';
 import { Sparkles, PanelRight, Loader2, CheckCircle2, Trophy } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { HelixIcon } from '@/components/icons/ProteinIcon';
 import {
   Tooltip,
@@ -17,30 +18,7 @@ import {
 import { useFoldingTask } from '@/hooks/useFoldingTask';
 import { parseFasta } from '@/lib/mock/generators';
 import { StructureArtifactCard } from '@/components/StructureArtifactCard';
-
-// Example sequences for testing (matching ChatPanel)
-const EXAMPLE_SEQUENCES = [
-  {
-    name: '人类血红蛋白 β 链',
-    description: 'Human Hemoglobin Beta Chain (147 aa)',
-    sequence: 'MVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSHGSAQVKGHGKKVADALTNAVAHVDDMPNALSALSDLHAHKLRVDPVNFKLLSHCLLVTLAAHLPAEFTPAVHASLDKFLASVSTVLTSKYR'
-  },
-  {
-    name: '胰岛素 A 链',
-    description: 'Human Insulin A Chain (21 aa)',
-    sequence: 'GIVEQCCTSICSLYQLENYCN'
-  },
-  {
-    name: '绿色荧光蛋白 GFP',
-    description: 'Green Fluorescent Protein (238 aa)',
-    sequence: 'MSKGEELFTGVVPILVELDGDVNGHKFSVSGEGEGDATYGKLTLKFICTTGKLPVPWPTLVTTFSYGVQCFSRYPDHMKQHDFFKSAMPEGYVQERTIFFKDDGNYKTRAEVKFEGDTLVNRIELKGIDFKEDGNILGHKLEYNYNSHNVYIMADKQKNGIKVNFKIRHNIEDGSVQLADHYQQNTPIGDGPVLLPDNHYLSTQSALSKDPNEKRDHMVLLEFVTAAGITHGMDELYK'
-  },
-  {
-    name: '短测试肽段',
-    description: 'Short Test Peptide (30 aa)',
-    sequence: 'MAEGEITTFTALTEKFNLPPGNYKKPKLLY'
-  }
-];
+import { EXAMPLE_SEQUENCES } from '@/lib/constants/sequences';
 
 // Generate a timestamp-based filename for sequence files
 const generateSequenceFilename = () => {
@@ -332,19 +310,16 @@ export function ChatView() {
           <span className="text-sm font-medium text-cf-text">Chat</span>
           <Tooltip>
             <TooltipTrigger asChild>
-              <button
-                className={cn(
-                  "p-1.5 rounded transition-colors",
-                  hasStructures
-                    ? "hover:bg-cf-highlight text-cf-text-secondary hover:text-cf-text"
-                    : "text-cf-text-muted cursor-not-allowed opacity-50"
-                )}
-                onClick={hasStructures ? switchToViewerMode : undefined}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-cf-text-secondary hover:text-cf-text disabled:text-cf-text-muted disabled:opacity-50"
+                onClick={switchToViewerMode}
                 disabled={!hasStructures}
-                aria-label="Show structure viewer"
               >
                 <PanelRight className="w-4 h-4" />
-              </button>
+                <span className="sr-only">Show structure viewer</span>
+              </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
               {hasStructures ? "Show structure viewer" : "No structures to view"}
@@ -442,7 +417,22 @@ export function ChatView() {
                 {message.role === 'user' ? (
                   <MessageBubble message={message} />
                 ) : message.role === 'assistant' && message.artifacts && message.artifacts.length > 0 ? (
-                  <ArtifactsTimeline artifacts={message.artifacts} />
+                  // Message with artifacts - show both the message and the timeline
+                  <div className="space-y-4">
+                    <ArtifactsTimeline artifacts={message.artifacts} />
+                    {/* Show the completion message below the timeline */}
+                    <div className="flex justify-start">
+                      <div className={cn(
+                        "max-w-[85%] rounded-lg px-3 py-2 overflow-hidden shadow-sm",
+                        "bg-cf-bg border border-cf-border text-cf-text"
+                      )}>
+                        <p className="text-sm whitespace-pre-wrap break-all [overflow-wrap:anywhere]">{message.content}</p>
+                        <p className="text-[10px] mt-1 text-cf-text-muted">
+                          {formatTimestamp(message.timestamp)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 ) : (
                   // Plain text assistant message - styled like ChatPanel
                   <div className="flex justify-start">
@@ -460,8 +450,9 @@ export function ChatView() {
               </div>
             ))}
 
-            {/* Show artifacts timeline (during and after streaming) */}
-            {artifacts.length > 0 && (
+            {/* Show artifacts timeline ONLY during streaming */}
+            {/* After streaming completes, the completion message includes artifacts and renders its own timeline */}
+            {isStreaming && artifacts.length > 0 && (
               <ArtifactsTimeline artifacts={artifacts} />
             )}
 

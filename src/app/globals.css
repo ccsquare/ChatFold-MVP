@@ -9,14 +9,14 @@
     --radius: 0.5rem;
   }
 
-  /* Light theme */
+  /* Light theme - optimized for visual hierarchy */
   .light {
     --cf-bg: #ffffff;
-    --cf-bg-secondary: #fafafa;
-    --cf-bg-tertiary: #f5f5f5;
-    --cf-bg-input: #e0e0e0;
-    --cf-border: rgba(0, 0, 0, 0.1);
-    --cf-border-strong: rgba(0, 0, 0, 0.15);
+    --cf-bg-secondary: #f7f7f8;
+    --cf-bg-tertiary: #eeeff1;
+    --cf-bg-input: #e4e5e9;
+    --cf-border: rgba(0, 0, 0, 0.12);
+    --cf-border-strong: rgba(0, 0, 0, 0.18);
     --cf-text: rgba(0, 0, 0, 0.85);
     --cf-text-secondary: rgba(0, 0, 0, 0.65);
     --cf-text-muted: rgba(0, 0, 0, 0.45);
@@ -90,13 +90,13 @@
     --card-foreground: 0 0% 100%;
     --popover: 0 0% 14%;
     --popover-foreground: 0 0% 100%;
-    --primary: 270 41% 39%;
+    --primary: 270 41% 40%;
     --primary-foreground: 0 0% 100%;
     --secondary: 0 0% 18%;
     --secondary-foreground: 0 0% 100%;
     --muted: 0 0% 18%;
     --muted-foreground: 0 0% 60%;
-    --accent: 270 41% 39%;
+    --accent: 270 41% 40%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 62% 50%;
     --destructive-foreground: 0 0% 100%;
@@ -240,6 +240,11 @@ body {
 .msp-viewport-controls {
   position: absolute !important;
   z-index: 5 !important;
+}
+
+/* Hide ALL viewport controls in minimal UI mode (timeline previews) */
+.molstar-minimal-ui .msp-viewport-controls {
+  display: none !important;
 }
 
 /* Ensure Molstar's right-side toggle strip is visible */

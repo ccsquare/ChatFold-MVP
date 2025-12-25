@@ -89,16 +89,6 @@ export interface Conversation {
   assets: Asset[];
 }
 
-export interface ViewerTab {
-  id: string;
-  structureId: string;
-  label: string;
-  filename: string;
-  pdbData: string;
-  metrics?: StructureMetrics;
-  thumbnail?: string;
-}
-
 // Atom information extracted from click events
 export interface AtomInfo {
   // Atom info

@@ -349,9 +349,8 @@ export function ChatInputBase({
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
-                      variant="ghost"
                       size="sm"
-                      className="h-8 px-2 text-xs rounded-full bg-cf-accent text-white hover:bg-cf-accent/90"
+                      className="h-8 px-2 text-xs rounded-full bg-cf-accent text-white hover:bg-cf-accent/90 hover:text-white"
                     >
                       {thinkingIntensity === 'high' && <Sparkles className="w-3.5 h-3.5 mr-1" />}
                       {thinkingIntensity === 'medium' && <Scale className="w-3.5 h-3.5 mr-1" />}

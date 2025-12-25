@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useRef, useEffect, useState } from 'react';
-import { useAppStore, MIN_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH } from '@/lib/store';
+import { useAppStore, MIN_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH, DEFAULT_SIDEBAR_WIDTH } from '@/lib/store';
 import { cn } from '@/lib/utils';
+import { useResizable } from '@/hooks/useResizable';
 
 interface ResizableSidebarProps {
   children: React.ReactNode;
@@ -10,53 +10,15 @@ interface ResizableSidebarProps {
 
 export function ResizableSidebar({ children }: ResizableSidebarProps) {
   const { sidebarWidth, sidebarCollapsed, setSidebarWidth } = useAppStore();
-  const [isResizing, setIsResizing] = useState(false);
-  const sidebarRef = useRef<HTMLDivElement>(null);
-  const startXRef = useRef(0);
-  const startWidthRef = useRef(0);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsResizing(true);
-    startXRef.current = e.clientX;
-    startWidthRef.current = sidebarWidth;
-  }, [sidebarWidth]);
-
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isResizing) return;
-
-    const delta = e.clientX - startXRef.current;
-    const newWidth = startWidthRef.current + delta;
-    setSidebarWidth(newWidth);
-  }, [isResizing, setSidebarWidth]);
-
-  const handleMouseUp = useCallback(() => {
-    setIsResizing(false);
-  }, []);
-
-  useEffect(() => {
-    if (isResizing) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
-    } else {
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    }
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
-  }, [isResizing, handleMouseMove, handleMouseUp]);
-
-  // Handle double-click to reset to default width
-  const handleDoubleClick = useCallback(() => {
-    setSidebarWidth(240);
-  }, [setSidebarWidth]);
+  const { isResizing, handleMouseDown, handleDoubleClick, handleKeyDown } = useResizable({
+    initialWidth: sidebarWidth,
+    minWidth: MIN_SIDEBAR_WIDTH,
+    maxWidth: MAX_SIDEBAR_WIDTH,
+    direction: 'left',
+    defaultWidth: DEFAULT_SIDEBAR_WIDTH,
+    onWidthChange: setSidebarWidth,
+  });
 
   if (sidebarCollapsed) {
     return null;
@@ -64,7 +26,6 @@ export function ResizableSidebar({ children }: ResizableSidebarProps) {
 
   return (
     <div
-      ref={sidebarRef}
       className={cn(
         "relative flex flex-shrink-0 bg-cf-bg border-r border-cf-border h-full",
         !isResizing && "transition-[width] duration-300 ease-out"
@@ -92,13 +53,7 @@ export function ResizableSidebar({ children }: ResizableSidebarProps) {
         aria-valuemin={MIN_SIDEBAR_WIDTH}
         aria-valuemax={MAX_SIDEBAR_WIDTH}
         tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'ArrowLeft') {
-            setSidebarWidth(sidebarWidth - 10);
-          } else if (e.key === 'ArrowRight') {
-            setSidebarWidth(sidebarWidth + 10);
-          }
-        }}
+        onKeyDown={handleKeyDown}
       />
     </div>
   );

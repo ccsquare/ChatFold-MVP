@@ -1,7 +1,7 @@
 'use client';
 
 import { useAppStore } from '@/lib/store';
-import { cn } from '@/lib/utils';
+import { cn, downloadPDBFile } from '@/lib/utils';
 import { StepEvent, StructureArtifact } from '@/lib/types';
 import { useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -13,38 +13,14 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import {
-  Timer,
-  AlignJustify,
-  Brain,
-  Waves,
-  ShieldCheck,
-  CircleAlert,
   Loader2,
   Download,
   ExternalLink,
-  CheckCircle2
+  Timer,
+  CheckCircle2,
 } from 'lucide-react';
 import { HelixIcon } from '@/components/icons/ProteinIcon';
-
-const stageIcons: Record<string, React.ComponentType<{ className?: string }>> = {
-  'QUEUED': Timer,
-  'MSA': AlignJustify,
-  'MODEL': Brain,
-  'RELAX': Waves,
-  'QA': ShieldCheck,
-  'DONE': CheckCircle2,
-  'ERROR': CircleAlert,
-};
-
-const stageLabels: Record<string, string> = {
-  'QUEUED': 'Queued',
-  'MSA': 'Sequence Alignment',
-  'MODEL': 'Structure Prediction',
-  'RELAX': 'Energy Relaxation',
-  'QA': 'Quality Assessment',
-  'DONE': 'Complete',
-  'ERROR': 'Error',
-};
+import { STAGE_ICONS, STAGE_LABELS } from '@/lib/constants/stages';
 
 export function StepsPanel() {
   const { activeTask, isStreaming, openStructureTab, thumbnails } = useAppStore();
@@ -111,7 +87,7 @@ export function StepsPanel() {
         <ScrollArea className="flex-1 min-h-0">
           <div className="p-3">
             {(activeTask.steps || []).map((step, index) => {
-              const Icon = stageIcons[step.stage] || Timer;
+              const Icon = STAGE_ICONS[step.stage] || Timer;
               const isLatest = index === (activeTask.steps?.length || 0) - 1;
               const hasArtifacts = step.artifacts && step.artifacts.length > 0;
 
@@ -147,7 +123,7 @@ export function StepsPanel() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-medium text-cf-text">
-                          {stageLabels[step.stage]}
+                          {STAGE_LABELS[step.stage]}
                         </span>
                         <span className="text-[10px] text-cf-text-muted">
                           {new Date(step.ts).toLocaleTimeString()}
@@ -217,13 +193,7 @@ export function StepsPanel() {
                                       className="h-6 w-6 text-cf-text-secondary hover:text-cf-text"
                                       onClick={() => {
                                         if (artifact.pdbData) {
-                                          const blob = new Blob([artifact.pdbData], { type: 'chemical/x-pdb' });
-                                          const url = URL.createObjectURL(blob);
-                                          const a = document.createElement('a');
-                                          a.href = url;
-                                          a.download = artifact.filename;
-                                          a.click();
-                                          URL.revokeObjectURL(url);
+                                          downloadPDBFile(artifact.pdbData, artifact.filename);
                                         }
                                       }}
                                     >
