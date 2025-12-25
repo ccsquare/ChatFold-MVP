@@ -35,6 +35,17 @@ function formatProjectTimestamp(timestamp: number): string {
   return `${year}-${month}-${day}_${hours}${minutes}`;
 }
 
+// Format timestamp for conversation naming (more readable format)
+function formatConversationTimestamp(timestamp: number): string {
+  const date = new Date(timestamp);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = months[date.getMonth()];
+  const day = date.getDate();
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${month} ${day}, ${hours}:${minutes}`;
+}
+
 function generateId(prefix: string = ''): string {
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).slice(2, 8);
@@ -75,11 +86,12 @@ export const useAppStore = create<AppState>()(
   // Conversation actions
   createConversation: () => {
     const id = generateId('conv');
+    const now = Date.now();
     const conversation: Conversation = {
       id,
-      title: 'New Conversation',
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+      title: formatConversationTimestamp(now),
+      createdAt: now,
+      updatedAt: now,
       messages: [],
       tasks: [],
       assets: []
@@ -375,22 +387,28 @@ export const useAppStore = create<AppState>()(
 
       const isDone = event.stage === 'DONE';
 
-      // Only update projects when the stream is complete (DONE event)
-      // This avoids race conditions with zustand persist
+      // Update project outputs immediately when new artifacts arrive
+      // This allows real-time display in the sidebar file system
       let updatedProjects = state.projects;
-      if (isDone && state.activeProjectId) {
-        const allStructures = newStructures;
-
-        updatedProjects = state.projects.map(proj =>
-          proj.id === state.activeProjectId
-            ? {
-                ...proj,
-                outputs: allStructures,
-                taskId: taskId,
-                updatedAt: Date.now()
-              }
-            : proj
-        );
+      if (event.artifacts && event.artifacts.length > 0 && state.activeProjectId) {
+        updatedProjects = state.projects.map(proj => {
+          if (proj.id !== state.activeProjectId) {
+            return proj;
+          }
+          // Get existing output IDs to avoid duplicates
+          const existingIds = new Set(proj.outputs.map(o => o.structureId));
+          // Filter out artifacts that already exist
+          const newArtifacts = event.artifacts!.filter(a => !existingIds.has(a.structureId));
+          if (newArtifacts.length === 0) {
+            return proj;
+          }
+          return {
+            ...proj,
+            outputs: [...proj.outputs, ...newArtifacts],
+            taskId: taskId,
+            updatedAt: Date.now()
+          };
+        });
       }
 
       // When task completes, add artifacts to conversation as a message

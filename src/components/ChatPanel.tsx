@@ -385,7 +385,7 @@ export function ChatPanel() {
 
         {/* Unified Timeline */}
         <ScrollArea className="flex-1 min-h-0 p-3">
-          <div className="flex flex-col">
+          <div className="flex flex-col pb-2">
             {(() => {
               // Pre-calculate artifact metadata for step numbering and delta
               const allArtifacts = unifiedTimeline.filter(i => i.type === 'artifact') as Array<{ type: 'artifact'; data: StructureArtifact; timestamp: number }>;

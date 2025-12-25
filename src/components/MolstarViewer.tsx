@@ -643,8 +643,8 @@ export const MolstarViewer = memo(function MolstarViewer({
         );
       }
 
-      // Reset camera to fit structure after it loads
-      // Use Mol*'s PluginCommands for reliable centering
+      // Reset camera to fit structure after it loads with zoom and tilt
+      // Use Mol*'s PluginCommands for reliable centering, then apply custom view
       const resetCamera = async () => {
         const plugin = pluginRef.current;
         if (!plugin?.canvas3d) return;
@@ -659,6 +659,39 @@ export const MolstarViewer = memo(function MolstarViewer({
           // Use cached PluginCommands for proper centering
           const modules = await loadMolstarModules();
           await modules.PluginCommands.Camera.Reset(plugin, {});
+
+          // Apply zoom and tilt after reset
+          // Wait a frame for the reset to complete
+          await new Promise(resolve => requestAnimationFrame(resolve));
+
+          const camera = plugin.canvas3d.camera;
+          if (camera) {
+            const snapshot = camera.getSnapshot();
+
+            // Calculate tilted rotation (approximately 20 degrees tilt)
+            // Original up vector is [0,1,0], we rotate it to create a slight tilt
+            const tiltAngle = Math.PI / 9; // ~20 degrees
+            const rotationAngle = Math.PI / 12; // ~15 degrees horizontal rotation
+
+            // Apply tilted view by modifying the camera snapshot
+            // Zoom in by reducing radius to 70% of auto-fit distance
+            const zoomFactor = 0.7;
+
+            await modules.PluginCommands.Camera.SetSnapshot(plugin, {
+              snapshot: {
+                ...snapshot,
+                radius: snapshot.radius * zoomFactor,
+                // Apply rotation to create tilted perspective
+                // Rotate the up vector slightly for visual tilt effect
+                up: [
+                  Math.sin(rotationAngle) * Math.sin(tiltAngle),
+                  Math.cos(tiltAngle),
+                  Math.cos(rotationAngle) * Math.sin(tiltAngle)
+                ] as [number, number, number]
+              },
+              durationMs: 0 // Instant transition
+            });
+          }
         } catch (e) {
           console.warn('Camera reset via PluginCommands failed:', e);
           // Fallback to canvas3d methods
@@ -878,6 +911,30 @@ export const MolstarViewer = memo(function MolstarViewer({
     if (PluginCommands) {
       try {
         await PluginCommands.Camera.Reset(plugin, {});
+
+        // Apply zoom and tilt after reset
+        await new Promise(resolve => requestAnimationFrame(resolve));
+
+        const camera = plugin.canvas3d.camera;
+        if (camera) {
+          const snapshot = camera.getSnapshot();
+          const tiltAngle = Math.PI / 9; // ~20 degrees
+          const rotationAngle = Math.PI / 12; // ~15 degrees horizontal rotation
+          const zoomFactor = 0.7;
+
+          await PluginCommands.Camera.SetSnapshot(plugin, {
+            snapshot: {
+              ...snapshot,
+              radius: snapshot.radius * zoomFactor,
+              up: [
+                Math.sin(rotationAngle) * Math.sin(tiltAngle),
+                Math.cos(tiltAngle),
+                Math.cos(rotationAngle) * Math.sin(tiltAngle)
+              ] as [number, number, number]
+            },
+            durationMs: 0
+          });
+        }
       } catch (e) {
         plugin.canvas3d.requestCameraReset();
       }
@@ -987,6 +1044,30 @@ export const MolstarViewer = memo(function MolstarViewer({
         // Use PluginCommands.Camera.Reset for proper camera reset
         const modules = await loadMolstarModules();
         await modules.PluginCommands.Camera.Reset(plugin, {});
+
+        // Apply zoom and tilt after reset
+        await new Promise(resolve => requestAnimationFrame(resolve));
+
+        const camera = plugin.canvas3d.camera;
+        if (camera) {
+          const snapshot = camera.getSnapshot();
+          const tiltAngle = Math.PI / 9; // ~20 degrees
+          const rotationAngle = Math.PI / 12; // ~15 degrees horizontal rotation
+          const zoomFactor = 0.7;
+
+          await modules.PluginCommands.Camera.SetSnapshot(plugin, {
+            snapshot: {
+              ...snapshot,
+              radius: snapshot.radius * zoomFactor,
+              up: [
+                Math.sin(rotationAngle) * Math.sin(tiltAngle),
+                Math.cos(tiltAngle),
+                Math.cos(rotationAngle) * Math.sin(tiltAngle)
+              ] as [number, number, number]
+            },
+            durationMs: 0
+          });
+        }
       } catch (e) {
         console.warn('Camera reset via PluginCommands failed, using fallback:', e);
         // Fallback methods
@@ -1301,8 +1382,8 @@ export const MolstarViewer = memo(function MolstarViewer({
       layoutUpdateTimer = setTimeout(async () => {
         if (!plugin.canvas3d) return;
 
-        // Helper function to reset camera using built-in method
-        const resetCameraView = () => {
+        // Helper function to reset camera with zoom and tilt
+        const resetCameraView = async () => {
           if (!plugin.canvas3d) return;
 
           // Update dimensions again in case they changed during animation
@@ -1310,10 +1391,31 @@ export const MolstarViewer = memo(function MolstarViewer({
           plugin.canvas3d.handleResize();
 
           try {
-            if (typeof plugin.canvas3d.resetCamera === 'function') {
-              plugin.canvas3d.resetCamera();
-            } else {
-              plugin.canvas3d.requestCameraReset();
+            const modules = await loadMolstarModules();
+            await modules.PluginCommands.Camera.Reset(plugin, {});
+
+            // Apply zoom and tilt after reset
+            await new Promise(resolve => requestAnimationFrame(resolve));
+
+            const camera = plugin.canvas3d.camera;
+            if (camera) {
+              const snapshot = camera.getSnapshot();
+              const tiltAngle = Math.PI / 9; // ~20 degrees
+              const rotationAngle = Math.PI / 12; // ~15 degrees horizontal rotation
+              const zoomFactor = 0.7;
+
+              await modules.PluginCommands.Camera.SetSnapshot(plugin, {
+                snapshot: {
+                  ...snapshot,
+                  radius: snapshot.radius * zoomFactor,
+                  up: [
+                    Math.sin(rotationAngle) * Math.sin(tiltAngle),
+                    Math.cos(tiltAngle),
+                    Math.cos(rotationAngle) * Math.sin(tiltAngle)
+                  ] as [number, number, number]
+                },
+                durationMs: 0
+              });
             }
           } catch (e) {
             plugin.canvas3d.requestCameraReset();
