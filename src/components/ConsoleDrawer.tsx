@@ -3,6 +3,7 @@
 import { useAppStore } from '@/lib/store';
 import { ChatPanel } from './ChatPanel';
 import { Plus, PanelRightClose, Maximize2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import {
   Tooltip,
   TooltipContent,
@@ -26,37 +27,43 @@ export function ConsoleDrawer() {
           <div className="flex items-center gap-1">
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
-                  className="p-1.5 rounded hover:bg-cf-highlight text-cf-text-secondary hover:text-cf-text transition-colors"
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-cf-text-secondary hover:text-cf-text hover:bg-cf-highlight transition-colors"
                   onClick={createConversation}
-                  aria-label="New conversation"
                 >
                   <Plus className="w-4 h-4" />
-                </button>
+                  <span className="sr-only">New conversation</span>
+                </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">New conversation</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
-                  className="p-1.5 rounded hover:bg-cf-highlight text-cf-text-secondary hover:text-cf-text transition-colors"
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-cf-text-secondary hover:text-cf-text hover:bg-cf-highlight transition-colors"
                   onClick={switchToChatMode}
-                  aria-label="Expand to full chat"
                 >
                   <Maximize2 className="w-4 h-4" />
-                </button>
+                  <span className="sr-only">Expand to full chat</span>
+                </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">Expand to full chat</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
-                  className="p-1.5 rounded hover:bg-cf-highlight text-cf-text-secondary hover:text-cf-text transition-colors"
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-cf-text-secondary hover:text-cf-text hover:bg-cf-highlight transition-colors"
                   onClick={() => setConsoleCollapsed(true)}
-                  aria-label="Collapse panel"
                 >
                   <PanelRightClose className="w-4 h-4" />
-                </button>
+                  <span className="sr-only">Collapse panel</span>
+                </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">Collapse panel</TooltipContent>
             </Tooltip>

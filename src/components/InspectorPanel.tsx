@@ -16,11 +16,11 @@ export function InspectorPanel({ tab }: InspectorPanelProps) {
     return (
       <div className="w-8 border-l border-cf-border bg-cf-bg-secondary flex flex-col items-center py-2">
         <button
-          className="p-1.5 rounded hover:bg-cf-highlight group"
+          className="p-1.5 rounded text-cf-text-secondary hover:text-cf-text hover:bg-cf-highlight transition-colors"
           onClick={() => setCollapsed(false)}
           aria-label="Expand inspector"
         >
-          <PanelRightOpen className="w-4 h-4 text-cf-text-secondary group-hover:text-cf-text transition-colors" />
+          <PanelRightOpen className="w-4 h-4" />
         </button>
       </div>
     );
@@ -34,11 +34,11 @@ export function InspectorPanel({ tab }: InspectorPanelProps) {
           Inspector
         </span>
         <button
-          className="p-1 rounded hover:bg-cf-highlight group"
+          className="p-1.5 rounded text-cf-text-secondary hover:text-cf-text hover:bg-cf-highlight transition-colors"
           onClick={() => setCollapsed(true)}
           aria-label="Collapse inspector"
         >
-          <PanelRightClose className="w-4 h-4 text-cf-text-secondary group-hover:text-cf-text transition-colors" />
+          <PanelRightClose className="w-4 h-4" />
         </button>
       </div>
 

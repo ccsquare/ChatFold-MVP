@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { useAppStore } from '@/lib/store';
-import { cn, formatTimestamp } from '@/lib/utils';
+import { cn, formatTimestamp, downloadPDBFile } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
@@ -98,13 +98,7 @@ function ProjectItem({
 
   const handleDownloadStructure = useCallback((structure: StructureArtifact) => {
     if (structure.pdbData) {
-      const blob = new Blob([structure.pdbData], { type: 'chemical/x-pdb' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = structure.filename;
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadPDBFile(structure.pdbData, structure.filename);
     }
   }, []);
 
@@ -376,7 +370,7 @@ export function Sidebar() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 text-cf-text-secondary hover:text-cf-text transition-colors"
+                  className="h-7 w-7 text-cf-text-secondary hover:text-cf-text hover:bg-cf-highlight transition-colors"
                   onClick={() => setSidebarCollapsed(true)}
                 >
                   <PanelLeftClose className="w-4 h-4" aria-hidden="true" />
@@ -577,7 +571,7 @@ export function Sidebar() {
             </div>
             <Button
               size="sm"
-              className="bg-cf-accent hover:bg-cf-accent/90 text-white text-[11px] font-medium rounded-full h-7 px-3"
+              className="bg-cf-accent hover:bg-cf-accent/90 text-white hover:text-white text-[11px] font-medium rounded-full h-7 px-3"
             >
               <Crown className="w-3 h-3 mr-0.5" />
               Upgrade
