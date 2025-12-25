@@ -116,8 +116,11 @@ export function* generateStepEvents(taskId: string, sequence: string): Generator
       messages: [
         'Initializing structure prediction model...',
         'Running neural network inference...',
-        'Generating candidate structures...',
-        'Evaluating structure quality'
+        'Generating candidate structure 1...',
+        'Generating candidate structure 2...',
+        'Generating candidate structure 3...',
+        'Generating candidate structure 4...',
+        'Generating candidate structure 5...'
       ]
     },
     {
@@ -156,12 +159,16 @@ export function* generateStepEvents(taskId: string, sequence: string): Generator
 
       const artifacts: StructureArtifact[] = [];
 
-      // Generate structure artifacts at MODEL stage
+      // Generate structure artifacts at MODEL stage (5 candidates)
+      // Messages: 0=init, 1=inference, 2-6=generating candidates
       if (stage === 'MODEL' && i >= 2) {
-        const candidateNum = i - 1;
+        const candidateNum = i - 1; // 1, 2, 3, 4, 5
         const structureId = `str_${taskId}_${candidateNum}`;
-        const plddt = 65 + Math.random() * 25;
-        const pae = 5 + Math.random() * 15;
+        // Gradually improving quality as candidates progress
+        const baseQuality = 60 + candidateNum * 5; // 65, 70, 75, 80, 85
+        const plddt = baseQuality + Math.random() * 10;
+        const pae = 20 - candidateNum * 2.5 + Math.random() * 5; // Decreasing error
+        const constraint = 50 + candidateNum * 8 + Math.random() * 10; // Increasing satisfaction
 
         artifacts.push({
           type: 'structure',
@@ -170,16 +177,18 @@ export function* generateStepEvents(taskId: string, sequence: string): Generator
           filename: `candidate_${candidateNum}.pdb`,
           metrics: {
             plddtAvg: Math.round(plddt * 10) / 10,
-            paeAvg: Math.round(pae * 10) / 10
+            paeAvg: Math.round(pae * 10) / 10,
+            constraint: Math.round(Math.min(100, constraint) * 10) / 10
           }
         });
       }
 
-      // Generate final structure at DONE stage
+      // Generate final structure at DONE stage (best quality)
       if (stage === 'DONE') {
         const structureId = `str_${taskId}_final`;
-        const plddt = 75 + Math.random() * 20;
-        const pae = 3 + Math.random() * 8;
+        const plddt = 85 + Math.random() * 10; // 85-95
+        const pae = 3 + Math.random() * 5; // 3-8
+        const constraint = 90 + Math.random() * 10; // 90-100
 
         artifacts.push({
           type: 'structure',
@@ -188,7 +197,8 @@ export function* generateStepEvents(taskId: string, sequence: string): Generator
           filename: 'final_structure.pdb',
           metrics: {
             plddtAvg: Math.round(plddt * 10) / 10,
-            paeAvg: Math.round(pae * 10) / 10
+            paeAvg: Math.round(pae * 10) / 10,
+            constraint: Math.round(Math.min(100, constraint) * 10) / 10
           }
         });
       }

@@ -136,9 +136,9 @@ function ProjectItem({
 
             {/* Folder Icon */}
             {project.isExpanded ? (
-              <FolderOpen className="w-4 h-4 text-yellow-500/60 flex-shrink-0" />
+              <FolderOpen className="w-4 h-4 text-cf-warning/70 flex-shrink-0" />
             ) : (
-              <FolderClosed className="w-4 h-4 text-yellow-500/60 flex-shrink-0" />
+              <FolderClosed className="w-4 h-4 text-cf-warning/70 flex-shrink-0" />
             )}
 
             {/* Name (Editable) */}
@@ -165,7 +165,7 @@ function ProjectItem({
             <Pencil className="w-3.5 h-3.5 mr-2" />
             Rename
           </ContextMenuItem>
-          <ContextMenuItem onClick={onDelete} className="text-red-400">
+          <ContextMenuItem onClick={onDelete} className="text-cf-error">
             <Trash2 className="w-3.5 h-3.5 mr-2" />
             Delete
           </ContextMenuItem>
@@ -186,11 +186,11 @@ function ProjectItem({
                   <li key={input.id}>
                     <ContextMenu>
                       <ContextMenuTrigger asChild>
-                        <div 
+                        <div
                           className="flex items-center gap-1 px-1 py-0.5 hover:bg-cf-highlight rounded cursor-pointer group"
                           onClick={() => onOpenAsset(input)}
                         >
-                          <FileInput className="w-3.5 h-3.5 text-blue-400/60 flex-shrink-0" />
+                          <FileInput className="w-3.5 h-3.5 text-cf-info/70 flex-shrink-0" />
                           <span className="text-[12px] truncate text-cf-text-secondary">
                             {input.name}
                           </span>
@@ -228,7 +228,7 @@ function ProjectItem({
                           className="flex items-center gap-1 px-1 py-0.5 hover:bg-cf-highlight rounded cursor-pointer group"
                           onClick={() => onOpenStructure(output)}
                         >
-                          <HelixIcon className="w-3.5 h-3.5 text-cf-success/60 flex-shrink-0" />
+                          <HelixIcon className="w-3.5 h-3.5 text-cf-success/70 flex-shrink-0" />
                           <span className="text-[12px] truncate text-cf-text-secondary">
                             {output.filename}
                           </span>
@@ -354,7 +354,7 @@ export function Sidebar() {
       structureId: asset.id,
       label: asset.name,
       filename: asset.name,
-      metrics: { plddtAvg: 0, paeAvg: 0 }, // Placeholder metrics
+      metrics: { plddtAvg: 0, paeAvg: 0, constraint: 0 }, // Placeholder metrics
       pdbData: asset.content
     };
     openStructureTab(structure, asset.content);
@@ -380,10 +380,10 @@ export function Sidebar() {
                   onClick={() => setSidebarCollapsed(true)}
                 >
                   <PanelLeftClose className="w-4 h-4" aria-hidden="true" />
-                  <span className="sr-only">Close sidebar</span>
+                  <span className="sr-only">Collapse sidebar</span>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="right">Close sidebar</TooltipContent>
+              <TooltipContent side="right">Collapse sidebar</TooltipContent>
             </Tooltip>
           </div>
         </header>
@@ -470,7 +470,7 @@ export function Sidebar() {
             {/* Empty State */}
             {projects.length === 0 && (
               <div className="text-center py-6 px-2">
-                <HelixIcon className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                <HelixIcon className="w-8 h-8 mx-auto mb-2 text-cf-text-muted opacity-30" />
                 <p className="text-[12px] text-cf-text-muted">
                   No projects yet
                 </p>
@@ -509,8 +509,8 @@ export function Sidebar() {
                 <li key={conv.id} className="group relative">
                   {confirmingDeleteId === conv.id ? (
                     // Confirmation UI
-                    <div className="flex items-center justify-between px-2 py-1.5 bg-red-500/10 rounded">
-                      <span className="text-[11px] text-red-400">Delete?</span>
+                    <div className="flex items-center justify-between px-2 py-1.5 bg-cf-error/10 rounded">
+                      <span className="text-[11px] text-cf-error">Delete?</span>
                       <div className="flex gap-1">
                         <Button
                           variant="ghost"
@@ -523,7 +523,7 @@ export function Sidebar() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-5 px-2 text-[10px] text-red-400 hover:text-red-300 hover:bg-red-500/20"
+                          className="h-5 px-2 text-[10px] text-cf-error hover:text-cf-error/80 hover:bg-cf-error/20"
                           onClick={() => handleDeleteConversation(conv.id)}
                         >
                           Delete
@@ -546,7 +546,7 @@ export function Sidebar() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-5 w-5 opacity-0 group-hover:opacity-100 text-cf-text-muted hover:text-red-400 transition-all"
+                        className="h-5 w-5 opacity-0 group-hover:opacity-100 text-cf-text-muted hover:text-cf-error transition-all"
                         onClick={(e) => {
                           e.stopPropagation();
                           setConfirmingDeleteId(conv.id);

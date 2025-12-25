@@ -79,9 +79,9 @@ export function InspectorPanel({ tab }: InspectorPanelProps) {
                   <span className="text-[10px] text-cf-text-muted uppercase">B-Factor</span>
                   <span className={cn(
                     "font-medium",
-                    tab.selection.bFactor > 70 ? "text-blue-500" :
+                    tab.selection.bFactor > 70 ? "text-cf-confidence-excellent" :
                     tab.selection.bFactor > 50 ? "text-cf-success" :
-                    "text-yellow-500"
+                    "text-cf-confidence-fair"
                   )}>
                     {tab.selection.bFactor.toFixed(1)}
                   </span>
@@ -139,7 +139,7 @@ export function InspectorPanel({ tab }: InspectorPanelProps) {
                   <span className="text-cf-text-muted">pLDDT</span>
                   <span className={cn(
                     "font-medium",
-                    tab.metrics.plddtAvg >= 70 ? "text-cf-success" : "text-yellow-500"
+                    tab.metrics.plddtAvg >= 70 ? "text-cf-success" : "text-cf-confidence-fair"
                   )}>
                     {tab.metrics.plddtAvg.toFixed(1)}
                   </span>
@@ -148,7 +148,7 @@ export function InspectorPanel({ tab }: InspectorPanelProps) {
                   <div
                     className={cn(
                       "h-full rounded-full",
-                      tab.metrics.plddtAvg >= 70 ? "bg-cf-success" : "bg-yellow-500"
+                      tab.metrics.plddtAvg >= 70 ? "bg-cf-success" : "bg-cf-confidence-fair"
                     )}
                     style={{ width: `${tab.metrics.plddtAvg}%` }}
                   />
@@ -161,7 +161,7 @@ export function InspectorPanel({ tab }: InspectorPanelProps) {
                 </div>
                 <div className="h-1.5 bg-cf-bg rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-blue-500 rounded-full"
+                    className="h-full bg-cf-info rounded-full"
                     style={{ width: `${Math.min(100, (30 - tab.metrics.paeAvg) / 30 * 100)}%` }}
                   />
                 </div>

@@ -16,14 +16,24 @@ export function StepDetailsPanel({ step, className }: StepDetailsPanelProps) {
   const handleOpenInCanvas = () => {
     if (!step || !step.pdbData) return;
 
+    // Convert FoldStep metrics to StructureArtifact metrics
+    // pLDDT (0-100, higher is better): inversely related to RMSD
+    // PAE (0-30, lower is better): proportional to RMSD
+    const plddt = Math.min(95, Math.max(30, 100 - step.metrics.rmsd * 20));
+    const pae = Math.max(3, step.metrics.rmsd * 10);
+
+    // Calculate constraint satisfaction based on energy (lower energy = better constraint)
+    const constraint = Math.min(100, Math.max(0, 50 + Math.abs(step.metrics.energy) / 2));
+
     const structure = {
       type: 'structure' as const,
       structureId: step.structureId,
       label: step.label,
       filename: `step-${step.stepNumber}.pdb`,
       metrics: {
-        plddtAvg: step.metrics.rmsd * 20, // Approximate conversion
-        paeAvg: step.metrics.energy
+        plddtAvg: Math.round(plddt * 10) / 10,
+        paeAvg: Math.round(pae * 10) / 10,
+        constraint: Math.round(constraint * 10) / 10
       },
       pdbData: step.pdbData
     };
@@ -56,7 +66,7 @@ export function StepDetailsPanel({ step, className }: StepDetailsPanelProps) {
       )}
     >
       {/* Glass-morphism card */}
-      <div className="rounded-cf-md bg-white/5 backdrop-blur-sm border border-white/10 p-3 space-y-4">
+      <div className="rounded-cf-md bg-cf-bg-secondary/80 backdrop-blur-sm border border-cf-border p-3 space-y-4">
         {/* Header */}
         <div>
           <h3 className="text-sm font-semibold text-cf-text mb-1">
@@ -74,7 +84,7 @@ export function StepDetailsPanel({ step, className }: StepDetailsPanelProps) {
         {step.pdbData && (
           <button
             onClick={handleOpenInCanvas}
-            className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium text-cf-text-secondary hover:text-cf-text bg-white/5 hover:bg-white/10 border border-white/10 rounded-cf transition-colors"
+            className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium text-cf-text-secondary hover:text-cf-text bg-cf-highlight hover:bg-cf-highlight-strong border border-cf-border rounded-cf transition-colors"
           >
             <Maximize2 className="w-3 h-3" />
             Open in Canvas
@@ -137,7 +147,7 @@ export function StepDetailsPanel({ step, className }: StepDetailsPanelProps) {
             </div>
             <div className="h-1 bg-cf-bg rounded-full overflow-hidden">
               <div
-                className="h-full bg-blue-400"
+                className="h-full bg-cf-info"
                 style={{ width: `${Math.min(100, (metrics.hBonds / 100) * 100)}%` }}
               />
             </div>
@@ -155,7 +165,7 @@ export function StepDetailsPanel({ step, className }: StepDetailsPanelProps) {
             </div>
             <div className="h-1 bg-cf-bg rounded-full overflow-hidden">
               <div
-                className="h-full bg-orange-400"
+                className="h-full bg-cf-confidence-poor"
                 style={{
                   width: `${Math.min(100, (metrics.hydrophobic / 100) * 100)}%`,
                 }}

@@ -344,8 +344,8 @@ export const useAppStore = create<AppState>()(
     set({
       activeTask: task,
       isStreaming: isRunning,
-      // Auto-switch to viewer-focus when a task starts running
-      layoutMode: isRunning ? 'viewer-focus' : get().layoutMode,
+      // Don't auto-switch layout mode - let user stay in their current mode
+      // This prevents EventSource from being closed when ChatView unmounts
       consoleCollapsed: isRunning ? false : get().consoleCollapsed
     });
   },
@@ -393,6 +393,31 @@ export const useAppStore = create<AppState>()(
         );
       }
 
+      // When task completes, add artifacts to conversation as a message
+      // This ensures historical conversations display the folding results
+      let updatedConversations = state.conversations;
+      if (isDone && newStructures.length > 0) {
+        const conversationId = state.activeTask.conversationId;
+        updatedConversations = state.conversations.map(conv =>
+          conv.id === conversationId
+            ? {
+                ...conv,
+                messages: [
+                  ...conv.messages,
+                  {
+                    id: generateId('msg'),
+                    role: 'assistant' as const,
+                    content: `Folding complete! Generated ${newStructures.length} structure${newStructures.length > 1 ? 's' : ''}.`,
+                    timestamp: Date.now(),
+                    artifacts: newStructures
+                  }
+                ],
+                updatedAt: Date.now()
+              }
+            : conv
+        );
+      }
+
       return {
         activeTask: {
           ...state.activeTask,
@@ -401,7 +426,8 @@ export const useAppStore = create<AppState>()(
           status: isDone ? 'complete' : 'running'
         },
         isStreaming: !isDone,
-        projects: updatedProjects
+        projects: updatedProjects,
+        conversations: updatedConversations
       };
     });
   },

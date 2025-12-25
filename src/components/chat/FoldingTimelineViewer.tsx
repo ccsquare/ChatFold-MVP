@@ -1,3 +1,8 @@
+/**
+ * @deprecated This component uses the legacy FoldStep type.
+ * Use StructureArtifactCard with the new unified API instead.
+ * This component is kept for backward compatibility but will be removed in a future version.
+ */
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -26,6 +31,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  Trophy,
 } from 'lucide-react';
 import { HelixIcon } from '@/components/icons/ProteinIcon';
 
@@ -51,15 +57,21 @@ const stageLabels: Record<string, string> = {
   'ERROR': 'Error',
 };
 
+// Module-level Set to track which messages have auto-opened their best structure
+// This persists across component remounts but resets on page refresh
+const autoOpenedMessages = new Set<string>();
+
 interface FoldingTimelineViewerProps {
   steps: FoldStep[];
   conversationId: string;
+  messageId: string;  // Used to track if this message has auto-opened its best structure
   className?: string;
 }
 
 export function FoldingTimelineViewer({
   steps,
   conversationId,
+  messageId,
   className,
 }: FoldingTimelineViewerProps) {
   const [expandedStepId, setExpandedStepId] = useState<string | null>(null);
@@ -69,19 +81,25 @@ export function FoldingTimelineViewer({
   // Ensure we have at least one step to display
   const validSteps = steps.length > 0 ? steps : [];
 
-  // Auto-expand first step on initial load
-  useEffect(() => {
-    if (validSteps.length > 0 && expandedStepId === null) {
-      setExpandedStepId(validSteps[0].id);
-    }
-  }, [validSteps, expandedStepId]);
+  // Find the best step (lowest RMSD = best structure)
+  const bestStep = validSteps.length > 0
+    ? validSteps.reduce((best, current) =>
+        current.metrics.rmsd < best.metrics.rmsd ? current : best
+      )
+    : null;
 
-  const handleStepClick = useCallback((stepId: string) => {
-    setExpandedStepId(prev => prev === stepId ? null : stepId);
-  }, []);
-
-  const handleOpenInCanvas = useCallback((step: FoldStep) => {
+  // Helper to open a step in Canvas
+  const openStepInCanvas = useCallback((step: FoldStep) => {
     if (!step.pdbData) return;
+
+    // Convert FoldStep metrics to StructureArtifact metrics
+    // pLDDT (0-100, higher is better): inversely related to RMSD
+    // PAE (0-30, lower is better): proportional to RMSD
+    const plddt = Math.min(95, Math.max(30, 100 - step.metrics.rmsd * 20));
+    const pae = Math.max(3, step.metrics.rmsd * 10);
+
+    // Calculate constraint satisfaction based on energy (lower energy = better constraint)
+    const constraint = Math.min(100, Math.max(0, 50 + Math.abs(step.metrics.energy) / 2));
 
     const structure = {
       type: 'structure' as const,
@@ -89,14 +107,44 @@ export function FoldingTimelineViewer({
       label: step.label,
       filename: `step-${step.stepNumber}.pdb`,
       metrics: {
-        plddtAvg: step.metrics.rmsd * 20,
-        paeAvg: step.metrics.energy
+        plddtAvg: Math.round(plddt * 10) / 10,
+        paeAvg: Math.round(pae * 10) / 10,
+        constraint: Math.round(constraint * 10) / 10
       },
       pdbData: step.pdbData
     };
 
     openStructureTab(structure, step.pdbData);
   }, [openStructureTab]);
+
+  // Auto-expand best step on initial load (not first step)
+  useEffect(() => {
+    if (bestStep && expandedStepId === null) {
+      setExpandedStepId(bestStep.id);
+    }
+  }, [bestStep, expandedStepId]);
+
+  // Auto-open best structure in Canvas on completion (only once per message)
+  // Uses module-level Set to persist across component remounts
+  useEffect(() => {
+    if (bestStep && bestStep.pdbData && messageId && !autoOpenedMessages.has(messageId)) {
+      // Mark as opened BEFORE scheduling the timeout to prevent race conditions
+      autoOpenedMessages.add(messageId);
+      // Slight delay to ensure the viewer is ready
+      const timer = setTimeout(() => {
+        openStepInCanvas(bestStep);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [bestStep, messageId, openStepInCanvas]);
+
+  const handleStepClick = useCallback((stepId: string) => {
+    setExpandedStepId(prev => prev === stepId ? null : stepId);
+  }, []);
+
+  const handleOpenInCanvas = useCallback((step: FoldStep) => {
+    openStepInCanvas(step);
+  }, [openStepInCanvas]);
 
   const handleDownload = useCallback((step: FoldStep) => {
     if (!step.pdbData) return;
@@ -134,9 +182,17 @@ export function FoldingTimelineViewer({
               Folding Complete
             </span>
           </div>
-          <span className="text-xs text-cf-text-secondary">
-            {validSteps.length} steps
-          </span>
+          <div className="flex items-center gap-2">
+            {bestStep && (
+              <span className="flex items-center gap-1 text-xs text-cf-warning">
+                <Trophy className="w-3 h-3" />
+                Best: Step {bestStep.stepNumber}
+              </span>
+            )}
+            <span className="text-xs text-cf-text-secondary">
+              {validSteps.length} steps
+            </span>
+          </div>
         </div>
 
         {/* Timeline card - vertical list style matching StepsPanel */}
@@ -155,6 +211,7 @@ export function FoldingTimelineViewer({
                 const isCompleted = step.status === 'completed';
                 const isPending = step.status === 'pending';
                 const isActive = step.status === 'active';
+                const isBest = bestStep?.id === step.id;
 
                 return (
                   <div key={step.id} className="relative">
@@ -177,14 +234,14 @@ export function FoldingTimelineViewer({
                         <div className={cn(
                           "w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0",
                           isCompleted ? "bg-cf-success/20" :
-                            isActive ? "bg-blue-500/20" :
+                            isActive ? "bg-cf-info/20" :
                               isPending ? "bg-cf-bg" :
                                 "bg-cf-bg"
                         )}>
                           <Icon className={cn(
                             "w-3.5 h-3.5",
                             isCompleted ? "text-cf-success" :
-                              isActive ? "text-blue-500" :
+                              isActive ? "text-cf-info" :
                                 "text-cf-text-secondary"
                           )} />
                         </div>
@@ -192,9 +249,17 @@ export function FoldingTimelineViewer({
                         {/* Content */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-medium text-cf-text">
-                              Step {step.stepNumber}: {stageLabels[step.stage] || step.stage}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-medium text-cf-text">
+                                Step {step.stepNumber}: {stageLabels[step.stage] || step.stage}
+                              </span>
+                              {isBest && (
+                                <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-cf-warning/20 text-cf-warning text-[10px] font-medium">
+                                  <Trophy className="w-2.5 h-2.5" />
+                                  Best
+                                </span>
+                              )}
+                            </div>
                             <div className="flex items-center gap-2">
                               <span className="text-[10px] text-cf-text-muted">
                                 {step.metrics.time.toFixed(1)} ns
@@ -281,7 +346,7 @@ export function FoldingTimelineViewer({
                                 </div>
                                 <div className="h-1 bg-cf-bg-tertiary rounded-full overflow-hidden">
                                   <div
-                                    className="h-full bg-blue-400"
+                                    className="h-full bg-cf-info"
                                     style={{ width: `${Math.min(100, (step.metrics.hBonds / 100) * 100)}%` }}
                                   />
                                 </div>
@@ -297,7 +362,7 @@ export function FoldingTimelineViewer({
                                 </div>
                                 <div className="h-1 bg-cf-bg-tertiary rounded-full overflow-hidden">
                                   <div
-                                    className="h-full bg-orange-400"
+                                    className="h-full bg-cf-confidence-poor"
                                     style={{ width: `${Math.min(100, (step.metrics.hydrophobic / 100) * 100)}%` }}
                                   />
                                 </div>
@@ -321,7 +386,7 @@ export function FoldingTimelineViewer({
                                     Open in Canvas
                                   </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>Open in full viewer</TooltipContent>
+                                <TooltipContent>Open in Canvas</TooltipContent>
                               </Tooltip>
 
                               <Tooltip>

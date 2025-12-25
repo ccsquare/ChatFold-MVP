@@ -50,6 +50,87 @@ interface MolstarViewerProps {
 type MolstarPlugin = any;
 type StructureElementModule = any;
 type PluginCommandsModule = any;
+type ColorModule = any;
+type AssetModule = any;
+type PluginConfigModule = any;
+
+// ============================================================================
+// Global Molstar Module Cache (Singleton Pattern)
+// Loads modules once and reuses across all viewer instances for better performance
+// ============================================================================
+interface MolstarModules {
+  createPluginUI: any;
+  renderReact18: any;
+  DefaultPluginUISpec: any;
+  PluginCommands: any;
+  PluginConfig: any;
+  Asset: any;
+  Color: any;
+  StructureElement: any;
+}
+
+let molstarModulesPromise: Promise<MolstarModules> | null = null;
+let molstarModules: MolstarModules | null = null;
+
+async function loadMolstarModules(): Promise<MolstarModules> {
+  // Return cached modules if already loaded
+  if (molstarModules) return molstarModules;
+
+  // Return existing promise if loading is in progress
+  if (molstarModulesPromise) return molstarModulesPromise;
+
+  // Start loading modules in parallel
+  molstarModulesPromise = (async () => {
+    if (typeof window === 'undefined') {
+      throw new Error('Molstar can only be loaded in browser environment');
+    }
+
+    // Load CSS from CDN to avoid SCSS compilation issues
+    if (!document.getElementById('molstar-theme-css')) {
+      const link = document.createElement('link');
+      link.id = 'molstar-theme-css';
+      link.rel = 'stylesheet';
+      link.href = 'https://cdn.jsdelivr.net/npm/molstar@latest/build/viewer/molstar.css';
+      document.head.appendChild(link);
+    }
+
+    // Parallel loading of all required modules
+    const [
+      pluginUI,
+      react18,
+      spec,
+      commands,
+      config,
+      assets,
+      color,
+      structureElement
+    ] = await Promise.all([
+      import('molstar/lib/mol-plugin-ui'),
+      import('molstar/lib/mol-plugin-ui/react18'),
+      import('molstar/lib/mol-plugin-ui/spec'),
+      import('molstar/lib/mol-plugin/commands'),
+      import('molstar/lib/mol-plugin/config'),
+      import('molstar/lib/mol-util/assets'),
+      import('molstar/lib/mol-util/color'),
+      import('molstar/lib/mol-model/structure')
+    ]);
+
+    molstarModules = {
+      createPluginUI: pluginUI.createPluginUI,
+      renderReact18: react18.renderReact18,
+      DefaultPluginUISpec: spec.DefaultPluginUISpec,
+      PluginCommands: commands.PluginCommands,
+      PluginConfig: config.PluginConfig,
+      Asset: assets.Asset,
+      Color: color.Color,
+      StructureElement: structureElement.StructureElement
+    };
+
+    return molstarModules;
+  })();
+
+  return molstarModulesPromise;
+}
 
 // Three-letter to one-letter amino acid conversion table
 const threeToOne: Record<string, string> = {
@@ -276,14 +357,17 @@ export const MolstarViewer = memo(function MolstarViewer({
 
     initPromiseRef.current = (async () => {
       try {
-        // Dynamic import of molstar to avoid SSR issues
-        const { createPluginUI } = await import('molstar/lib/mol-plugin-ui');
-        const { renderReact18 } = await import('molstar/lib/mol-plugin-ui/react18');
-        const { DefaultPluginUISpec } = await import('molstar/lib/mol-plugin-ui/spec');
-        const { Color } = await import('molstar/lib/mol-util/color');
-        const { StructureElement } = await import('molstar/lib/mol-model/structure');
-        const { PluginCommands } = await import('molstar/lib/mol-plugin/commands');
-        const { PluginConfig } = await import('molstar/lib/mol-plugin/config');
+        // Use global module cache for better performance across multiple instances
+        const modules = await loadMolstarModules();
+        const {
+          createPluginUI,
+          renderReact18,
+          DefaultPluginUISpec,
+          PluginConfig,
+          Color,
+          StructureElement,
+          PluginCommands
+        } = modules;
 
         // Store modules for later use
         structureElementRef.current = StructureElement;
@@ -310,8 +394,8 @@ export const MolstarViewer = memo(function MolstarViewer({
         molstarContainerRef.current = molstarDiv;
 
         // Create plugin with minimal or full UI based on prop
-        // For minimalUI: hide all panels completely
-        // For full UI: use 'collapsed' panels from the start - we'll wait for layout before loading structure
+        // For minimalUI: hide all panels completely (used in timeline previews)
+        // For full UI: show sequence panel at top, collapsed panels on sides
         const spec = minimalUI ? {
           ...DefaultPluginUISpec(),
           layout: {
@@ -347,12 +431,13 @@ export const MolstarViewer = memo(function MolstarViewer({
               isExpanded: false,
               showControls: true,
               controlsDisplay: 'reactive' as const,
-              // Note: top/right can only be 'hidden' or 'full', left can be 'collapsed'
+              // Full UI configuration with sequence panel and structure tools
+              // Note: left supports 'full'/'collapsed'/'hidden', but top/right/bottom only support 'full'/'hidden'
               regionState: {
-                left: 'collapsed' as const,    // State Tree - can be collapsed
-                right: 'hidden' as const,      // Structure Tools
-                top: 'hidden' as const,        // Sequence View
-                bottom: 'hidden' as const,
+                left: 'collapsed' as const,    // State Tree - collapsed
+                right: 'full' as const,        // Structure Tools - visible (only 'full' or 'hidden' supported)
+                top: 'full' as const,          // Sequence View - visible
+                bottom: 'hidden' as const,     // Log panel - hidden
               }
             }
           },
@@ -363,7 +448,11 @@ export const MolstarViewer = memo(function MolstarViewer({
           },
           components: {
             remoteState: 'none' as const
-          }
+          },
+          config: [
+            // Hide built-in viewport controls to avoid overlap with our custom toolbar
+            [PluginConfig.Viewport.ShowControls, false] as [typeof PluginConfig.Viewport.ShowControls, boolean],
+          ]
         };
 
         const plugin = await createPluginUI({
@@ -481,10 +570,12 @@ export const MolstarViewer = memo(function MolstarViewer({
       // Clear existing structures
       await plugin.clear();
 
+      // Get cached modules
+      const modules = await loadMolstarModules();
+      const { Color, Asset } = modules;
+
       // Ensure canvas has valid dimensions before loading structure
       if (plugin.canvas3d) {
-        // Import Color dynamically
-        const { Color } = await import('molstar/lib/mol-util/color');
         plugin.canvas3d.setProps({
           renderer: {
             ...plugin.canvas3d.props.renderer,
@@ -496,9 +587,6 @@ export const MolstarViewer = memo(function MolstarViewer({
         // Force resize to ensure canvas has correct dimensions
         plugin.canvas3d.handleResize();
       }
-
-      // Import Asset for URL loading
-      const { Asset } = await import('molstar/lib/mol-util/assets');
 
       // Load PDB data from URL or raw data
       let dataObj;
@@ -568,9 +656,9 @@ export const MolstarViewer = memo(function MolstarViewer({
         plugin.canvas3d.requestDraw(true);
 
         try {
-          // Import and use PluginCommands.Camera.Reset for proper centering
-          const { PluginCommands } = await import('molstar/lib/mol-plugin/commands');
-          await PluginCommands.Camera.Reset(plugin, {});
+          // Use cached PluginCommands for proper centering
+          const modules = await loadMolstarModules();
+          await modules.PluginCommands.Camera.Reset(plugin, {});
         } catch (e) {
           console.warn('Camera reset via PluginCommands failed:', e);
           // Fallback to canvas3d methods
@@ -892,22 +980,81 @@ export const MolstarViewer = memo(function MolstarViewer({
       const plugin = pluginRef.current;
       if (!plugin?.canvas3d) return;
 
+      // Ensure canvas has correct dimensions
       plugin.canvas3d.handleResize();
 
       try {
-        if (typeof plugin.canvas3d.resetCamera === 'function') {
-          plugin.canvas3d.resetCamera();
-        } else {
+        // Use PluginCommands.Camera.Reset for proper camera reset
+        const modules = await loadMolstarModules();
+        await modules.PluginCommands.Camera.Reset(plugin, {});
+      } catch (e) {
+        console.warn('Camera reset via PluginCommands failed, using fallback:', e);
+        // Fallback methods
+        try {
+          if (typeof plugin.canvas3d.resetCamera === 'function') {
+            plugin.canvas3d.resetCamera();
+          } else {
+            plugin.canvas3d.requestCameraReset();
+          }
+        } catch (e2) {
           plugin.canvas3d.requestCameraReset();
         }
-      } catch (e) {
-        plugin.canvas3d.requestCameraReset();
       }
     };
 
     window.addEventListener('molstar-reset-view', handleReset);
     return () => window.removeEventListener('molstar-reset-view', handleReset);
   }, [renderFallback, useFallback]);
+
+  // Handle panel toggle event from ViewerToolbar
+  useEffect(() => {
+    const handleTogglePanel = async (event: CustomEvent<{ panel: string }>) => {
+      const plugin = pluginRef.current;
+      if (!plugin?.layout) return;
+
+      const { panel } = event.detail;
+
+      try {
+        // Get current state of the panel
+        const currentState = plugin.layout.state.regionState;
+        const panelKey = panel as keyof typeof currentState;
+        const currentPanelState = currentState[panelKey];
+
+        // Toggle between 'full' and 'hidden'
+        // Note: right/top/bottom only support 'full' or 'hidden', left also supports 'collapsed'
+        let newState: string;
+        if (panelKey === 'left') {
+          // For left panel: cycle through hidden -> collapsed -> full -> hidden
+          newState = currentPanelState === 'hidden' ? 'collapsed' :
+                     currentPanelState === 'collapsed' ? 'full' : 'hidden';
+        } else {
+          // For right/top/bottom: toggle between 'full' and 'hidden'
+          newState = currentPanelState === 'hidden' ? 'full' : 'hidden';
+        }
+
+        // Use PluginCommands.Layout.Update for proper state management
+        const modules = await loadMolstarModules();
+        await modules.PluginCommands.Layout.Update(plugin, {
+          state: {
+            regionState: {
+              ...currentState,
+              [panelKey]: newState
+            }
+          }
+        });
+
+        // Notify ViewerToolbar about the state change
+        window.dispatchEvent(new CustomEvent('molstar-panel-state-changed', {
+          detail: { panel, visible: newState !== 'hidden' }
+        }));
+      } catch (e) {
+        console.warn('Failed to toggle panel:', e);
+      }
+    };
+
+    window.addEventListener('molstar-toggle-panel' as any, handleTogglePanel);
+    return () => window.removeEventListener('molstar-toggle-panel' as any, handleTogglePanel);
+  }, []);
 
   // Synchronous cleanup before unmount to prevent DOM conflicts
   useLayoutEffect(() => {
@@ -1189,6 +1336,19 @@ export const MolstarViewer = memo(function MolstarViewer({
     };
   }, [pluginReady]);
 
+  // Handle retry - reinitialize the viewer
+  const handleRetry = useCallback(() => {
+    setError(null);
+    setIsLoading(true);
+    // Reset module promise to force fresh initialization
+    initPromiseRef.current = null;
+    // Re-trigger initialization
+    const timer = setTimeout(() => {
+      initViewer().then(() => loadStructure());
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [initViewer, loadStructure]);
+
   if (error && !pdbData) {
     return (
       <div
@@ -1197,9 +1357,15 @@ export const MolstarViewer = memo(function MolstarViewer({
         aria-live="polite"
       >
         <div className="text-center text-cf-text-secondary">
-          <AlertCircle className="w-8 h-8 mx-auto mb-2 text-red-500" aria-hidden="true" />
+          <AlertCircle className="w-8 h-8 mx-auto mb-2 text-cf-error" aria-hidden="true" />
           <p className="mb-2">Failed to load structure</p>
-          <p className="text-xs text-cf-text-muted">{error}</p>
+          <p className="text-xs text-cf-text-muted mb-3">{error}</p>
+          <button
+            onClick={handleRetry}
+            className="px-3 py-1.5 bg-cf-bg-tertiary hover:bg-cf-highlight text-cf-text text-sm rounded transition-colors"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -1210,6 +1376,11 @@ export const MolstarViewer = memo(function MolstarViewer({
       className="molstar-viewer-container h-full w-full relative"
       role="img"
       aria-label="3D protein structure viewer"
+      style={{
+        // CSS performance optimizations
+        willChange: 'transform', // GPU acceleration hint
+        contain: 'layout style paint', // CSS containment for better performance
+      }}
     >
       {/* Molstar container - MUST have NO React children to avoid DOM conflicts */}
       {/* Note: removed isolation: isolate to allow Mol* expanded viewport to cover other elements */}
@@ -1232,10 +1403,16 @@ export const MolstarViewer = memo(function MolstarViewer({
         </div>
       )}
 
-      {/* Error indicator - sibling of containerRef, not child */}
+      {/* Error indicator with retry button - sibling of containerRef, not child */}
       {error && (
-        <div className="absolute top-4 right-4 bg-yellow-500/20 text-yellow-500 px-2 py-1 rounded text-xs pointer-events-none">
-          Using fallback renderer
+        <div className="absolute top-4 right-4 flex items-center gap-2 bg-cf-warning/20 text-cf-warning px-2 py-1 rounded text-xs">
+          <span>Using fallback renderer</span>
+          <button
+            onClick={handleRetry}
+            className="underline hover:text-cf-warning/80 transition-colors"
+          >
+            Retry
+          </button>
         </div>
       )}
     </div>

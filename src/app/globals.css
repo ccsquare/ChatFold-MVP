@@ -12,9 +12,9 @@
   /* Light theme */
   .light {
     --cf-bg: #ffffff;
-    --cf-bg-secondary: #f8f8f8;
-    --cf-bg-tertiary: #f0f0f0;
-    --cf-bg-input: #e8e8e8;
+    --cf-bg-secondary: #fafafa;
+    --cf-bg-tertiary: #f5f5f5;
+    --cf-bg-input: #e0e0e0;
     --cf-border: rgba(0, 0, 0, 0.1);
     --cf-border-strong: rgba(0, 0, 0, 0.15);
     --cf-text: rgba(0, 0, 0, 0.85);
@@ -22,6 +22,15 @@
     --cf-text-muted: rgba(0, 0, 0, 0.45);
     --cf-accent: #7c4daa;
     --cf-success: #22c55e;
+    --cf-success-glow: rgba(34, 197, 94, 0.3);
+    --cf-error: #dc2626;
+    --cf-warning: #d97706;
+    --cf-info: #2563eb;
+    /* Confidence level colors for pLDDT/PAE metrics */
+    --cf-confidence-excellent: #14b8a6;
+    --cf-confidence-good: #06b6d4;
+    --cf-confidence-fair: #eab308;
+    --cf-confidence-poor: #f97316;
     --cf-highlight: rgba(0, 0, 0, 0.08);
     --cf-highlight-strong: rgba(0, 0, 0, 0.12);
     --cf-card-hover-bg: rgba(0, 0, 0, 0.04);
@@ -61,6 +70,15 @@
     --cf-text-muted: rgba(255, 255, 255, 0.4);
     --cf-accent: #623b8b;
     --cf-success: #67da7a;
+    --cf-success-glow: rgba(103, 218, 122, 0.25);
+    --cf-error: #ef4444;
+    --cf-warning: #f59e0b;
+    --cf-info: #3b82f6;
+    /* Confidence level colors for pLDDT/PAE metrics */
+    --cf-confidence-excellent: #2dd4bf;
+    --cf-confidence-good: #22d3ee;
+    --cf-confidence-fair: #facc15;
+    --cf-confidence-poor: #fb923c;
     --cf-highlight: rgba(255, 255, 255, 0.1);
     --cf-highlight-strong: rgba(255, 255, 255, 0.15);
     --cf-card-hover-bg: rgba(255, 255, 255, 0.06);
@@ -177,6 +195,9 @@ body {
   width: 100%;
   height: 100%;
   position: relative;
+  /* Note: Changed from overflow: hidden to allow Molstar's edge controls
+     (viewport controls, panel toggles) to be visible at the edges */
+  overflow: visible;
 }
 
 /* Ensure Molstar internal structure fills the container */
@@ -186,6 +207,10 @@ body {
 }
 
 /* Molstar plugin layers need to fill their containers */
+/* Note: Do NOT set overflow:hidden on .msp-plugin or .msp-plugin-content
+   as it clips the viewport controls (Reset Zoom, Screenshot, etc.) that are
+   positioned absolutely at the edges. The outer .molstar-viewer-container
+   handles overflow containment instead. */
 .molstar-viewer-container .msp-plugin {
   width: 100% !important;
   height: 100% !important;
@@ -211,9 +236,23 @@ body {
 }
 
 /* Molstar - only layout/size overrides, preserve Molstar's native styling */
+/* Viewport controls (zoom, reset, etc.) positioned at viewport edges */
 .msp-viewport-controls {
   position: absolute !important;
   z-index: 5 !important;
+}
+
+/* Ensure Molstar's right-side toggle strip is visible */
+.msp-layout-region-right,
+.msp-layout-region-toggle-right {
+  z-index: 10 !important;
+}
+
+/* Allow Molstar's panel toggle buttons at edges to be visible */
+.msp-layout-top-controls,
+.msp-layout-right-controls,
+.msp-layout-controls {
+  overflow: visible !important;
 }
 
 /* Ensure Mol* highlight tooltip appears above other overlays */

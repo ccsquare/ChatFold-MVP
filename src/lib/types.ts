@@ -4,8 +4,9 @@ export type StageType = 'QUEUED' | 'MSA' | 'MODEL' | 'RELAX' | 'QA' | 'DONE' | '
 export type StatusType = 'queued' | 'running' | 'partial' | 'complete' | 'failed' | 'canceled';
 
 export interface StructureMetrics {
-  plddtAvg: number; // 0-100
-  paeAvg: number;   // 0-30
+  plddtAvg: number;   // 0-100, 预测置信度
+  paeAvg: number;     // 0-30, 预测误差
+  constraint: number; // 0-100, 约束满足度
 }
 
 export interface StructureArtifact {
@@ -138,7 +139,11 @@ export interface ViewerTab {
   atomCount?: number;
 }
 
-// Folding step for timeline viewer
+/**
+ * @deprecated Use StructureArtifact with StepEvent instead.
+ * This type will be removed in a future version.
+ * Folding step for timeline viewer (legacy)
+ */
 export interface FoldStep {
   id: string;
   stepNumber: number;

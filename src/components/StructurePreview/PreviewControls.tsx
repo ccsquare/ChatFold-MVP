@@ -112,7 +112,7 @@ export function PreviewControls({
               <Maximize2 className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="left">Open full viewer (Enter)</TooltipContent>
+          <TooltipContent side="left">Open in full viewer (Enter)</TooltipContent>
         </Tooltip>
       </div>
     </div>

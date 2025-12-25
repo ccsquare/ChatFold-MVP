@@ -108,7 +108,7 @@ export function Canvas() {
                 )}
 
                 {/* Viewer Content */}
-                <div className="flex-1 relative">
+                <div className="flex-1 relative overflow-hidden">
                   {activeTab.filename && /\.(fasta|fa|txt)$/i.test(activeTab.filename) ? (
                     <SequenceViewer
                       content={activeTab.pdbData}

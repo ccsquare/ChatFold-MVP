@@ -34,7 +34,7 @@ export function CanvasTabs() {
             )}
             onClick={() => setActiveTab(tab.id)}
           >
-            <HelixIcon className="w-4 h-4 text-cf-success/60 flex-shrink-0" />
+            <HelixIcon className="w-4 h-4 text-cf-success/70 flex-shrink-0" />
             <span className={cn(
               "text-[13px] truncate max-w-[120px]",
               tab.id === activeTabId ? "text-cf-text" : "text-cf-text-muted"
