@@ -2,11 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@/lib/store';
-import { ChatMessage, MentionableFile, StructureArtifact } from '@/lib/types';
-import { MessageBubble } from './MessageBubble';
+import { MentionableFile } from '@/lib/types';
 import { ChatInput } from './ChatInput';
-import { cn, formatTimestamp } from '@/lib/utils';
-import { Sparkles, PanelRight, Loader2, CheckCircle2, Trophy } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Sparkles, PanelRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { HelixIcon } from '@/components/icons/ProteinIcon';
 import {
@@ -16,8 +15,9 @@ import {
   TooltipProvider,
 } from '@/components/ui/tooltip';
 import { useFoldingTask } from '@/hooks/useFoldingTask';
+import { useConversationTimeline } from '@/hooks/useConversationTimeline';
 import { parseFasta } from '@/lib/mock/generators';
-import { StructureArtifactCard } from '@/components/StructureArtifactCard';
+import { TimelineRenderer } from '@/components/timeline';
 import { EXAMPLE_SEQUENCES } from '@/lib/constants/sequences';
 
 // Generate a timestamp-based filename for sequence files
@@ -26,102 +26,6 @@ const generateSequenceFilename = () => {
   const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
   return `sequence_${timestamp}.fasta`;
 };
-
-// Artifacts Timeline Component
-function ArtifactsTimeline({ artifacts }: { artifacts: StructureArtifact[] }) {
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const endRef = useRef<HTMLDivElement>(null);
-
-  // Auto-scroll to bottom when new artifacts arrive
-  useEffect(() => {
-    if (endRef.current && scrollContainerRef.current) {
-      // Scroll within the container, not the whole page
-      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
-    }
-  }, [artifacts.length]);
-
-  if (artifacts.length === 0) return null;
-
-  // Find best artifact (highest pLDDT or labeled as final)
-  const bestArtifact = artifacts.reduce((best, current) => {
-    if (current.label?.toLowerCase() === 'final') return current;
-    if (best.label?.toLowerCase() === 'final') return best;
-    return current.metrics.plddtAvg > best.metrics.plddtAvg ? current : best;
-  });
-
-  return (
-    <div className="space-y-3">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-cf-success" />
-          <span className="text-sm font-medium text-cf-text">
-            Folding Complete
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          {bestArtifact && (
-            <span className="flex items-center gap-1 text-xs text-cf-warning">
-              <Trophy className="w-3 h-3" />
-              Best: {bestArtifact.label || 'Final'}
-            </span>
-          )}
-          <span className="text-xs text-cf-text-secondary">
-            {artifacts.length} structures
-          </span>
-        </div>
-      </div>
-
-      {/* Artifacts grid */}
-      <div className="rounded-cf-lg border border-cf-border bg-cf-bg-secondary overflow-hidden">
-        <div className="h-1 bg-cf-bg">
-          <div className="h-full bg-cf-success w-full" />
-        </div>
-        {/* Using simple div instead of ScrollArea to avoid height calculation issues */}
-        <div ref={scrollContainerRef} className="p-3 space-y-3 max-h-[600px] overflow-y-auto">
-          {artifacts.map((artifact, index) => {
-            const isBest = artifact.structureId === bestArtifact.structureId;
-            const previousPlddt = index > 0 ? artifacts[index - 1].metrics.plddtAvg : undefined;
-
-            return (
-              <div key={artifact.structureId} className="relative">
-                {/* Timeline line */}
-                {index < artifacts.length - 1 && (
-                  <div className="absolute left-3 top-6 w-px h-full bg-cf-border -z-10" />
-                )}
-
-                <div className="flex gap-3">
-                  {/* Timeline node */}
-                  <div className={cn(
-                    "relative z-10 flex-shrink-0 flex items-center justify-center rounded-full border-2 transition-all duration-300 mt-1",
-                    isBest
-                      ? "w-6 h-6 border-cf-success bg-cf-bg text-cf-success shadow-[0_0_12px_var(--cf-success-glow)]"
-                      : "w-3 h-3 border-cf-success/60 bg-cf-bg"
-                  )}>
-                    {isBest && <Trophy className="w-3 h-3" />}
-                  </div>
-
-                  {/* Card */}
-                  <div className="flex-1 min-w-0">
-                    <StructureArtifactCard
-                      artifact={artifact}
-                      stepNumber={index + 1}
-                      previousPlddt={previousPlddt}
-                      showPreview={true}
-                      defaultExpanded={isBest}
-                    />
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-          {/* Auto-scroll anchor */}
-          <div ref={endRef} />
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export function ChatView() {
   const {
@@ -135,11 +39,12 @@ export function ChatView() {
     viewerTabs
   } = useAppStore();
 
-  const { submit, isStreaming, artifacts } = useFoldingTask();
+  const { submit, artifacts: streamingArtifacts } = useFoldingTask();
+  const { timeline, isStreaming, conversation } = useConversationTimeline();
+
   const [inputValue, setInputValue] = useState('');
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Auto-create conversation if none exists
   useEffect(() => {
@@ -148,9 +53,7 @@ export function ChatView() {
     }
   }, [activeConversationId, conversations.length, createConversation]);
 
-  const activeConversation = conversations.find(c => c.id === activeConversationId);
-  const messages = activeConversation?.messages || [];
-  const isEmpty = messages.length === 0;
+  const isEmpty = timeline.length === 0;
 
   // Build available files for @ mentions with full path identification
   const availableFiles = useMemo(() => {
@@ -195,14 +98,14 @@ export function ChatView() {
     }
 
     // Add assets from active conversation
-    if (activeConversation?.assets) {
-      activeConversation.assets.forEach(asset => {
-        const id = `conversation/${activeConversation.id}/${asset.name}`;
+    if (conversation?.assets) {
+      conversation.assets.forEach(asset => {
+        const id = `conversation/${conversation.id}/${asset.name}`;
         if (!files.some(f => f.id === id)) {
           files.push({
             id,
             name: asset.name,
-            path: `conversation/${activeConversation.id}/${asset.name}`,
+            path: `conversation/${conversation.id}/${asset.name}`,
             type: asset.type
           });
         }
@@ -210,12 +113,12 @@ export function ChatView() {
     }
 
     return files;
-  }, [projects, activeTask, activeConversation]);
+  }, [projects, activeTask, conversation]);
 
-  // Auto scroll to bottom when new messages arrive
+  // Auto scroll to bottom when timeline changes
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length, artifacts.length]);
+  }, [timeline.length]);
 
   const handleSendMessage = useCallback(async (content: string, mentionedFiles?: MentionableFile[]) => {
     let convId = activeConversationId;
@@ -275,7 +178,6 @@ export function ChatView() {
               content: 'Failed to start structure prediction. Please check your sequence and try again.'
             });
           }
-          // Note: The hook handles streaming and artifacts will appear via activeTask.structures
         } else {
           addMessage(convId, {
             role: 'assistant',
@@ -333,132 +235,90 @@ export function ChatView() {
             <div className="flex items-center justify-between px-4 py-2">
               <div className="flex items-center gap-2">
                 <Loader2 className="w-4 h-4 text-cf-success animate-spin" />
-                <span className="text-xs font-medium text-cf-text">Processing...</span>
+                <span className="text-xs font-medium text-cf-text">Thinking...</span>
               </div>
               <span className="text-xs text-cf-text-muted">
-                {artifacts.length} structures generated
+                {streamingArtifacts.length} structures generated
               </span>
             </div>
           </div>
         )}
 
         {/* Scrollable content area */}
-        <div
-          ref={scrollContainerRef}
-          className="flex-1 overflow-y-auto"
-        >
-        {isEmpty ? (
-          // Empty state: centered content with examples
-          <div className="h-full flex flex-col items-center justify-center px-4 py-8">
-            <div className="w-full max-w-xl">
-              {/* Header */}
-              <div className="text-center mb-6">
-                <div className="w-16 h-16 mx-auto mb-4 opacity-40">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/window.svg" alt="" className="w-full h-full" />
-                </div>
-                <p className="text-cf-text-secondary text-sm mb-1">How can I help you?</p>
-                <p className="text-cf-text-muted text-xs">
-                  Paste a protein sequence to predict its structure
-                </p>
-              </div>
-
-              {/* Example sequences section */}
-              <div className="w-full">
-                {/* Section header */}
-                <div className="flex items-center justify-center gap-2 mb-4">
-                  <Sparkles className="w-3.5 h-3.5 text-cf-accent/60" />
-                  <span className="text-xs font-medium text-cf-text-muted uppercase tracking-wide">
-                    试试示例序列
-                  </span>
+        <div className="flex-1 overflow-y-auto">
+          {isEmpty ? (
+            // Empty state: centered content with examples
+            <div className="h-full flex flex-col items-center justify-center px-4 py-8">
+              <div className="w-full max-w-xl">
+                {/* Header */}
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 mx-auto mb-4 opacity-40">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/window.svg" alt="" className="w-full h-full" />
+                  </div>
+                  <p className="text-cf-text-secondary text-sm mb-1">How can I help you?</p>
+                  <p className="text-cf-text-muted text-xs">
+                    Paste a protein sequence to predict its structure
+                  </p>
                 </div>
 
-                {/* Cards grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {EXAMPLE_SEQUENCES.map((example, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleExampleClick(example.sequence)}
-                      style={{ animationDelay: `${index * 50}ms` }}
-                      className={cn(
-                        "animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards",
-                        "group relative flex flex-col items-start gap-1.5 p-3 text-left",
-                        "rounded-xl border border-cf-border/60",
-                        "bg-cf-bg-tertiary/40",
-                        "hover:bg-cf-bg-tertiary hover:border-cf-accent/60",
-                        "hover:-translate-y-0.5",
-                        "active:scale-[0.98] active:translate-y-0",
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-accent",
-                        "focus-visible:ring-offset-2 focus-visible:ring-offset-cf-bg",
-                        "transition-all duration-200 ease-out",
-                        "cursor-pointer"
-                      )}
-                    >
-                      <div className="absolute top-2.5 right-2.5">
-                        <HelixIcon className="w-4 h-4 text-cf-text-muted opacity-30 group-hover:text-cf-accent group-hover:opacity-100 group-hover:scale-110 transition-all duration-200" />
-                      </div>
-                      <span className="text-sm font-medium text-cf-text group-hover:text-cf-text pr-6 transition-colors duration-200">
-                        {example.name}
-                      </span>
-                      <span className="text-xs text-cf-text-muted line-clamp-1">
-                        {example.description}
-                      </span>
-                    </button>
-                  ))}
+                {/* Example sequences section */}
+                <div className="w-full">
+                  {/* Section header */}
+                  <div className="flex items-center justify-center gap-2 mb-4">
+                    <Sparkles className="w-3.5 h-3.5 text-cf-accent/60" />
+                    <span className="text-xs font-medium text-cf-text-muted uppercase tracking-wide">
+                      试试示例序列
+                    </span>
+                  </div>
+
+                  {/* Cards grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {EXAMPLE_SEQUENCES.map((example, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleExampleClick(example.sequence)}
+                        style={{ animationDelay: `${index * 50}ms` }}
+                        className={cn(
+                          "animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards",
+                          "group relative flex flex-col items-start gap-1.5 p-3 text-left",
+                          "rounded-xl border border-cf-border/60",
+                          "bg-cf-bg-tertiary/40",
+                          "hover:bg-cf-bg-tertiary hover:border-cf-accent/60",
+                          "hover:-translate-y-0.5",
+                          "active:scale-[0.98] active:translate-y-0",
+                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-accent",
+                          "focus-visible:ring-offset-2 focus-visible:ring-offset-cf-bg",
+                          "transition-all duration-200 ease-out",
+                          "cursor-pointer"
+                        )}
+                      >
+                        <div className="absolute top-2.5 right-2.5">
+                          <HelixIcon className="w-4 h-4 text-cf-text-muted opacity-30 group-hover:text-cf-accent group-hover:opacity-100 group-hover:scale-110 transition-all duration-200" />
+                        </div>
+                        <span className="text-sm font-medium text-cf-text group-hover:text-cf-text pr-6 transition-colors duration-200">
+                          {example.name}
+                        </span>
+                        <span className="text-xs text-cf-text-muted line-clamp-1">
+                          {example.description}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ) : (
-          // Active state: message list with artifacts timeline
-          <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-            {messages.map((message) => (
-              <div key={message.id}>
-                {message.role === 'user' ? (
-                  <MessageBubble message={message} />
-                ) : message.role === 'assistant' && message.artifacts && message.artifacts.length > 0 ? (
-                  // Message with artifacts - show both the message and the timeline
-                  <div className="space-y-4">
-                    <ArtifactsTimeline artifacts={message.artifacts} />
-                    {/* Show the completion message below the timeline */}
-                    <div className="flex justify-start">
-                      <div className={cn(
-                        "max-w-[85%] rounded-lg px-3 py-2 overflow-hidden shadow-sm",
-                        "bg-cf-bg border border-cf-border text-cf-text"
-                      )}>
-                        <p className="text-sm whitespace-pre-wrap break-all [overflow-wrap:anywhere]">{message.content}</p>
-                        <p className="text-[10px] mt-1 text-cf-text-muted">
-                          {formatTimestamp(message.timestamp)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  // Plain text assistant message - styled like ChatPanel
-                  <div className="flex justify-start">
-                    <div className={cn(
-                      "max-w-[85%] rounded-lg px-3 py-2 overflow-hidden shadow-sm",
-                      "bg-cf-bg border border-cf-border text-cf-text"
-                    )}>
-                      <p className="text-sm whitespace-pre-wrap break-all [overflow-wrap:anywhere]">{message.content}</p>
-                      <p className="text-[10px] mt-1 text-cf-text-muted">
-                        {formatTimestamp(message.timestamp)}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-
-            {/* Show artifacts timeline ONLY during streaming */}
-            {/* After streaming completes, the completion message includes artifacts and renders its own timeline */}
-            {isStreaming && artifacts.length > 0 && (
-              <ArtifactsTimeline artifacts={artifacts} />
-            )}
-
-            <div ref={messagesEndRef} />
-          </div>
-        )}
+          ) : (
+            // Active state: unified timeline
+            <div className="max-w-4xl mx-auto px-4 py-6">
+              <TimelineRenderer
+                timeline={timeline}
+                variant="wide"
+                isStreaming={isStreaming}
+              />
+              <div ref={messagesEndRef} />
+            </div>
+          )}
         </div>
 
         {/* Fixed input at bottom - always visible */}

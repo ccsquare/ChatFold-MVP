@@ -33,6 +33,7 @@ export function useFoldingTask() {
 
   /**
    * Start SSE streaming for a task
+   * Note: SSE connects directly to Python backend to avoid Next.js proxy buffering
    */
   const startStream = useCallback((taskId: string, sequence: string) => {
     // Close any existing connection
@@ -40,8 +41,10 @@ export function useFoldingTask() {
       eventSourceRef.current.close();
     }
 
+    // Connect directly to Python backend for SSE (bypasses Next.js proxy buffering)
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
     const eventSource = new EventSource(
-      `/api/tasks/${taskId}/stream?sequence=${encodeURIComponent(sequence)}`
+      `${backendUrl}/api/tasks/${taskId}/stream?sequence=${encodeURIComponent(sequence)}`
     );
     eventSourceRef.current = eventSource;
 
