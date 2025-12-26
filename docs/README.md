@@ -17,7 +17,7 @@
 协作流程和规范
 
 - **CONTRIBUTING.md** - 贡献指南和 Commit 规范
-- **PR.md** - Pull Request 提交规范
+- **[PR.md](./workflow/PR.md)** - Pull Request 提交规范和 Label 体系
 
 ### 功能实现文档 ([features/](./features/))
 
