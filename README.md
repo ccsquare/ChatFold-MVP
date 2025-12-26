@@ -102,10 +102,10 @@ src/
 
 ## Test Data
 
-Sample files are in `data/test_data/`:
+Sample files are in `web/tests/fixtures/`:
 
 - `9CG9_HMGB1.fasta` - Sample FASTA sequence
-- `9CG9_HMGB1.pdb` - Reference PDB structure
+- `9CG9_HMGB1.pdb` - Reference PDB structure (managed by Git LFS)
 
 ## Design Reference
 
