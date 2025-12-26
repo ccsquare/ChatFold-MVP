@@ -1,7 +1,7 @@
 """Pydantic models matching the frontend TypeScript types."""
 
 from enum import Enum
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -37,9 +37,9 @@ class StructureArtifact(BaseModel):
     label: str  # 'candidate-1', 'candidate-2', ..., 'final'
     filename: str
     metrics: StructureMetrics
-    pdbData: Optional[str] = None
-    thumbnail: Optional[str] = None
-    createdAt: Optional[int] = None  # Timestamp for timeline ordering
+    pdbData: str | None = None
+    thumbnail: str | None = None
+    createdAt: int | None = None  # Timestamp for timeline ordering
 
 
 class StepEvent(BaseModel):
@@ -50,7 +50,7 @@ class StepEvent(BaseModel):
     status: StatusType
     progress: int = Field(..., ge=0, le=100)
     message: str
-    artifacts: Optional[list[StructureArtifact]] = None
+    artifacts: list[StructureArtifact] | None = None
 
 
 class Asset(BaseModel):
@@ -66,7 +66,7 @@ class ChatMessage(BaseModel):
     role: Literal["user", "assistant", "tool"]
     content: str
     timestamp: int
-    artifacts: Optional[list[StructureArtifact]] = None
+    artifacts: list[StructureArtifact] | None = None
 
 
 class Task(BaseModel):
@@ -75,7 +75,7 @@ class Task(BaseModel):
     status: StatusType
     sequence: str
     createdAt: int
-    completedAt: Optional[int] = None
+    completedAt: int | None = None
     steps: list[StepEvent] = Field(default_factory=list)
     structures: list[StructureArtifact] = Field(default_factory=list)
 
@@ -94,16 +94,17 @@ class Conversation(BaseModel):
 
 
 class CreateTaskRequest(BaseModel):
-    conversationId: Optional[str] = None
-    sequence: Optional[str] = None
-    fastaContent: Optional[str] = None
+    conversationId: str | None = None
+    sequence: str | None = None
+    fastaContent: str | None = None
 
     @field_validator("sequence", mode="before")
     @classmethod
-    def normalize_sequence_field(cls, v: Optional[str]) -> Optional[str]:
+    def normalize_sequence_field(cls, v: str | None) -> str | None:
         if v is None:
             return None
         from ..utils.sequence_validator import normalize_sequence
+
         return normalize_sequence(v)
 
     def get_validated_sequence(self) -> str:
@@ -126,7 +127,7 @@ class CreateTaskRequest(BaseModel):
 
 
 class CreateConversationRequest(BaseModel):
-    title: Optional[str] = "New Conversation"
+    title: str | None = "New Conversation"
 
 
 class CachePDBRequest(BaseModel):

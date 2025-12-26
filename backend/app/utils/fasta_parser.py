@@ -1,6 +1,6 @@
 """FASTA file parsing utilities."""
 
-from typing import Optional, TypedDict
+from typing import TypedDict
 
 
 class ParsedFasta(TypedDict):
@@ -8,7 +8,7 @@ class ParsedFasta(TypedDict):
     sequence: str
 
 
-def parse_fasta(content: str) -> Optional[ParsedFasta]:
+def parse_fasta(content: str) -> ParsedFasta | None:
     """Parse FASTA format content and extract header and sequence.
 
     Valid FASTA format requires:

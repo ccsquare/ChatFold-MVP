@@ -1,7 +1,6 @@
 """Thread-safe in-memory storage service for conversations, tasks, and structures."""
 
 import threading
-from typing import Optional
 
 from ..models.schemas import Conversation, Task
 
@@ -24,17 +23,13 @@ class InMemoryStorage:
         with self._lock:
             self._conversations[conversation.id] = conversation
 
-    def get_conversation(self, conversation_id: str) -> Optional[Conversation]:
+    def get_conversation(self, conversation_id: str) -> Conversation | None:
         with self._lock:
             return self._conversations.get(conversation_id)
 
     def list_conversations(self) -> list[Conversation]:
         with self._lock:
-            return sorted(
-                list(self._conversations.values()),
-                key=lambda c: c.updatedAt,
-                reverse=True
-            )
+            return sorted(list(self._conversations.values()), key=lambda c: c.updatedAt, reverse=True)
 
     def delete_conversation(self, conversation_id: str) -> bool:
         with self._lock:
@@ -48,24 +43,20 @@ class InMemoryStorage:
         with self._lock:
             self._tasks[task.id] = task
 
-    def get_task(self, task_id: str) -> Optional[Task]:
+    def get_task(self, task_id: str) -> Task | None:
         with self._lock:
             return self._tasks.get(task_id)
 
     def list_tasks(self) -> list[Task]:
         with self._lock:
-            return sorted(
-                list(self._tasks.values()),
-                key=lambda t: t.createdAt,
-                reverse=True
-            )
+            return sorted(list(self._tasks.values()), key=lambda t: t.createdAt, reverse=True)
 
     # Task sequence mapping (for SSE streams)
     def save_task_sequence(self, task_id: str, sequence: str) -> None:
         with self._lock:
             self._task_sequences[task_id] = sequence
 
-    def get_task_sequence(self, task_id: str) -> Optional[str]:
+    def get_task_sequence(self, task_id: str) -> str | None:
         with self._lock:
             return self._task_sequences.get(task_id)
 
@@ -74,7 +65,7 @@ class InMemoryStorage:
         with self._lock:
             self._structure_cache[structure_id] = pdb_data
 
-    def get_cached_structure(self, structure_id: str) -> Optional[str]:
+    def get_cached_structure(self, structure_id: str) -> str | None:
         with self._lock:
             return self._structure_cache.get(structure_id)
 
