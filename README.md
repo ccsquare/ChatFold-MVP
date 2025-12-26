@@ -127,5 +127,5 @@ Sample files are in `web/tests/fixtures/`:
 
 - Mock server simulates 500-1200ms delays between step events
 - Thumbnail generation uses canvas toDataURL
-- Structure viewer is a lightweight Canvas 2D implementation
-- For production, integrate actual Mol\* viewer from `@molstar/`
+- Mol\* viewer integrated via `molstar` npm package (v4.18.0)
+- Dynamic imports used to avoid SSR issues with Mol\*
