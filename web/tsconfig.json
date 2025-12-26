@@ -20,11 +20,10 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"],
-      "@molstar/*": ["../molstar/src/*"]
+      "@/*": ["./src/*"]
     },
     "baseUrl": "."
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "../molstar"]
+  "exclude": ["node_modules"]
 }

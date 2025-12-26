@@ -47,13 +47,11 @@ ChatFold-MVP/
 │   │   └── utils/       # 工具函数
 │   └── requirements.txt
 │
-├── docs/                # 项目文档
-│   ├── developer/       # 开发者文档
-│   ├── workflow/        # 工作流程文档
-│   ├── features/        # 功能实现文档
-│   └── standards/       # 通用准则
-│
-└── molstar/             # Mol* 本地配置
+└── docs/                # 项目文档
+    ├── developer/       # 开发者文档
+    ├── workflow/        # 工作流程文档
+    ├── features/        # 功能实现文档
+    └── standards/       # 通用准则
 ```
 
 ## 3. 技术栈
