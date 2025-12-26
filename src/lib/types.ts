@@ -17,6 +17,7 @@ export interface StructureArtifact {
   metrics: StructureMetrics;
   pdbData?: string; // PDB file content
   thumbnail?: string; // Base64 encoded thumbnail
+  createdAt?: number; // Timestamp when artifact was generated (for timeline ordering)
 }
 
 export interface StepEvent {

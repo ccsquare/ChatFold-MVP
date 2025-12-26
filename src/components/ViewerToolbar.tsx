@@ -31,7 +31,7 @@ export function ViewerToolbar({ isExpanded = false, onToggleExpand }: ViewerTool
   const viewerTabs = useAppStore(state => state.viewerTabs);
   const activeTabId = useAppStore(state => state.activeTabId);
   const activeTab = viewerTabs.find(t => t.id === activeTabId);
-  const [isToolsPanelVisible, setIsToolsPanelVisible] = useState(true);
+  const [isToolsPanelVisible, setIsToolsPanelVisible] = useState(false);
 
   // Listen for panel state changes from Molstar
   useEffect(() => {

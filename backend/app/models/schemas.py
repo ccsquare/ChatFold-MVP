@@ -39,6 +39,7 @@ class StructureArtifact(BaseModel):
     metrics: StructureMetrics
     pdbData: Optional[str] = None
     thumbnail: Optional[str] = None
+    createdAt: Optional[int] = None  # Timestamp for timeline ordering
 
 
 class StepEvent(BaseModel):

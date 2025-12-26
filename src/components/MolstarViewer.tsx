@@ -439,7 +439,7 @@ export const MolstarViewer = memo(function MolstarViewer({
               // Note: left supports 'full'/'collapsed'/'hidden', but top/right/bottom only support 'full'/'hidden'
               regionState: {
                 left: 'collapsed' as const,    // State Tree - collapsed
-                right: 'full' as const,        // Structure Tools - visible (only 'full' or 'hidden' supported)
+                right: 'hidden' as const,      // Structure Tools - hidden by default
                 top: 'full' as const,          // Sequence View - visible
                 bottom: 'hidden' as const,     // Log panel - hidden
               }

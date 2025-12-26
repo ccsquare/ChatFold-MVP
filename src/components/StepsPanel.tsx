@@ -78,7 +78,7 @@ export function StepsPanel() {
               <CheckCircle2 className="w-4 h-4 text-cf-success" />
             )}
             <span className="text-sm font-medium text-cf-text">
-              {isStreaming ? 'Processing...' : 'Complete'}
+              {isStreaming ? 'Thinking...' : 'Complete'}
             </span>
           </div>
         </div>

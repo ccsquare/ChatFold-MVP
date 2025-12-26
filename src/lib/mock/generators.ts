@@ -179,7 +179,8 @@ export function* generateStepEvents(taskId: string, sequence: string): Generator
             plddtAvg: Math.round(plddt * 10) / 10,
             paeAvg: Math.round(pae * 10) / 10,
             constraint: Math.round(Math.min(100, constraint) * 10) / 10
-          }
+          },
+          createdAt: Date.now()
         });
       }
 
@@ -199,7 +200,8 @@ export function* generateStepEvents(taskId: string, sequence: string): Generator
             plddtAvg: Math.round(plddt * 10) / 10,
             paeAvg: Math.round(pae * 10) / 10,
             constraint: Math.round(Math.min(100, constraint) * 10) / 10
-          }
+          },
+          createdAt: Date.now()
         });
       }
 

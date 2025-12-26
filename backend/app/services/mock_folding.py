@@ -116,7 +116,8 @@ def generate_step_events(task_id: str, sequence: str) -> Generator[StepEvent, No
                         paeAvg=round(pae, 1),
                         constraint=round(min(100, constraint), 1)
                     ),
-                    pdbData=pdb_data
+                    pdbData=pdb_data,
+                    createdAt=int(time.time() * 1000)
                 ))
 
             # Generate final structure at DONE stage (best quality)
@@ -140,7 +141,8 @@ def generate_step_events(task_id: str, sequence: str) -> Generator[StepEvent, No
                         paeAvg=round(pae, 1),
                         constraint=round(min(100, constraint), 1)
                     ),
-                    pdbData=pdb_data
+                    pdbData=pdb_data,
+                    createdAt=int(time.time() * 1000)
                 ))
 
             # Calculate progress
