@@ -3,5 +3,10 @@
 # Format root-level markdown files
 npx --prefix web prettier --write "*.md" "docs/**/*.md" 2>/dev/null || true
 
+# Format Python files in backend/
+cd backend && ruff check --fix . 2>/dev/null || true
+cd backend && ruff format . 2>/dev/null || true
+cd ..
+
 # Run lint-staged for web/ directory
 cd web && npx lint-staged

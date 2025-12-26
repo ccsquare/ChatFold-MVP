@@ -30,11 +30,7 @@ app.include_router(structures_router)
 @app.get("/")
 async def root():
     """Health check endpoint."""
-    return {
-        "status": "ok",
-        "service": "ChatFold API",
-        "version": "0.1.0"
-    }
+    return {"status": "ok", "service": "ChatFold API", "version": "0.1.0"}
 
 
 @app.get("/health")
@@ -45,9 +41,5 @@ async def health():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "app.main:app",
-        host=settings.host,
-        port=settings.port,
-        reload=settings.debug
-    )
+
+    uvicorn.run("app.main:app", host=settings.host, port=settings.port, reload=settings.debug)

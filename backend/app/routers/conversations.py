@@ -25,24 +25,19 @@ async def create_conversation(request: CreateConversationRequest = None):
         updatedAt=now,
         messages=[],
         tasks=[],
-        assets=[]
+        assets=[],
     )
 
     storage.save_conversation(conversation)
 
-    return {
-        "conversationId": conversation.id,
-        "conversation": conversation.model_dump()
-    }
+    return {"conversationId": conversation.id, "conversation": conversation.model_dump()}
 
 
 @router.get("")
 async def list_conversations():
     """List all conversations sorted by updatedAt (newest first)."""
     conversations = storage.list_conversations()
-    return {
-        "conversations": [c.model_dump() for c in conversations]
-    }
+    return {"conversations": [c.model_dump() for c in conversations]}
 
 
 @router.get("/{conversation_id}")
