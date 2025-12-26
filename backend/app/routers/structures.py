@@ -1,7 +1,5 @@
 """Structures API router for PDB file serving and caching."""
 
-from typing import Optional
-
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import Response
 
@@ -14,10 +12,7 @@ router = APIRouter(prefix="/api/structures", tags=["structures"])
 
 
 @router.get("/{structure_id}")
-async def get_structure(
-    structure_id: str,
-    sequence: Optional[str] = Query(None)
-):
+async def get_structure(structure_id: str, sequence: str | None = Query(None)):
     """Download PDB file for a structure.
 
     If the structure is cached, return from cache.
@@ -29,9 +24,7 @@ async def get_structure(
         return Response(
             content=cached,
             media_type="chemical/x-pdb",
-            headers={
-                "Content-Disposition": f'attachment; filename="{structure_id}.pdb"'
-            }
+            headers={"Content-Disposition": f'attachment; filename="{structure_id}.pdb"'},
         )
 
     # Generate if we have a sequence
@@ -52,9 +45,7 @@ async def get_structure(
         return Response(
             content=pdb_data,
             media_type="chemical/x-pdb",
-            headers={
-                "Content-Disposition": f'attachment; filename="{structure_id}.pdb"'
-            }
+            headers={"Content-Disposition": f'attachment; filename="{structure_id}.pdb"'},
         )
 
     # Generate with default sequence
@@ -63,9 +54,7 @@ async def get_structure(
     return Response(
         content=pdb_data,
         media_type="chemical/x-pdb",
-        headers={
-            "Content-Disposition": f'attachment; filename="{structure_id}.pdb"'
-        }
+        headers={"Content-Disposition": f'attachment; filename="{structure_id}.pdb"'},
     )
 
 

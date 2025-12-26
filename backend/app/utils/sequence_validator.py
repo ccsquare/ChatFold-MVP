@@ -1,8 +1,6 @@
 """Amino acid sequence validation utilities."""
 
 import re
-from typing import Optional
-
 
 AMINO_ACID_PATTERN = re.compile(r"^[ACDEFGHIKLMNPQRSTVWY]+$")
 
@@ -12,6 +10,7 @@ DEFAULT_SEQUENCE = "MVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSH"
 
 class SequenceValidationError(ValueError):
     """Raised when sequence validation fails."""
+
     pass
 
 
@@ -23,11 +22,7 @@ def normalize_sequence(sequence: str) -> str:
     return sequence.upper().replace(" ", "").replace("\n", "").replace("\t", "")
 
 
-def validate_amino_acid_sequence(
-    sequence: str,
-    min_length: int = 10,
-    max_length: int = 5000
-) -> str:
+def validate_amino_acid_sequence(sequence: str, min_length: int = 10, max_length: int = 5000) -> str:
     """Validate and normalize amino acid sequence.
 
     Args:
@@ -55,19 +50,15 @@ def validate_amino_acid_sequence(
 
     # Validate length
     if len(normalized) < min_length:
-        raise SequenceValidationError(
-            f"Sequence must be at least {min_length} amino acids long"
-        )
+        raise SequenceValidationError(f"Sequence must be at least {min_length} amino acids long")
 
     if len(normalized) > max_length:
-        raise SequenceValidationError(
-            f"Sequence must be at most {max_length} amino acids long"
-        )
+        raise SequenceValidationError(f"Sequence must be at most {max_length} amino acids long")
 
     return normalized
 
 
-def validate_sequence_or_none(sequence: Optional[str]) -> Optional[str]:
+def validate_sequence_or_none(sequence: str | None) -> str | None:
     """Validate sequence if provided, return None otherwise.
 
     Args:

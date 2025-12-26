@@ -3,22 +3,39 @@
 import math
 from datetime import datetime
 
-
 # Amino acid one-letter to three-letter code mapping
 AA_CODES = {
-    "A": "ALA", "R": "ARG", "N": "ASN", "D": "ASP", "C": "CYS",
-    "E": "GLU", "Q": "GLN", "G": "GLY", "H": "HIS", "I": "ILE",
-    "L": "LEU", "K": "LYS", "M": "MET", "F": "PHE", "P": "PRO",
-    "S": "SER", "T": "THR", "W": "TRP", "Y": "TYR", "V": "VAL"
+    "A": "ALA",
+    "R": "ARG",
+    "N": "ASN",
+    "D": "ASP",
+    "C": "CYS",
+    "E": "GLU",
+    "Q": "GLN",
+    "G": "GLY",
+    "H": "HIS",
+    "I": "ILE",
+    "L": "LEU",
+    "K": "LYS",
+    "M": "MET",
+    "F": "PHE",
+    "P": "PRO",
+    "S": "SER",
+    "T": "THR",
+    "W": "TRP",
+    "Y": "TYR",
+    "V": "VAL",
 }
 
 
 def _seeded_random(seed: int):
     """Simple pseudo-random generator for deterministic results."""
+
     def random():
         nonlocal seed
         seed = (seed * 9301 + 49297) % 233280
         return seed / 233280
+
     return random
 
 
