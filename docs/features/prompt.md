@@ -170,4 +170,4 @@ data: {
 
 开始实现：骨架 -> mock API(streaming) -> UI -> Mol\* tab viewer -> 缩略图策略 -> 端到端联通 -> 样式对齐 Figma。
 
-注意， 手绘草图在 @docs/handcraft_design, 测试的蛋白质序列和结构数据在 @data/test_data （不要直接读取这些蛋白质文件到context中）， molstar代码在 @molstar, figma链接在：https://www.figma.com/design/BBZOb9cMxk14m2YwqVFWAe/%F0%9F%9F%A1-SPX-%E8%AE%BE%E8%AE%A1--Copy-?node-id=394-1979&m=dev
+注意， 手绘草图在 @docs/handcraft_design, 测试的蛋白质序列和结构数据在 @web/tests/fixtures （不要直接读取这些蛋白质文件到context中）， molstar代码在 @molstar, figma链接在：https://www.figma.com/design/BBZOb9cMxk14m2YwqVFWAe/%F0%9F%9F%A1-SPX-%E8%AE%BE%E8%AE%A1--Copy-?node-id=394-1979&m=dev

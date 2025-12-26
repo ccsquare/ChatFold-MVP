@@ -34,8 +34,10 @@ ChatFold-MVP/
 │   │   ├── components/  # React 组件
 │   │   ├── hooks/       # 自定义 Hooks
 │   │   └── lib/         # 工具函数和状态管理
-│   ├── public/          # 静态资源
-│   └── tests/           # E2E 测试
+│   ├── public/
+│   │   └── images/      # Logo 等静态图片 (Git LFS)
+│   └── tests/
+│       └── fixtures/    # 测试数据 (FASTA, PDB)
 │
 ├── backend/             # FastAPI 后端服务
 │   ├── app/
