@@ -1,5 +1,24 @@
 #!/usr/bin/env sh
 
+# Check file size limit (1MB = 1048576 bytes)
+MAX_SIZE=1048576
+LARGE_FILES=""
+
+for file in $(git diff --cached --name-only --diff-filter=ACM); do
+    if [ -f "$file" ]; then
+        size=$(wc -c < "$file" | tr -d ' ')
+        if [ "$size" -gt "$MAX_SIZE" ]; then
+            LARGE_FILES="$LARGE_FILES\n  $file ($(echo "scale=2; $size/1048576" | bc)MB)"
+        fi
+    fi
+done
+
+if [ -n "$LARGE_FILES" ]; then
+    echo "ERROR: The following files exceed 1MB size limit:$LARGE_FILES"
+    echo "Please reduce file size or use Git LFS for large files."
+    exit 1
+fi
+
 # Format root-level markdown files
 npx --prefix web prettier --write "*.md" "docs/**/*.md" 2>/dev/null || true
 
