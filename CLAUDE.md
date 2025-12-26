@@ -10,9 +10,27 @@ ChatFold is a ChatGPT-style protein folding workbench frontend with:
 - Mol* integration for 3D protein structure visualization
 - Mock API backend simulating protein folding pipeline
 
+## Project Structure
+
+```
+ChatFold-MVP/
+├── web/                 # Next.js 前端应用
+│   ├── src/             # 源代码
+│   ├── public/          # 静态资源
+│   ├── tests/           # E2E 测试
+│   └── package.json     # 前端依赖
+├── backend/             # FastAPI 后端服务
+│   ├── app/             # 应用代码
+│   └── requirements.txt # Python 依赖
+├── molstar/             # Mol* 本地配置
+└── docs/                # 文档
+```
+
 ## Development Commands
 
+### Frontend (web/)
 ```bash
+cd web
 npm install          # Install dependencies
 npm run dev          # Start development server (http://localhost:3000)
 npm run build        # Production build
@@ -21,15 +39,22 @@ npm run test         # Run Vitest unit tests
 npm run test:ui      # Run Vitest with UI
 ```
 
+### Backend (backend/)
+```bash
+cd backend
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+
 ## Architecture
 
 ### Three-Column Layout
-- **Left Sidebar** (`src/components/Sidebar.tsx`): File uploads (FASTA/PDB), conversation list
-- **Center Canvas** (`src/components/Canvas.tsx`, `CanvasTabs.tsx`): Tabbed Mol* 3D structure viewer
-- **Right Console** (`src/components/ConsoleDrawer.tsx`): Collapsible panel with Steps timeline, Chat, and Charts tabs
+- **Left Sidebar** (`web/src/components/Sidebar.tsx`): File uploads (FASTA/PDB), conversation list
+- **Center Canvas** (`web/src/components/Canvas.tsx`, `CanvasTabs.tsx`): Tabbed Mol* 3D structure viewer
+- **Right Console** (`web/src/components/ConsoleDrawer.tsx`): Collapsible panel with Steps timeline, Chat, and Charts tabs
 
 ### State Management
-Global state uses Zustand (`src/lib/store.ts`):
+Global state uses Zustand (`web/src/lib/store.ts`):
 - `conversations`: List of chat sessions with messages, assets, tasks
 - `viewerTabs`: Open structure tabs in Canvas
 - `activeTask`: Current running folding task with streaming steps
@@ -65,13 +90,13 @@ The streaming endpoint emits `step` events with this shape:
 - Falls back to Canvas 2D renderer if Mol* fails to load
 - Thumbnail generation via canvas `toDataURL()` after structure loads
 
-### Path Aliases
+### Path Aliases (web/tsconfig.json)
 ```typescript
-@/* → ./src/*        // Main source
-@molstar/* → ./molstar/src/*  // Local molstar (excluded from build)
+@/* → ./src/*           // Main source
+@molstar/* → ../molstar/src/*  // Local molstar (excluded from build)
 ```
 
-## Key Types (`src/lib/types.ts`)
+## Key Types (`web/src/lib/types.ts`)
 
 - `Conversation`: Chat session containing messages, tasks, assets
 - `Task`: Folding job with steps and structure artifacts
@@ -89,6 +114,6 @@ Dark theme aligned with Figma design:
 
 ## Testing
 
-- **Unit tests**: Vitest with jsdom (`src/**/*.test.ts`)
-- **E2E tests**: Playwright (`tests/`)
-- Test setup: `src/test/setup.ts`
+- **Unit tests**: Vitest with jsdom (`web/src/**/*.test.ts`)
+- **E2E tests**: Playwright (`web/tests/`)
+- Test setup: `web/src/test/setup.ts`
