@@ -1,4 +1,4 @@
-"""Tasks API router with SSE streaming."""
+"""Tasks API endpoint with SSE streaming."""
 
 import asyncio
 import random
@@ -8,22 +8,22 @@ import time
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
-from ..models.schemas import (
+from app.models.schemas import (
     CreateTaskRequest,
     RegisterSequenceRequest,
     StatusType,
     Task,
 )
-from ..services.mock_folding import generate_step_events
-from ..services.storage import storage
-from ..utils.id_generator import generate_id
-from ..utils.sequence_validator import (
+from app.services.mock_folding import generate_step_events
+from app.services.storage import storage
+from app.utils.id_generator import generate_id
+from app.utils.sequence_validator import (
     DEFAULT_SEQUENCE,
     SequenceValidationError,
     validate_amino_acid_sequence,
 )
 
-router = APIRouter(prefix="/api/tasks", tags=["tasks"])
+router = APIRouter(tags=["Tasks"])
 
 # Task ID pattern
 TASK_ID_PATTERN = re.compile(r"^task_[a-z0-9]+$")

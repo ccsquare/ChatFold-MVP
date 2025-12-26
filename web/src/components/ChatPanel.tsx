@@ -49,32 +49,37 @@ export function ChatPanel() {
 
   // Start SSE streaming for a task
   // Note: SSE connects directly to Python backend to avoid Next.js proxy buffering
-  const startTaskStream = useCallback(async (taskId: string, sequence: string) => {
-    // Close any existing connection before starting a new one
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-    }
+  const startTaskStream = useCallback(
+    async (taskId: string, sequence: string) => {
+      // Close any existing connection before starting a new one
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
 
-    // Connect directly to Python backend for SSE (bypasses Next.js proxy buffering)
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
-    const eventSource = new EventSource(`${backendUrl}/api/tasks/${taskId}/stream?sequence=${encodeURIComponent(sequence)}`);
-    eventSourceRef.current = eventSource;
+      // Connect directly to Python backend for SSE (bypasses Next.js proxy buffering)
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+      const eventSource = new EventSource(
+        `${backendUrl}/api/v1/tasks/${taskId}/stream?sequence=${encodeURIComponent(sequence)}`
+      );
+      eventSourceRef.current = eventSource;
 
-    eventSource.addEventListener('step', (event) => {
-      const stepEvent: StepEvent = JSON.parse(event.data);
-      addStepEvent(taskId, stepEvent);
-    });
+      eventSource.addEventListener('step', (event) => {
+        const stepEvent: StepEvent = JSON.parse(event.data);
+        addStepEvent(taskId, stepEvent);
+      });
 
-    eventSource.addEventListener('done', () => {
-      eventSource.close();
-      eventSourceRef.current = null;
-    });
+      eventSource.addEventListener('done', () => {
+        eventSource.close();
+        eventSourceRef.current = null;
+      });
 
-    eventSource.onerror = () => {
-      eventSource.close();
-      eventSourceRef.current = null;
-    };
-  }, [addStepEvent]);
+      eventSource.onerror = () => {
+        eventSource.close();
+        eventSourceRef.current = null;
+      };
+    },
+    [addStepEvent]
+  );
 
   // Generate a timestamp-based filename for sequence files
   const generateSequenceFilename = () => {
@@ -84,156 +89,172 @@ export function ChatPanel() {
   };
 
   // Handle send from ChatInputBase
-  const handleSend = useCallback(async (content: string, mentionedFiles?: MentionableFile[]) => {
-    if (!content.trim() || isSending) return;
+  const handleSend = useCallback(
+    async (content: string, mentionedFiles?: MentionableFile[]) => {
+      if (!content.trim() || isSending) return;
 
-    let convId = activeConversationId;
-    if (!convId) {
-      convId = createConversation();
-    }
+      let convId = activeConversationId;
+      if (!convId) {
+        convId = createConversation();
+      }
 
-    // Build message content with mentioned files info
-    let userMessage = content.trim();
-    if (mentionedFiles && mentionedFiles.length > 0) {
-      const fileRefs = mentionedFiles.map(f => `@${f.path}`).join(', ');
-      userMessage = `${userMessage}\n\n[引用文件: ${fileRefs}]`;
-    }
+      // Build message content with mentioned files info
+      let userMessage = content.trim();
+      if (mentionedFiles && mentionedFiles.length > 0) {
+        const fileRefs = mentionedFiles.map((f) => `@${f.path}`).join(', ');
+        userMessage = `${userMessage}\n\n[引用文件: ${fileRefs}]`;
+      }
 
-    setInput('');
-    setIsSending(true);
+      setInput('');
+      setIsSending(true);
 
-    // Add user message
-    addMessage(convId, {
-      role: 'user',
-      content: userMessage
-    });
+      // Add user message
+      addMessage(convId, {
+        role: 'user',
+        content: userMessage,
+      });
 
-    try {
-      // Check if message contains FASTA sequence
-      const fastaMatch = userMessage.match(/>[\s\S]*?[A-Z]+/i);
-      const sequenceMatch = userMessage.match(/^[ACDEFGHIKLMNPQRSTVWY]+$/i);
+      try {
+        // Check if message contains FASTA sequence
+        const fastaMatch = userMessage.match(/>[\s\S]*?[A-Z]+/i);
+        const sequenceMatch = userMessage.match(/^[ACDEFGHIKLMNPQRSTVWY]+$/i);
 
-      if (fastaMatch || sequenceMatch) {
-        const sequence = fastaMatch
-          ? (parseFasta(userMessage)?.sequence || '')
-          : (sequenceMatch ? sequenceMatch[0] : '');
+        if (fastaMatch || sequenceMatch) {
+          const sequence = fastaMatch
+            ? parseFasta(userMessage)?.sequence || ''
+            : sequenceMatch
+              ? sequenceMatch[0]
+              : '';
 
-        if (sequence.length >= 10) {
-          // Create or get active project for this sequence
-          let projId = activeProjectId;
-          if (!projId) {
-            projId = createProject();
-          }
+          if (sequence.length >= 10) {
+            // Create or get active project for this sequence
+            let projId = activeProjectId;
+            if (!projId) {
+              projId = createProject();
+            }
 
-          // Create a text file for the sequence and add to project
-          const filename = generateSequenceFilename();
-          const fastaContent = fastaMatch
-            ? userMessage
-            : `>user_input_sequence\n${sequence}`;
+            // Create a text file for the sequence and add to project
+            const filename = generateSequenceFilename();
+            const fastaContent = fastaMatch ? userMessage : `>user_input_sequence\n${sequence}`;
 
-          addProjectInput(projId, {
-            name: filename,
-            type: 'fasta',
-            content: fastaContent
-          });
+            addProjectInput(projId, {
+              name: filename,
+              type: 'fasta',
+              content: fastaContent,
+            });
 
-          // Create task
-          const taskResponse = await fetch('/api/tasks', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              conversationId: convId,
-              sequence
-            })
-          });
+            // Create task
+            const taskResponse = await fetch('/api/v1/tasks', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                conversationId: convId,
+                sequence,
+              }),
+            });
 
-          const responseData = await taskResponse.json();
+            const responseData = await taskResponse.json();
 
-          // Check if the API returned an error
-          if (!taskResponse.ok) {
-            const errorMessage = responseData.details?.join(', ') || responseData.error || 'Invalid sequence';
+            // Check if the API returned an error
+            if (!taskResponse.ok) {
+              const errorMessage =
+                responseData.details?.join(', ') || responseData.error || 'Invalid sequence';
+              addMessage(convId, {
+                role: 'assistant',
+                content: `Unable to start prediction: ${errorMessage}. Please check your sequence and try again.`,
+              });
+              return;
+            }
+
+            const { task } = responseData;
+
+            // Add assistant message
             addMessage(convId, {
               role: 'assistant',
-              content: `Unable to start prediction: ${errorMessage}. Please check your sequence and try again.`
+              content: `Starting structure prediction for your ${sequence.length} residue sequence. The sequence has been saved as "${filename}" in your project. I'll keep you updated on the progress.`,
             });
-            return;
+
+            // Set active task and start streaming
+            setActiveTask({ ...task, status: 'running' });
+            startTaskStream(task.id, sequence);
+          } else {
+            addMessage(convId, {
+              role: 'assistant',
+              content:
+                'The sequence seems too short. Please provide a protein sequence with at least 10 amino acids.',
+            });
           }
-
-          const { task } = responseData;
-
-          // Add assistant message
-          addMessage(convId, {
-            role: 'assistant',
-            content: `Starting structure prediction for your ${sequence.length} residue sequence. The sequence has been saved as "${filename}" in your project. I'll keep you updated on the progress.`
-          });
-
-          // Set active task and start streaming
-          setActiveTask({ ...task, status: 'running' });
-          startTaskStream(task.id, sequence);
         } else {
+          // Regular chat response
           addMessage(convId, {
             role: 'assistant',
-            content: 'The sequence seems too short. Please provide a protein sequence with at least 10 amino acids.'
+            content:
+              'I can help you with protein structure prediction. Please provide a FASTA sequence or paste an amino acid sequence directly. For example:\n\n```\n>protein\nMVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSH\n```',
           });
         }
-      } else {
-        // Regular chat response
+      } catch (error) {
         addMessage(convId, {
           role: 'assistant',
-          content: 'I can help you with protein structure prediction. Please provide a FASTA sequence or paste an amino acid sequence directly. For example:\n\n```\n>protein\nMVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSH\n```'
+          content: 'An error occurred. Please try again.',
         });
+      } finally {
+        setIsSending(false);
       }
-    } catch (error) {
-      addMessage(convId, {
-        role: 'assistant',
-        content: 'An error occurred. Please try again.'
-      });
-    } finally {
-      setIsSending(false);
-    }
-  }, [activeConversationId, activeProjectId, addMessage, addProjectInput, createConversation, createProject, isSending, setActiveTask, startTaskStream]);
+    },
+    [
+      activeConversationId,
+      activeProjectId,
+      addMessage,
+      addProjectInput,
+      createConversation,
+      createProject,
+      isSending,
+      setActiveTask,
+      startTaskStream,
+    ]
+  );
 
   // Build available files for @ mentions with full path identification
   const availableFiles = useMemo(() => {
     const files: MentionableFile[] = [];
 
     // Add files from all projects (with project path for disambiguation)
-    projects.forEach(project => {
+    projects.forEach((project) => {
       // Add input files (sequences)
-      project.inputs.forEach(input => {
+      project.inputs.forEach((input) => {
         files.push({
           id: `${project.id}/${input.name}`,
           name: input.name,
           path: `${project.name}/${input.name}`,
           type: input.type,
-          source: 'project'
+          source: 'project',
         });
       });
 
       // Add output files (structures)
-      project.outputs.forEach(output => {
+      project.outputs.forEach((output) => {
         files.push({
           id: `${project.id}/outputs/${output.filename}`,
           name: output.filename,
           path: `${project.name}/outputs/${output.filename}`,
           type: 'structure',
-          source: 'project'
+          source: 'project',
         });
       });
     });
 
     // Add files from activeTask
     if (activeTask?.steps) {
-      activeTask.steps.forEach(step => {
-        step.artifacts?.forEach(artifact => {
+      activeTask.steps.forEach((step) => {
+        step.artifacts?.forEach((artifact) => {
           const id = `task/${activeTask.id}/${artifact.filename}`;
-          if (!files.some(f => f.id === id)) {
+          if (!files.some((f) => f.id === id)) {
             files.push({
               id,
               name: artifact.filename,
               path: `task/${activeTask.id}/${artifact.filename}`,
               type: 'structure',
-              source: 'task'
+              source: 'task',
             });
           }
         });
@@ -242,15 +263,15 @@ export function ChatPanel() {
 
     // Add assets from active conversation
     if (conversation?.assets) {
-      conversation.assets.forEach(asset => {
+      conversation.assets.forEach((asset) => {
         const id = `conversation/${conversation.id}/${asset.name}`;
-        if (!files.some(f => f.id === id)) {
+        if (!files.some((f) => f.id === id)) {
           files.push({
             id,
             name: asset.name,
             path: `conversation/${conversation.id}/${asset.name}`,
             type: asset.type,
-            source: 'conversation'
+            source: 'conversation',
           });
         }
       });
@@ -321,23 +342,23 @@ export function ChatPanel() {
                       style={{ animationDelay: `${index * 50}ms` }}
                       className={cn(
                         // Animation on mount
-                        "animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards",
+                        'animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards',
                         // Base card styling
-                        "group relative flex flex-col items-start gap-1.5 p-3 text-left",
-                        "rounded-xl border border-cf-border/60",
-                        "bg-cf-bg-tertiary/40",
+                        'group relative flex flex-col items-start gap-1.5 p-3 text-left',
+                        'rounded-xl border border-cf-border/60',
+                        'bg-cf-bg-tertiary/40',
                         // Hover state - theme-aware with stronger contrast
-                        "hover:bg-[var(--cf-card-hover-bg)] hover:border-cf-accent/60",
-                        "hover:shadow-[var(--cf-card-shadow-hover)]",
-                        "hover:-translate-y-0.5",
+                        'hover:bg-[var(--cf-card-hover-bg)] hover:border-cf-accent/60',
+                        'hover:shadow-[var(--cf-card-shadow-hover)]',
+                        'hover:-translate-y-0.5',
                         // Active/pressed state
-                        "active:scale-[0.98] active:shadow-none active:translate-y-0",
+                        'active:scale-[0.98] active:shadow-none active:translate-y-0',
                         // Focus state for keyboard navigation
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-accent",
-                        "focus-visible:ring-offset-2 focus-visible:ring-offset-cf-bg",
+                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-accent',
+                        'focus-visible:ring-offset-2 focus-visible:ring-offset-cf-bg',
                         // Smooth transitions
-                        "transition-all duration-200 ease-out",
-                        "cursor-pointer"
+                        'transition-all duration-200 ease-out',
+                        'cursor-pointer'
                       )}
                     >
                       {/* Decorative icon */}

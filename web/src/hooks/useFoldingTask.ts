@@ -35,34 +35,37 @@ export function useFoldingTask() {
    * Start SSE streaming for a task
    * Note: SSE connects directly to Python backend to avoid Next.js proxy buffering
    */
-  const startStream = useCallback((taskId: string, sequence: string) => {
-    // Close any existing connection
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-    }
+  const startStream = useCallback(
+    (taskId: string, sequence: string) => {
+      // Close any existing connection
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
 
-    // Connect directly to Python backend for SSE (bypasses Next.js proxy buffering)
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
-    const eventSource = new EventSource(
-      `${backendUrl}/api/tasks/${taskId}/stream?sequence=${encodeURIComponent(sequence)}`
-    );
-    eventSourceRef.current = eventSource;
+      // Connect directly to Python backend for SSE (bypasses Next.js proxy buffering)
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+      const eventSource = new EventSource(
+        `${backendUrl}/api/v1/tasks/${taskId}/stream?sequence=${encodeURIComponent(sequence)}`
+      );
+      eventSourceRef.current = eventSource;
 
-    eventSource.addEventListener('step', (event) => {
-      const stepEvent: StepEvent = JSON.parse(event.data);
-      addStepEvent(taskId, stepEvent);
-    });
+      eventSource.addEventListener('step', (event) => {
+        const stepEvent: StepEvent = JSON.parse(event.data);
+        addStepEvent(taskId, stepEvent);
+      });
 
-    eventSource.addEventListener('done', () => {
-      eventSource.close();
-      eventSourceRef.current = null;
-    });
+      eventSource.addEventListener('done', () => {
+        eventSource.close();
+        eventSourceRef.current = null;
+      });
 
-    eventSource.onerror = () => {
-      eventSource.close();
-      eventSourceRef.current = null;
-    };
-  }, [addStepEvent]);
+      eventSource.onerror = () => {
+        eventSource.close();
+        eventSourceRef.current = null;
+      };
+    },
+    [addStepEvent]
+  );
 
   /**
    * Submit a sequence for folding
@@ -71,57 +74,62 @@ export function useFoldingTask() {
    * @param options - Additional options
    * @returns The created task or null if failed
    */
-  const submit = useCallback(async (
-    conversationId: string,
-    sequence: string,
-    options?: {
-      filename?: string;
-      fastaContent?: string;
-    }
-  ): Promise<{ task: Task; projectId: string } | null> => {
-    try {
-      // Create or get active project
-      let projId = activeProjectId;
-      if (!projId) {
-        projId = createProject();
+  const submit = useCallback(
+    async (
+      conversationId: string,
+      sequence: string,
+      options?: {
+        filename?: string;
+        fastaContent?: string;
       }
+    ): Promise<{ task: Task; projectId: string } | null> => {
+      try {
+        // Create or get active project
+        let projId = activeProjectId;
+        if (!projId) {
+          projId = createProject();
+        }
 
-      // Add input file to project if provided
-      if (options?.filename && options?.fastaContent) {
-        addProjectInput(projId, {
-          name: options.filename,
-          type: 'fasta',
-          content: options.fastaContent
+        // Add input file to project if provided
+        if (options?.filename && options?.fastaContent) {
+          addProjectInput(projId, {
+            name: options.filename,
+            type: 'fasta',
+            content: options.fastaContent,
+          });
+        }
+
+        // Create task via API
+        const response = await fetch('/api/v1/tasks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            conversationId,
+            sequence,
+          }),
         });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(
+            errorData.details?.join(', ') || errorData.error || 'Failed to create task'
+          );
+        }
+
+        const { task } = await response.json();
+
+        // Set active task and start streaming
+        setActiveTask({ ...task, status: 'running' });
+        startStream(task.id, sequence);
+
+        return { task, projectId: projId };
+      } catch (error) {
+        console.error('Failed to submit folding task:', error);
+        return null;
       }
-
-      // Create task via API
-      const response = await fetch('/api/tasks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          conversationId,
-          sequence
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.details?.join(', ') || errorData.error || 'Failed to create task');
-      }
-
-      const { task } = await response.json();
-
-      // Set active task and start streaming
-      setActiveTask({ ...task, status: 'running' });
-      startStream(task.id, sequence);
-
-      return { task, projectId: projId };
-    } catch (error) {
-      console.error('Failed to submit folding task:', error);
-      return null;
-    }
-  }, [activeProjectId, createProject, addProjectInput, setActiveTask, startStream]);
+    },
+    [activeProjectId, createProject, addProjectInput, setActiveTask, startStream]
+  );
 
   /**
    * Cleanup/cancel the current stream
@@ -140,6 +148,6 @@ export function useFoldingTask() {
     task: activeTask,
     steps: activeTask?.steps || [],
     artifacts: activeTask?.structures || [],
-    isStreaming
+    isStreaming,
   };
 }

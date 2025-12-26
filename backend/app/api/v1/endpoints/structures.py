@@ -1,14 +1,14 @@
-"""Structures API router for PDB file serving and caching."""
+"""Structures API endpoint for PDB file serving and caching."""
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import Response
 
-from ..models.schemas import CachePDBRequest
-from ..services.storage import storage
-from ..utils.pdb_generator import generate_mock_pdb
-from ..utils.sequence_validator import DEFAULT_SEQUENCE
+from app.models.schemas import CachePDBRequest
+from app.services.storage import storage
+from app.utils.pdb_generator import generate_mock_pdb
+from app.utils.sequence_validator import DEFAULT_SEQUENCE
 
-router = APIRouter(prefix="/api/structures", tags=["structures"])
+router = APIRouter(tags=["Structures"])
 
 
 @router.get("/{structure_id}")

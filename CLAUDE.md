@@ -41,7 +41,9 @@ ChatFold-MVP/
 │
 ├── backend/             # FastAPI 后端服务
 │   ├── app/
-│   │   ├── routers/     # API 路由
+│   │   ├── api/v1/      # API v1 路由
+│   │   │   ├── api.py   # 路由聚合器
+│   │   │   └── endpoints/  # 端点模块
 │   │   ├── services/    # 业务逻辑
 │   │   ├── models/      # 数据模型
 │   │   └── utils/       # 工具函数
@@ -142,17 +144,18 @@ uvicorn app.main:app --reload --port 8000
   - 动态导入避免 SSR 问题
   - 支持结构加载、缩略图生成
 
-- **SSE 流式** (`backend/app/routers/tasks.py`)
+- **SSE 流式** (`backend/app/api/v1/endpoints/tasks.py`)
   - 实时推送折叠进度事件
 
-### API 端点
+### API 端点 (v1)
 
-| 端点                     | 方法     | 说明           |
-| ------------------------ | -------- | -------------- |
-| `/api/conversations`     | POST/GET | 创建/列表对话  |
-| `/api/tasks`             | POST/GET | 创建/列表任务  |
-| `/api/tasks/{id}/stream` | GET      | SSE 折叠进度流 |
-| `/api/structures/{id}`   | GET      | 下载 PDB 文件  |
+| 端点                        | 方法     | 说明           |
+| --------------------------- | -------- | -------------- |
+| `/api/v1/health`            | GET      | 健康检查       |
+| `/api/v1/conversations`     | POST/GET | 创建/列表对话  |
+| `/api/v1/tasks`             | POST/GET | 创建/列表任务  |
+| `/api/v1/tasks/{id}/stream` | GET      | SSE 折叠进度流 |
+| `/api/v1/structures/{id}`   | GET      | 下载 PDB 文件  |
 
 ## 6. 开发规范
 

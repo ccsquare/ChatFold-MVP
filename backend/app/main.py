@@ -3,8 +3,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from .api.v1.api import api_router as api_v1_router
 from .config import settings
-from .routers import conversations_router, structures_router, tasks_router
 from .utils.logging import setup_logging
 
 # Initialize logging
@@ -25,10 +25,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
-app.include_router(conversations_router)
-app.include_router(tasks_router)
-app.include_router(structures_router)
+# Include API v1 router
+app.include_router(api_v1_router, prefix="/api/v1")
 
 
 @app.on_event("startup")
@@ -39,14 +37,8 @@ async def startup_event():
 
 @app.get("/")
 async def root():
-    """Health check endpoint."""
+    """Root endpoint with service info."""
     return {"status": "ok", "service": "ChatFold API", "version": "0.1.0"}
-
-
-@app.get("/health")
-async def health():
-    """Health check endpoint."""
-    return {"status": "healthy"}
 
 
 if __name__ == "__main__":
