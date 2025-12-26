@@ -2,6 +2,15 @@
 const nextConfig = {
   reactStrictMode: false, // Temporarily disabled to debug SSE issues
   transpilePackages: ['molstar'],
+  // Proxy API requests to Python backend in development
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: 'http://localhost:8000/api/:path*',
+      },
+    ];
+  },
   webpack: (config, { isServer }) => {
     config.resolve.fallback = { fs: false, path: false };
     // Handle molstar's ES modules and WebAssembly
