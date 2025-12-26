@@ -1,0 +1,40 @@
+# Ruff configuration following pylintrc standards
+
+# Line length matching pylintrc max-line-length=120
+line-length = 120
+
+# Target Python version
+target-version = "py310"
+
+[lint]
+# Enable specific rules matching pylintrc enabled checks
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes (unused imports, variables, etc.)
+    "I",      # isort (import ordering)
+    "B",      # flake8-bugbear (dangerous defaults, etc.)
+    "UP",     # pyupgrade
+]
+
+# Ignore rules that conflict with formatter
+ignore = [
+    "E501",   # line-too-long (handled by formatter)
+]
+
+# Allow unused variables when underscore-prefixed
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[lint.isort]
+# Import sorting configuration
+known-first-party = ["app"]
+
+[format]
+# Use double quotes (consistent with black)
+quote-style = "double"
+
+# Use Unix line endings (LF) matching pylintrc expected-line-ending-format=LF
+line-ending = "lf"
+
+# Indent with spaces
+indent-style = "space"

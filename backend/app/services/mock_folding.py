@@ -2,7 +2,7 @@
 
 import random
 import time
-from typing import Generator
+from collections.abc import Generator
 
 from ..models.schemas import (
     StageType,
@@ -23,17 +23,14 @@ def generate_step_events(task_id: str, sequence: str) -> Generator[StepEvent, No
     Yields StepEvent objects with optional structure artifacts.
     """
     stages: list[dict] = [
-        {
-            "stage": StageType.QUEUED,
-            "messages": ["Task queued for processing"]
-        },
+        {"stage": StageType.QUEUED, "messages": ["Task queued for processing"]},
         {
             "stage": StageType.MSA,
             "messages": [
                 "Starting multiple sequence alignment...",
                 "Searching sequence databases...",
-                "Building MSA profile"
-            ]
+                "Building MSA profile",
+            ],
         },
         {
             "stage": StageType.MODEL,
@@ -45,26 +42,11 @@ def generate_step_events(task_id: str, sequence: str) -> Generator[StepEvent, No
                 "Generating candidate structure 3...",
                 "Generating candidate structure 4...",
                 "Generating candidate structure 5...",
-            ]
+            ],
         },
-        {
-            "stage": StageType.RELAX,
-            "messages": [
-                "Applying Amber force field relaxation...",
-                "Minimizing energy..."
-            ]
-        },
-        {
-            "stage": StageType.QA,
-            "messages": [
-                "Running quality assessment...",
-                "Computing pLDDT and PAE metrics"
-            ]
-        },
-        {
-            "stage": StageType.DONE,
-            "messages": ["Structure prediction complete!"]
-        }
+        {"stage": StageType.RELAX, "messages": ["Applying Amber force field relaxation...", "Minimizing energy..."]},
+        {"stage": StageType.QA, "messages": ["Running quality assessment...", "Computing pLDDT and PAE metrics"]},
+        {"stage": StageType.DONE, "messages": ["Structure prediction complete!"]},
     ]
 
     event_num = 0
@@ -106,19 +88,19 @@ def generate_step_events(task_id: str, sequence: str) -> Generator[StepEvent, No
                 # Generate PDB data for this candidate
                 pdb_data = generate_mock_pdb(sequence, structure_id, structure_count)
 
-                artifacts.append(StructureArtifact(
-                    type="structure",
-                    structureId=structure_id,
-                    label=f"candidate-{candidate_num}",
-                    filename=f"candidate_{candidate_num}.pdb",
-                    metrics=StructureMetrics(
-                        plddtAvg=round(plddt, 1),
-                        paeAvg=round(pae, 1),
-                        constraint=round(min(100, constraint), 1)
-                    ),
-                    pdbData=pdb_data,
-                    createdAt=int(time.time() * 1000)
-                ))
+                artifacts.append(
+                    StructureArtifact(
+                        type="structure",
+                        structureId=structure_id,
+                        label=f"candidate-{candidate_num}",
+                        filename=f"candidate_{candidate_num}.pdb",
+                        metrics=StructureMetrics(
+                            plddtAvg=round(plddt, 1), paeAvg=round(pae, 1), constraint=round(min(100, constraint), 1)
+                        ),
+                        pdbData=pdb_data,
+                        createdAt=int(time.time() * 1000),
+                    )
+                )
 
             # Generate final structure at DONE stage (best quality)
             if stage == StageType.DONE:
@@ -131,26 +113,24 @@ def generate_step_events(task_id: str, sequence: str) -> Generator[StepEvent, No
                 # Generate PDB data for final structure
                 pdb_data = generate_mock_pdb(sequence, structure_id, structure_count)
 
-                artifacts.append(StructureArtifact(
-                    type="structure",
-                    structureId=structure_id,
-                    label="final",
-                    filename="final_structure.pdb",
-                    metrics=StructureMetrics(
-                        plddtAvg=round(plddt, 1),
-                        paeAvg=round(pae, 1),
-                        constraint=round(min(100, constraint), 1)
-                    ),
-                    pdbData=pdb_data,
-                    createdAt=int(time.time() * 1000)
-                ))
+                artifacts.append(
+                    StructureArtifact(
+                        type="structure",
+                        structureId=structure_id,
+                        label="final",
+                        filename="final_structure.pdb",
+                        metrics=StructureMetrics(
+                            plddtAvg=round(plddt, 1), paeAvg=round(pae, 1), constraint=round(min(100, constraint), 1)
+                        ),
+                        pdbData=pdb_data,
+                        createdAt=int(time.time() * 1000),
+                    )
+                )
 
             # Calculate progress
             if stage != StageType.DONE:
                 stage_progress = (i + 1) / messages_count
-                overall_progress = min(100, round(
-                    ((stage_idx + stage_progress) / total_stages) * 100
-                ))
+                overall_progress = min(100, round(((stage_idx + stage_progress) / total_stages) * 100))
             else:
                 overall_progress = 100
 
@@ -162,5 +142,5 @@ def generate_step_events(task_id: str, sequence: str) -> Generator[StepEvent, No
                 status=status,
                 progress=overall_progress,
                 message=message,
-                artifacts=artifacts if artifacts else None
+                artifacts=artifacts if artifacts else None,
             )

@@ -12,13 +12,13 @@
 
 我们将整个折叠过程重新定义为 AI 的五个认知阶段。前端不再展示"进度条"，而是展示当前 AI 的"思维状态"。
 
-| 阶段   | 内部状态 (Backend)              | 用户感知 (Frontend Narrative)   | 视觉隐喻                    |
-| :----- | :------------------------------ | :------------------------------ | :-------------------------- |
-| **S1** | Annotation (search-agent)       | **Contextualizing (理解背景)**  | 文本流 + 知识图谱构建       |
-| **S2** | Fast-Folding (并行启动)         | **Intuition (直觉构思)**        | 模糊粒子云 / 高斯表面       |
-| **S3** | General-Folding Round 1         | **Hypothesizing (建立假说)**    | 结构从模糊变清晰 (Morphing) |
-| **S4** | MQA + Constraint Assessment     | **Introspection (反思与批判)**  | 结构上的高亮扫描 / 思考气泡 |
-| **S5** | Ranking + Decision + Resample   | **Crystallization (结晶/收敛)** | 结构的微小蠕动与收敛        |
+| 阶段   | 内部状态 (Backend)            | 用户感知 (Frontend Narrative)   | 视觉隐喻                    |
+| :----- | :---------------------------- | :------------------------------ | :-------------------------- |
+| **S1** | Annotation (search-agent)     | **Contextualizing (理解背景)**  | 文本流 + 知识图谱构建       |
+| **S2** | Fast-Folding (并行启动)       | **Intuition (直觉构思)**        | 模糊粒子云 / 高斯表面       |
+| **S3** | General-Folding Round 1       | **Hypothesizing (建立假说)**    | 结构从模糊变清晰 (Morphing) |
+| **S4** | MQA + Constraint Assessment   | **Introspection (反思与批判)**  | 结构上的高亮扫描 / 思考气泡 |
+| **S5** | Ranking + Decision + Resample | **Crystallization (结晶/收敛)** | 结构的微小蠕动与收敛        |
 
 ---
 
@@ -76,14 +76,14 @@
 
 ### 2.2 阶段-Skill 映射详表
 
-| 前端阶段 | 后端 Skill/Agent | 触发条件 | 持续时间 | 数据来源 |
-|:---------|:-----------------|:---------|:---------|:---------|
-| **S1: Contextualizing** | `search-agent` (内部调用 Annotation MCP) | 用户提交 Query | ~10-30s | `load_protein` 输出的 VPO |
-| **S2: Intuition** | `folding-skill` (Fast-Folding) | S1 完成或并行 | ~1 min | Fast-Folding 的 structure_v0 |
-| **S3: Hypothesizing** | `folding-skill` (General-Folding Round 1) | S2 完成 | ~3-10 min | General-Folding 的 structure_v1 |
-| **S4: Introspection** | `model-quality-assessment-skill` + `user-constraint-assessment-skill` | S3 完成 | ~30s-2min | MQA 和 Constraint 的 JSON 输出 |
-| **S5: Crystallization** | `ranking-skill` + `response-decision-skill` | S4 完成 | ~10s | ranking 结果 + decision |
-| **S5 (RESAMPLE)** | 回到 `folding-skill` Round 2/3 | Decision = RESAMPLE | 重复 S3-S5 | 累积的所有结构 |
+| 前端阶段                | 后端 Skill/Agent                                                      | 触发条件            | 持续时间   | 数据来源                        |
+| :---------------------- | :-------------------------------------------------------------------- | :------------------ | :--------- | :------------------------------ |
+| **S1: Contextualizing** | `search-agent` (内部调用 Annotation MCP)                              | 用户提交 Query      | ~10-30s    | `load_protein` 输出的 VPO       |
+| **S2: Intuition**       | `folding-skill` (Fast-Folding)                                        | S1 完成或并行       | ~1 min     | Fast-Folding 的 structure_v0    |
+| **S3: Hypothesizing**   | `folding-skill` (General-Folding Round 1)                             | S2 完成             | ~3-10 min  | General-Folding 的 structure_v1 |
+| **S4: Introspection**   | `model-quality-assessment-skill` + `user-constraint-assessment-skill` | S3 完成             | ~30s-2min  | MQA 和 Constraint 的 JSON 输出  |
+| **S5: Crystallization** | `ranking-skill` + `response-decision-skill`                           | S4 完成             | ~10s       | ranking 结果 + decision         |
+| **S5 (RESAMPLE)**       | 回到 `folding-skill` Round 2/3                                        | Decision = RESAMPLE | 重复 S3-S5 | 累积的所有结构                  |
 
 ---
 
@@ -96,6 +96,7 @@
 **触发条件**: 用户提交 Query
 
 **后端动作**:
+
 - **并行启动**:
   - `search-agent` → 调用 `search_protein` + `load_protein`
   - `folding-skill` (Fast-Folding, Protenix-ESM) → 后台静默运行
@@ -103,22 +104,23 @@
 
 **数据映射表**:
 
-| search-agent 输出字段 | Narrator 转化 | 示例输出 |
-|:---------------------|:--------------|:---------|
-| `protein_name` | 蛋白识别 | "Identified target: **Argininosuccinate synthase**" |
-| `basic_info.gene_name` | 基因关联 | "Gene: ASS1" |
-| `domains[].name` + `domains[].start-end` | 结构域发现 | "Detected a **Catalytic domain** (residues 50-150)" |
-| `folding_recommendation.suggested_backends` | 策略选择 | "Based on sequence complexity, selecting **Protenix-MSA**" |
-| `reference_structures[].pdb_id` | 同源结构 | "Found homologous structure: PDB 1ABC (TM-score: 0.85)" |
-| `homologs[].identity` | 进化信息 | "Evolutionary analysis reveals conserved core..." |
+| search-agent 输出字段                       | Narrator 转化 | 示例输出                                                   |
+| :------------------------------------------ | :------------ | :--------------------------------------------------------- |
+| `protein_name`                              | 蛋白识别      | "Identified target: **Argininosuccinate synthase**"        |
+| `basic_info.gene_name`                      | 基因关联      | "Gene: ASS1"                                               |
+| `domains[].name` + `domains[].start-end`    | 结构域发现    | "Detected a **Catalytic domain** (residues 50-150)"        |
+| `folding_recommendation.suggested_backends` | 策略选择      | "Based on sequence complexity, selecting **Protenix-MSA**" |
+| `reference_structures[].pdb_id`             | 同源结构      | "Found homologous structure: PDB 1ABC (TM-score: 0.85)"    |
+| `homologs[].identity`                       | 进化信息      | "Evolutionary analysis reveals conserved core..."          |
 
 **前端展示**:
+
 - **主画面**: 空白或微弱的神经网络背景
 - **文字流 (Typewriter effect)**:
-  - *"Reading sequence data..."*
-  - *"Ah, this looks like a member of the **[domains[0].name]** family."*
-  - *"Noticing a potential binding site at residue [active_sites[0].position]. Keeping this in mind."*
-  - *"The evolutionary history suggests a conserved core here..."*
+  - _"Reading sequence data..."_
+  - _"Ah, this looks like a member of the **[domains[0].name]** family."_
+  - _"Noticing a potential binding site at residue [active_sites[0].position]. Keeping this in mind."_
+  - _"The evolutionary history suggests a conserved core here..."_
 
 **心理学目标**: 让用户觉得 AI 正在"读懂"这个蛋白，而不是在查数据库。
 
@@ -131,27 +133,29 @@
 **触发条件**: Fast-Folding 产出第一个 PDB (`structure_v0`)
 
 **后端动作**:
+
 - Fast-Folding (`folding-skill` with Protenix-ESM) 结束
 - **Narrator 逻辑**: 缓存该结构，标记为 `structure_v0`
 - 同时: General-Folding 在后台继续运行
 
 **数据映射表**:
 
-| folding-skill 输出字段 | Narrator 转化 | 示例输出 |
-|:----------------------|:--------------|:---------|
-| `structures[0].path` | 结构产出 | 触发 Ghost Mode 渲染 |
-| `msa_quality.neff` (如有) | MSA 质量提示 | "MSA diversity: Neff = 128" |
-| `backend` | 方法说明 | "Using ESM embeddings for rapid topology estimation" |
+| folding-skill 输出字段    | Narrator 转化 | 示例输出                                             |
+| :------------------------ | :------------ | :--------------------------------------------------- |
+| `structures[0].path`      | 结构产出      | 触发 Ghost Mode 渲染                                 |
+| `msa_quality.neff` (如有) | MSA 质量提示  | "MSA diversity: Neff = 128"                          |
+| `backend`                 | 方法说明      | "Using ESM embeddings for rapid topology estimation" |
 
 **前端展示**:
+
 - **视觉**: 屏幕中央汇聚出一团**模糊的、半透明的 Surface** (Ghost Mode)
   - 不要展示具体的 Backbone
   - 颜色使用单色（深蓝/灰）
   - 高置信度区域稍亮，低置信度区域保持虚化
 - **文字流**:
-  - *"I have a vague shape in mind..."*
-  - *"Based on the sequence physics, the topology might look something like this."*
-  - *"The core structure is taking form, but the loops are still uncertain..."*
+  - _"I have a vague shape in mind..."_
+  - _"Based on the sequence physics, the topology might look something like this."_
+  - _"The core structure is taking form, but the loops are still uncertain..."_
 
 **心理学目标**: 降低预期。告诉用户"这是草稿"，为后面更准的结构做铺垫。
 
@@ -162,28 +166,32 @@
 **时间窗口**: T+1min ~ T+10min (General Folding 运行期间)
 
 **触发条件**:
+
 - 立即进入 (Fast-Folding 完成后)
 - 在 General-Folding 完成时产出 `structure_v1`
 
 **后端动作**:
+
 - `folding-skill` (General-Folding: Protenix-MSA / ColabFold) 运行中
 - **Narrator 逻辑**:
   - General-Folding 完成时: 计算 `RMSD(structure_v0, structure_v1)`
   - 等待期间: 生成填充性叙事 (见 3.1 等待期填充策略)
 
 **分支判断** (General-Folding 完成时):
+
 - **Case A (RMSD < 2.5Å, 相似)**: Narrative 为"细化"
 - **Case B (RMSD > 2.5Å, 差异大)**: Narrative 为"推翻重来"
 
 **数据映射表**:
 
-| 计算指标 | Narrator 转化 | 示例输出 |
-|:---------|:--------------|:---------|
-| `RMSD(v0, v1) < 2.5Å` | 直觉验证 | "The initial intuition was close. Let me sharpen the details." |
-| `RMSD(v0, v1) > 2.5Å` | 拓扑调整 | "Wait, the evolutionary constraints contradict my initial thought. Let me re-adjust the topology." |
-| `structure_v1.plddt_mean` | 置信度更新 | "Confidence improved to [pLDDT]" |
+| 计算指标                  | Narrator 转化 | 示例输出                                                                                           |
+| :------------------------ | :------------ | :------------------------------------------------------------------------------------------------- |
+| `RMSD(v0, v1) < 2.5Å`     | 直觉验证      | "The initial intuition was close. Let me sharpen the details."                                     |
+| `RMSD(v0, v1) > 2.5Å`     | 拓扑调整      | "Wait, the evolutionary constraints contradict my initial thought. Let me re-adjust the topology." |
+| `structure_v1.plddt_mean` | 置信度更新    | "Confidence improved to [pLDDT]"                                                                   |
 
 **前端展示**:
+
 - **视觉**:
   - **Case A**: 模糊 Surface 平滑收缩，变得锐利，露出内部的 Cartoon 骨架
   - **Case B**: 模糊 Surface 像烟雾一样消散，新的结构从中心重新生长出来
@@ -198,31 +206,31 @@
 
 将 Phase 1 挖掘到的 Annotation 实时投射到 Fast-Folding 的 3D 结构上：
 
-| 时间点 | Narrator 输出 | 视觉动效 |
-|:-------|:--------------|:---------|
-| t=0s | "Overlaying functional annotations..." | 开始在结构上标注 |
-| t=10s | "Marking active site at residue [X]..." | Active Site 位置高亮 |
-| t=30s | "Highlighting binding regions..." | Binding Site 区域着色 |
-| t=60s | "Mapping domain boundaries..." | Domain 边界用不同颜色区分 |
+| 时间点 | Narrator 输出                           | 视觉动效                  |
+| :----- | :-------------------------------------- | :------------------------ |
+| t=0s   | "Overlaying functional annotations..."  | 开始在结构上标注          |
+| t=10s  | "Marking active site at residue [X]..." | Active Site 位置高亮      |
+| t=30s  | "Highlighting binding regions..."       | Binding Site 区域着色     |
+| t=60s  | "Mapping domain boundaries..."          | Domain 边界用不同颜色区分 |
 
 **策略 B: 不确定性云图 (The Uncertainty Cloud)**
 
 针对 pLDDT 较低的区域，渲染半透明的"电子云"：
 
-| 条件 | Narrator 输出 | 视觉动效 |
-|:-----|:--------------|:---------|
-| Low pLDDT region detected | "Residues [start]-[end] show high flexibility..." | 该区域显示多重幻影/电子云 |
-| IDR detected | "Intrinsically disordered region detected, exploring conformational space..." | 区域持续"呼吸"动画 |
+| 条件                      | Narrator 输出                                                                 | 视觉动效                  |
+| :------------------------ | :---------------------------------------------------------------------------- | :------------------------ |
+| Low pLDDT region detected | "Residues [start]-[end] show high flexibility..."                             | 该区域显示多重幻影/电子云 |
+| IDR detected              | "Intrinsically disordered region detected, exploring conformational space..." | 区域持续"呼吸"动画        |
 
 **策略 C: 实时指标流 (The Vital Signs)**
 
 展示模型计算的"生命体征"：
 
-| 指标 | 展示方式 | 更新频率 |
-|:-----|:---------|:---------|
+| 指标         | 展示方式 | 更新频率        |
+| :----------- | :------- | :-------------- |
 | Energy Score | 下降曲线 | 每 10s 插值更新 |
-| MSA 覆盖度 | 进度条 | 一次性展示 |
-| Confidence | 逐步上升 | 每 30s 更新 |
+| MSA 覆盖度   | 进度条   | 一次性展示      |
+| Confidence   | 逐步上升 | 每 30s 更新     |
 
 **策略 D: 基于知识的填充叙事**
 
@@ -251,40 +259,42 @@ FILLER_NARRATIVES = {
 **触发条件**: MQA 和 Constraint Check 完成
 
 **后端动作**:
+
 - `model-quality-assessment-skill` 输出 quality_scores
 - `user-constraint-assessment-skill` 输出 constraint_results
 - **Narrator 逻辑**: 解析 Check 结果，转化为"自我反思"
 
 **数据映射表 (model-quality-assessment-skill)**:
 
-| MQA 输出字段 | Narrator 转化 | 示例输出 |
-|:-------------|:--------------|:---------|
-| `plddt.mean < 70` | 整体置信度警告 | "Overall confidence is concerning..." |
-| `plddt.mean >= 70` | 置信度确认 | "Structural confidence is acceptable (pLDDT: [mean])" |
-| `low_confidence_regions[].start-end` | 低置信区域 | "This loop region (residues [start]-[end]) feels unstable." |
-| `geometry_metrics.clashes.severe_clashes > 0` | 碰撞检测 | "There is some internal friction in the core." |
-| `geometry_metrics.ramachandran.outlier_percentage > 5%` | 骨架异常 | "Some backbone angles appear strained." |
-| `pae.inter_domain_mean > 15` | 域间不确定 | "The relative orientation between domains is uncertain." |
+| MQA 输出字段                                            | Narrator 转化  | 示例输出                                                    |
+| :------------------------------------------------------ | :------------- | :---------------------------------------------------------- |
+| `plddt.mean < 70`                                       | 整体置信度警告 | "Overall confidence is concerning..."                       |
+| `plddt.mean >= 70`                                      | 置信度确认     | "Structural confidence is acceptable (pLDDT: [mean])"       |
+| `low_confidence_regions[].start-end`                    | 低置信区域     | "This loop region (residues [start]-[end]) feels unstable." |
+| `geometry_metrics.clashes.severe_clashes > 0`           | 碰撞检测       | "There is some internal friction in the core."              |
+| `geometry_metrics.ramachandran.outlier_percentage > 5%` | 骨架异常       | "Some backbone angles appear strained."                     |
+| `pae.inter_domain_mean > 15`                            | 域间不确定     | "The relative orientation between domains is uncertain."    |
 
 **数据映射表 (user-constraint-assessment-skill)**:
 
-| Constraint 输出字段 | Narrator 转化 | 示例输出 |
-|:--------------------|:--------------|:---------|
-| `status: "FAIL"` + `type: "distance"` | 距离违规 | "The disulfide bond at C[X]-C[Y] is under too much tension (measured: [value]Å, required: <[threshold]Å)." |
-| `status: "FAIL"` + `type: "sasa"` | 暴露度违规 | "Residue [X] is unexpectedly buried when it should be solvent-accessible." |
-| `status: "PASS"` | 约束满足 | "The distance constraint between residues [X] and [Y] is satisfied." |
-| `status: "MARGINAL"` | 边缘情况 | "The constraint is marginally satisfied, but worth monitoring." |
+| Constraint 输出字段                   | Narrator 转化 | 示例输出                                                                                                   |
+| :------------------------------------ | :------------ | :--------------------------------------------------------------------------------------------------------- |
+| `status: "FAIL"` + `type: "distance"` | 距离违规      | "The disulfide bond at C[X]-C[Y] is under too much tension (measured: [value]Å, required: <[threshold]Å)." |
+| `status: "FAIL"` + `type: "sasa"`     | 暴露度违规    | "Residue [X] is unexpectedly buried when it should be solvent-accessible."                                 |
+| `status: "PASS"`                      | 约束满足      | "The distance constraint between residues [X] and [Y] is satisfied."                                       |
+| `status: "MARGINAL"`                  | 边缘情况      | "The constraint is marginally satisfied, but worth monitoring."                                            |
 
 **前端展示**:
+
 - **视觉**:
   - 结构保持不动
   - **3D 高亮**: 问题区域闪烁红光或黄光
   - **Scanning Effect**: 一道光扫过整个蛋白
   - **Distance Lines**: 在违规的原子对之间画红色虚线，显示距离数值
 - **文字流 (Reflection)**:
-  - *"Analyzing thermodynamic stability..."*
-  - *"Something feels off about the C-terminus flexibility."*
-  - *"Checking against user constraints... The distance between A and B is not ideal yet."*
+  - _"Analyzing thermodynamic stability..."_
+  - _"Something feels off about the C-terminus flexibility."_
+  - _"Checking against user constraints... The distance between A and B is not ideal yet."_
 
 **心理学目标**: 展示 **CoT (Chain of Thought)**。让用户看到 AI 在"自我纠错"。
 
@@ -297,53 +307,56 @@ FILLER_NARRATIVES = {
 **触发条件**: `response-decision-skill` 输出 decision
 
 **后端动作**:
+
 - `ranking-skill` 输出 ranked_results
 - `response-decision-skill` 输出 decision (ACCEPT / RESAMPLE)
 
 **分支 A: Decision = ACCEPT**
 
-| 输出字段 | Narrator 转化 | 示例输出 |
-|:---------|:--------------|:---------|
-| `decision: "ACCEPT"` | 确认完成 | "Structure Locked." |
-| `ranked_results[0].composite_score` | 综合评分 | "Final confidence: [score]%" |
-| `ranked_results[0].warnings` | 注意事项 | "Note: [warning]" |
+| 输出字段                            | Narrator 转化 | 示例输出                     |
+| :---------------------------------- | :------------ | :--------------------------- |
+| `decision: "ACCEPT"`                | 确认完成      | "Structure Locked."          |
+| `ranked_results[0].composite_score` | 综合评分      | "Final confidence: [score]%" |
+| `ranked_results[0].warnings`        | 注意事项      | "Note: [warning]"            |
 
 **前端展示 (ACCEPT)**:
+
 - **视觉**:
   - 结构瞬间"凝固"
   - 材质变为高光泽的写实风格
   - 展示最终的高清渲染图
 - **文字流**:
-  - *"Converging on a stable conformation."*
-  - *"Structure Locked. Confidence: [score]%"*
+  - _"Converging on a stable conformation."_
+  - _"Structure Locked. Confidence: [score]%"_
 
 **分支 B: Decision = RESAMPLE**
 
-| 输出字段 | Narrator 转化 | 示例输出 |
-|:---------|:--------------|:---------|
-| `decision: "RESAMPLE"` | 重新思考 | "This is not satisfactory. Let me reconsider..." |
-| `action_plan.next_round` | 轮次信息 | "Initiating Round [N] with adjusted strategy." |
-| `action_plan.samples` | 采样策略 | "Exploring [N] new conformational candidates." |
+| 输出字段                 | Narrator 转化 | 示例输出                                         |
+| :----------------------- | :------------ | :----------------------------------------------- |
+| `decision: "RESAMPLE"`   | 重新思考      | "This is not satisfactory. Let me reconsider..." |
+| `action_plan.next_round` | 轮次信息      | "Initiating Round [N] with adjusted strategy."   |
+| `action_plan.samples`    | 采样策略      | "Exploring [N] new conformational candidates."   |
 
 **RESAMPLE 叙事设计 (反思而非失败)**:
 
 将 RESAMPLE 包装为 **"Refining"（精炼）** 和 **"Self-Correction"（自我修正）**：
 
-| 步骤 | Narrator 输出 | 视觉动效 |
-|:-----|:--------------|:---------|
-| **Step 1: 发现冲突** | "Initial folding complete. But I found a problem: Constraint '[id]' measures [value]Å, exceeding the [threshold]Å limit." | 冲突区域高亮，红色虚线标注 |
-| **Step 2: 提出新策略** | "This is not acceptable. I decide to **resample** the backbone dihedral angles and increase sampling weight for this region." | 冲突区域闪烁，模型退回线框模式 |
-| **Step 3: 迭代对比** (Round 2+) | "Through adjustment, the conflict has been reduced from [old]Å to [new]Å. Structural stability improved by [X]%." | Before/After 小窗口对比 |
+| 步骤                            | Narrator 输出                                                                                                                 | 视觉动效                       |
+| :------------------------------ | :---------------------------------------------------------------------------------------------------------------------------- | :----------------------------- |
+| **Step 1: 发现冲突**            | "Initial folding complete. But I found a problem: Constraint '[id]' measures [value]Å, exceeding the [threshold]Å limit."     | 冲突区域高亮，红色虚线标注     |
+| **Step 2: 提出新策略**          | "This is not acceptable. I decide to **resample** the backbone dihedral angles and increase sampling weight for this region." | 冲突区域闪烁，模型退回线框模式 |
+| **Step 3: 迭代对比** (Round 2+) | "Through adjustment, the conflict has been reduced from [old]Å to [new]Å. Structural stability improved by [X]%."             | Before/After 小窗口对比        |
 
 **前端展示 (RESAMPLE)**:
+
 - **视觉**:
   - 结构退回到半透明状态
   - 问题区域持续高亮
   - 显示 "Reconsidering..." 动画
 - **文字流**:
-  - *"The [constraint_type] constraint is not yet satisfied."*
-  - *"Let me adjust my approach and try again..."*
-  - *"Initiating Round [N]..."*
+  - _"The [constraint_type] constraint is not yet satisfied."_
+  - _"Let me adjust my approach and try again..."_
+  - _"Initiating Round [N]..."_
 
 ---
 
@@ -372,7 +385,13 @@ FILLER_NARRATIVES = {
     "mode": "HIGHLIGHT_REGION",
     "target_structure_url": "https://.../model_v2.cif",
     "highlight_regions": [
-      {"chain_id": "A", "start_residue": 120, "end_residue": 135, "color": "orange", "label": "Low Confidence"}
+      {
+        "chain_id": "A",
+        "start_residue": 120,
+        "end_residue": 135,
+        "color": "orange",
+        "label": "Low Confidence"
+      }
     ],
     "draw_distance_lines": [],
     "interpolation_duration": 1000,
@@ -386,7 +405,7 @@ FILLER_NARRATIVES = {
       "constraint_satisfaction": 0.67
     },
     "charts": {
-      "plddt_per_residue": {"type": "line", "data_ref": "s3://..."}
+      "plddt_per_residue": { "type": "line", "data_ref": "s3://..." }
     }
   },
 
@@ -398,26 +417,26 @@ FILLER_NARRATIVES = {
 
 ### 4.2 Narrative Tone 类型
 
-| Tone | 使用场景 | 文字风格 |
-|:-----|:---------|:---------|
-| `INFO` | 中性信息传递 | 平静、客观 |
-| `PROCESSING` | 正在计算 | 进行时态 |
-| `CONFIDENT` | 高置信度结果 | 肯定、简洁 |
-| `CAUTIOUS_OPTIMISM` | 有改进空间 | 积极但谨慎 |
-| `WARNING` | 发现问题 | 关注、分析 |
-| `CRITICAL` | 严重问题 | 紧急、需要处理 |
-| `SUCCESS` | 任务完成 | 确认、总结 |
+| Tone                | 使用场景     | 文字风格       |
+| :------------------ | :----------- | :------------- |
+| `INFO`              | 中性信息传递 | 平静、客观     |
+| `PROCESSING`        | 正在计算     | 进行时态       |
+| `CONFIDENT`         | 高置信度结果 | 肯定、简洁     |
+| `CAUTIOUS_OPTIMISM` | 有改进空间   | 积极但谨慎     |
+| `WARNING`           | 发现问题     | 关注、分析     |
+| `CRITICAL`          | 严重问题     | 紧急、需要处理 |
+| `SUCCESS`           | 任务完成     | 确认、总结     |
 
 ### 4.3 Visual Mode 类型
 
-| Mode | 触发条件 | 渲染效果 |
-|:-----|:---------|:---------|
-| `GHOST` | Fast-Folding 完成 | 半透明表面，单色 |
-| `MORPH` | 结构更新 (RMSD < 10Å) | 平滑插值动画 |
-| `CROSSFADE` | 结构更新 (RMSD > 10Å) | 淡入淡出 |
-| `HIGHLIGHT_REGION` | 质量检查完成 | 问题区域高亮 |
-| `STATIC` | 展示静态结构 | 无动画 |
-| `CRYSTALLIZE` | 最终 ACCEPT | 高光泽写实材质 |
+| Mode               | 触发条件              | 渲染效果         |
+| :----------------- | :-------------------- | :--------------- |
+| `GHOST`            | Fast-Folding 完成     | 半透明表面，单色 |
+| `MORPH`            | 结构更新 (RMSD < 10Å) | 平滑插值动画     |
+| `CROSSFADE`        | 结构更新 (RMSD > 10Å) | 淡入淡出         |
+| `HIGHLIGHT_REGION` | 质量检查完成          | 问题区域高亮     |
+| `STATIC`           | 展示静态结构          | 无动画           |
+| `CRYSTALLIZE`      | 最终 ACCEPT           | 高光泽写实材质   |
 
 ---
 
@@ -426,51 +445,54 @@ FILLER_NARRATIVES = {
 ### 5.1 search-agent (Annotation)
 
 **输入 (VPO 格式)**:
+
 ```json
 {
   "uniprot_id": "P00966",
   "protein_name": "Argininosuccinate synthase",
-  "basic_info": {"gene_name": "ASS1", "length": 412},
-  "domains": [{"name": "Catalytic", "start": 50, "end": 150}],
-  "active_sites": [{"position": 87, "type": "catalytic"}],
-  "folding_recommendation": {"suggested_backends": ["protenix_msa"]}
+  "basic_info": { "gene_name": "ASS1", "length": 412 },
+  "domains": [{ "name": "Catalytic", "start": 50, "end": 150 }],
+  "active_sites": [{ "position": 87, "type": "catalytic" }],
+  "folding_recommendation": { "suggested_backends": ["protenix_msa"] }
 }
 ```
 
 **转化规则**:
 
-| 字段 | 目标位置 | 转化逻辑 |
-|:-----|:---------|:---------|
-| `protein_name` | `narrative.summary` | "Identified target: **{protein_name}**" |
-| `domains[]` | `narrative.detail` | "Detected **{name}** domain (residues {start}-{end})" |
-| `active_sites[]` | `visual_instruction.highlight_regions` | 预设高亮（用于 S3 阶段叠加） |
-| `folding_recommendation` | `narrative.detail` | "Selecting **{suggested_backends[0]}** based on sequence complexity" |
+| 字段                     | 目标位置                               | 转化逻辑                                                             |
+| :----------------------- | :------------------------------------- | :------------------------------------------------------------------- |
+| `protein_name`           | `narrative.summary`                    | "Identified target: **{protein_name}**"                              |
+| `domains[]`              | `narrative.detail`                     | "Detected **{name}** domain (residues {start}-{end})"                |
+| `active_sites[]`         | `visual_instruction.highlight_regions` | 预设高亮（用于 S3 阶段叠加）                                         |
+| `folding_recommendation` | `narrative.detail`                     | "Selecting **{suggested_backends[0]}** based on sequence complexity" |
 
 ### 5.2 folding-skill
 
 **输入**:
+
 ```json
 {
   "status": "success",
   "backend": "protenix_esm",
-  "structures": [{"path": "/output/structure_0.cif", "index": 0}],
+  "structures": [{ "path": "/output/structure_0.cif", "index": 0 }],
   "num_structures": 8,
-  "msa_quality": {"neff": 128, "coverage": 0.95}
+  "msa_quality": { "neff": 128, "coverage": 0.95 }
 }
 ```
 
 **转化规则**:
 
-| 字段 | 目标位置 | 转化逻辑 |
-|:-----|:---------|:---------|
-| `structures[0].path` | `visual_instruction.target_structure_url` | 直接使用 |
-| `backend` | `narrative.detail` | "Using **{backend}** for structure generation" |
-| `num_structures` | `metrics.key_values.candidates` | 直接使用 |
-| `msa_quality.neff` | `narrative.detail` (如 MSA) | "MSA diversity: Neff = {neff}" |
+| 字段                 | 目标位置                                  | 转化逻辑                                       |
+| :------------------- | :---------------------------------------- | :--------------------------------------------- |
+| `structures[0].path` | `visual_instruction.target_structure_url` | 直接使用                                       |
+| `backend`            | `narrative.detail`                        | "Using **{backend}** for structure generation" |
+| `num_structures`     | `metrics.key_values.candidates`           | 直接使用                                       |
+| `msa_quality.neff`   | `narrative.detail` (如 MSA)               | "MSA diversity: Neff = {neff}"                 |
 
 ### 5.3 model-quality-assessment-skill
 
 **输入**:
+
 ```json
 {
   "model_quality": {
@@ -487,19 +509,20 @@ FILLER_NARRATIVES = {
 
 **转化规则**:
 
-| 字段 | 目标位置 | 转化逻辑 |
-|:-----|:---------|:---------|
-| `plddt.mean` | `metrics.key_values.mean_plddt` | 直接使用 |
-| `plddt.mean >= 70` | `narrative.summary` | "Structural confidence is acceptable (pLDDT: {mean})" |
-| `plddt.mean < 70` | `narrative.tone` | 设为 `WARNING` |
-| `low_confidence_regions[]` | `visual_instruction.highlight_regions` | 转化为高亮区域 (color: orange) |
-| `low_confidence_regions[]` | `narrative.detail` | "Region {start}-{end} shows high flexibility (pLDDT < 60)" |
-| `geometry_metrics.clashes.severe_clashes > 0` | `narrative.detail` | "Detected {N} severe atomic clashes" |
-| `pae.inter_domain_mean > 15` | `narrative.detail` | "Domain orientation is uncertain (PAE > 15Å)" |
+| 字段                                          | 目标位置                               | 转化逻辑                                                   |
+| :-------------------------------------------- | :------------------------------------- | :--------------------------------------------------------- |
+| `plddt.mean`                                  | `metrics.key_values.mean_plddt`        | 直接使用                                                   |
+| `plddt.mean >= 70`                            | `narrative.summary`                    | "Structural confidence is acceptable (pLDDT: {mean})"      |
+| `plddt.mean < 70`                             | `narrative.tone`                       | 设为 `WARNING`                                             |
+| `low_confidence_regions[]`                    | `visual_instruction.highlight_regions` | 转化为高亮区域 (color: orange)                             |
+| `low_confidence_regions[]`                    | `narrative.detail`                     | "Region {start}-{end} shows high flexibility (pLDDT < 60)" |
+| `geometry_metrics.clashes.severe_clashes > 0` | `narrative.detail`                     | "Detected {N} severe atomic clashes"                       |
+| `pae.inter_domain_mean > 15`                  | `narrative.detail`                     | "Domain orientation is uncertain (PAE > 15Å)"              |
 
 ### 5.4 user-constraint-assessment-skill
 
 **输入**:
+
 ```json
 {
   "results": [
@@ -519,62 +542,66 @@ FILLER_NARRATIVES = {
 
 **转化规则**:
 
-| 字段 | 目标位置 | 转化逻辑 |
-|:-----|:---------|:---------|
-| `results[].status == "FAIL"` | `narrative.tone` | 设为 `CRITICAL` |
-| `results[].type == "distance"` + `status == "FAIL"` | `narrative.detail` | "The disulfide bond at {description} is under tension (measured: {measured_value}Å, required: {threshold})" |
-| `results[]` (FAIL) | `visual_instruction.draw_distance_lines` | 添加红色虚线 |
-| `results[]` (FAIL) | `visual_instruction.highlight_regions` | 高亮相关残基 |
-| `satisfaction_rate` | `metrics.key_values.constraint_satisfaction` | 直接使用 |
+| 字段                                                | 目标位置                                     | 转化逻辑                                                                                                    |
+| :-------------------------------------------------- | :------------------------------------------- | :---------------------------------------------------------------------------------------------------------- |
+| `results[].status == "FAIL"`                        | `narrative.tone`                             | 设为 `CRITICAL`                                                                                             |
+| `results[].type == "distance"` + `status == "FAIL"` | `narrative.detail`                           | "The disulfide bond at {description} is under tension (measured: {measured_value}Å, required: {threshold})" |
+| `results[]` (FAIL)                                  | `visual_instruction.draw_distance_lines`     | 添加红色虚线                                                                                                |
+| `results[]` (FAIL)                                  | `visual_instruction.highlight_regions`       | 高亮相关残基                                                                                                |
+| `satisfaction_rate`                                 | `metrics.key_values.constraint_satisfaction` | 直接使用                                                                                                    |
 
 ### 5.5 ranking-skill
 
 **输入**:
+
 ```json
 {
-  "ranked_results": [{
-    "rank": 1,
-    "file": "/path/to/best.cif",
-    "composite_score": 85.3,
-    "breakdown": {
-      "model_quality_score": 82.5,
-      "constraint_satisfaction": 1.0,
-      "pairwise_consensus": {"combined": 0.78}
-    },
-    "warnings": ["C-terminus low confidence"]
-  }]
+  "ranked_results": [
+    {
+      "rank": 1,
+      "file": "/path/to/best.cif",
+      "composite_score": 85.3,
+      "breakdown": {
+        "model_quality_score": 82.5,
+        "constraint_satisfaction": 1.0,
+        "pairwise_consensus": { "combined": 0.78 }
+      },
+      "warnings": ["C-terminus low confidence"]
+    }
+  ]
 }
 ```
 
 **转化规则**:
 
-| 字段 | 目标位置 | 转化逻辑 |
-|:-----|:---------|:---------|
-| `ranked_results[0].file` | `visual_instruction.target_structure_url` | 直接使用 |
-| `ranked_results[0].composite_score` | `metrics.key_values.composite_score` | 直接使用 |
-| `ranked_results[0].warnings[]` | `narrative.detail` | "Note: {warning}" |
+| 字段                                | 目标位置                                  | 转化逻辑          |
+| :---------------------------------- | :---------------------------------------- | :---------------- |
+| `ranked_results[0].file`            | `visual_instruction.target_structure_url` | 直接使用          |
+| `ranked_results[0].composite_score` | `metrics.key_values.composite_score`      | 直接使用          |
+| `ranked_results[0].warnings[]`      | `narrative.detail`                        | "Note: {warning}" |
 
 ### 5.6 response-decision-skill
 
 **输入**:
+
 ```json
 {
   "decision": "RESAMPLE",
   "reason": "constraint not satisfied",
-  "action_plan": {"next_round": 2, "samples": 16}
+  "action_plan": { "next_round": 2, "samples": 16 }
 }
 ```
 
 **转化规则**:
 
-| 字段 | 目标位置 | 转化逻辑 |
-|:-----|:---------|:---------|
-| `decision == "ACCEPT"` | `stage` | 设为 `CRYSTALLIZATION_FINAL` |
-| `decision == "ACCEPT"` | `visual_instruction.mode` | 设为 `CRYSTALLIZE` |
-| `decision == "RESAMPLE"` | `stage` | 设为 `CRYSTALLIZATION_RESAMPLE` |
-| `decision == "RESAMPLE"` | `narrative.summary` | "This is not satisfactory. Let me reconsider..." |
-| `action_plan.next_round` | `narrative.detail` | "Initiating Round {next_round}" |
-| `action_plan.samples` | `narrative.detail` | "Exploring {samples} new candidates" |
+| 字段                     | 目标位置                  | 转化逻辑                                         |
+| :----------------------- | :------------------------ | :----------------------------------------------- |
+| `decision == "ACCEPT"`   | `stage`                   | 设为 `CRYSTALLIZATION_FINAL`                     |
+| `decision == "ACCEPT"`   | `visual_instruction.mode` | 设为 `CRYSTALLIZE`                               |
+| `decision == "RESAMPLE"` | `stage`                   | 设为 `CRYSTALLIZATION_RESAMPLE`                  |
+| `decision == "RESAMPLE"` | `narrative.summary`       | "This is not satisfactory. Let me reconsider..." |
+| `action_plan.next_round` | `narrative.detail`        | "Initiating Round {next_round}"                  |
+| `action_plan.samples`    | `narrative.detail`        | "Exploring {samples} new candidates"             |
 
 ---
 
@@ -825,17 +852,35 @@ interface CognitiveEvent {
   event_type: "COGNITIVE_UPDATE";
   timestamp: number;
   source_skill: string;
-  stage: "CONTEXTUALIZING" | "INTUITION" | "HYPOTHESIZING" | "INTROSPECTION" | "CRYSTALLIZATION";
+  stage:
+    | "CONTEXTUALIZING"
+    | "INTUITION"
+    | "HYPOTHESIZING"
+    | "INTROSPECTION"
+    | "CRYSTALLIZATION";
   phase: "SEARCH" | "FOLDING" | "EVALUATION" | "DECISION";
 
   narrative: {
     summary: string;
     detail: string;
-    tone: "INFO" | "PROCESSING" | "CONFIDENT" | "CAUTIOUS_OPTIMISM" | "WARNING" | "CRITICAL" | "SUCCESS";
+    tone:
+      | "INFO"
+      | "PROCESSING"
+      | "CONFIDENT"
+      | "CAUTIOUS_OPTIMISM"
+      | "WARNING"
+      | "CRITICAL"
+      | "SUCCESS";
   };
 
   visual_instruction: {
-    mode: "GHOST" | "MORPH" | "CROSSFADE" | "HIGHLIGHT_REGION" | "STATIC" | "CRYSTALLIZE";
+    mode:
+      | "GHOST"
+      | "MORPH"
+      | "CROSSFADE"
+      | "HIGHLIGHT_REGION"
+      | "STATIC"
+      | "CRYSTALLIZE";
     target_structure_url?: string;
     highlight_regions?: Array<{
       chain_id: string;
@@ -845,8 +890,8 @@ interface CognitiveEvent {
       label?: string;
     }>;
     draw_distance_lines?: Array<{
-      residue_1: {chain: string, resid: number};
-      residue_2: {chain: string, resid: number};
+      residue_1: { chain: string; resid: number };
+      residue_2: { chain: string; resid: number };
       label: string;
       color: string;
     }>;
@@ -856,7 +901,7 @@ interface CognitiveEvent {
 
   metrics?: {
     key_values?: Record<string, number>;
-    charts?: Record<string, {type: string, data_ref: string}>;
+    charts?: Record<string, { type: string; data_ref: string }>;
   };
 
   raw_data_ref?: {

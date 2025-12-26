@@ -1,0 +1,113 @@
+# GitHub Labels Configuration for ChatFold
+# Sync labels using: gh label sync -f .github/labels.yml
+#
+# Usage:
+#   gh label sync --repo owner/repo --labels .github/labels.yml
+
+# =============================================================================
+# Deploy Labels - Control deployment scope
+# =============================================================================
+
+- name: deploy:full
+  color: "0E8A16"
+  description: "Deploy both frontend and backend"
+
+- name: deploy:web-only
+  color: "1D76DB"
+  description: "Deploy frontend only"
+
+- name: deploy:backend-only
+  color: "5319E7"
+  description: "Deploy backend only"
+
+- name: deploy:skip
+  color: "FBCA04"
+  description: "Skip deployment"
+
+# =============================================================================
+# PR Labels - Control PR behavior
+# =============================================================================
+
+- name: pr:skip-claude-review
+  color: "D93F0B"
+  description: "Skip Claude Code Review for this PR"
+
+- name: pr:wip
+  color: "FBCA04"
+  description: "Work in progress - do not merge"
+
+- name: pr:ready-for-review
+  color: "0E8A16"
+  description: "Ready for code review"
+
+- name: pr:needs-revision
+  color: "E99695"
+  description: "Changes requested - needs revision"
+
+# =============================================================================
+# Type Labels - Categorize changes
+# =============================================================================
+
+- name: type:feature
+  color: "A2EEEF"
+  description: "New feature or enhancement"
+
+- name: type:bug
+  color: "D73A4A"
+  description: "Bug fix"
+
+- name: type:docs
+  color: "0075CA"
+  description: "Documentation update"
+
+- name: type:refactor
+  color: "CFD3D7"
+  description: "Code refactoring"
+
+- name: type:test
+  color: "BFD4F2"
+  description: "Test related changes"
+
+- name: type:chore
+  color: "FEF2C0"
+  description: "Maintenance and chores"
+
+# =============================================================================
+# Priority Labels - Indicate urgency
+# =============================================================================
+
+- name: priority:critical
+  color: "B60205"
+  description: "Critical - requires immediate attention"
+
+- name: priority:high
+  color: "D93F0B"
+  description: "High priority"
+
+- name: priority:medium
+  color: "FBCA04"
+  description: "Medium priority"
+
+- name: priority:low
+  color: "0E8A16"
+  description: "Low priority"
+
+# =============================================================================
+# Component Labels - Identify affected areas
+# =============================================================================
+
+- name: component:frontend
+  color: "61DAFB"
+  description: "Frontend (Next.js/React) changes"
+
+- name: component:backend
+  color: "3572A5"
+  description: "Backend (FastAPI/Python) changes"
+
+- name: component:molstar
+  color: "FF6B6B"
+  description: "Mol* 3D viewer related"
+
+- name: component:api
+  color: "006B75"
+  description: "API changes"

@@ -4,7 +4,6 @@ import asyncio
 import random
 import re
 import time
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
@@ -36,10 +35,7 @@ async def create_task(request: CreateTaskRequest):
     try:
         sequence = request.get_validated_sequence()
     except ValueError as e:
-        raise HTTPException(status_code=400, detail={
-            "error": "Validation failed",
-            "details": [str(e)]
-        })
+        raise HTTPException(status_code=400, detail={"error": "Validation failed", "details": [str(e)]}) from e
 
     now = int(time.time() * 1000)
     task = Task(
@@ -49,20 +45,17 @@ async def create_task(request: CreateTaskRequest):
         sequence=sequence,
         createdAt=now,
         steps=[],
-        structures=[]
+        structures=[],
     )
 
     storage.save_task(task)
     storage.save_task_sequence(task.id, sequence)
 
-    return {
-        "taskId": task.id,
-        "task": task.model_dump()
-    }
+    return {"taskId": task.id, "task": task.model_dump()}
 
 
 @router.get("")
-async def list_tasks(taskId: Optional[str] = Query(None)):
+async def list_tasks(taskId: str | None = Query(None)):
     """List tasks or get a specific task by ID."""
     if taskId:
         task = storage.get_task(taskId)
@@ -83,7 +76,7 @@ async def register_sequence(task_id: str, request: RegisterSequenceRequest):
     try:
         sequence = validate_amino_acid_sequence(request.sequence)
     except SequenceValidationError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     storage.save_task_sequence(task_id, sequence)
 
@@ -91,10 +84,7 @@ async def register_sequence(task_id: str, request: RegisterSequenceRequest):
 
 
 @router.get("/{task_id}/stream")
-async def stream_task(
-    task_id: str,
-    sequence: Optional[str] = Query(None)
-):
+async def stream_task(task_id: str, sequence: str | None = Query(None)):
     """Stream task progress events via Server-Sent Events (SSE)."""
     # Validate taskId format
     if not TASK_ID_PATTERN.match(task_id):
@@ -107,7 +97,7 @@ async def stream_task(
         try:
             final_sequence = validate_amino_acid_sequence(raw_sequence)
         except SequenceValidationError as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            raise HTTPException(status_code=400, detail=str(e)) from e
     else:
         # Use default test sequence
         final_sequence = DEFAULT_SEQUENCE
@@ -133,5 +123,5 @@ async def stream_task(
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",  # Disable nginx buffering
-        }
+        },
     )

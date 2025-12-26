@@ -28,13 +28,13 @@ npm run dev
 
 ### Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/conversations` | Create new conversation |
-| GET | `/api/conversations` | List all conversations |
-| POST | `/api/tasks` | Create folding task |
-| GET | `/api/tasks/[taskId]/stream` | SSE stream for task progress |
-| GET | `/api/structures/[id]` | Download structure PDB |
+| Method | Endpoint                     | Description                  |
+| ------ | ---------------------------- | ---------------------------- |
+| POST   | `/api/conversations`         | Create new conversation      |
+| GET    | `/api/conversations`         | List all conversations       |
+| POST   | `/api/tasks`                 | Create folding task          |
+| GET    | `/api/tasks/[taskId]/stream` | SSE stream for task progress |
+| GET    | `/api/structures/[id]`       | Download structure PDB       |
 
 ### SSE Events
 
@@ -102,9 +102,10 @@ src/
 
 ## Test Data
 
-Sample files are in `data/test_data/`:
+Sample files are in `web/tests/fixtures/`:
+
 - `9CG9_HMGB1.fasta` - Sample FASTA sequence
-- `9CG9_HMGB1.pdb` - Reference PDB structure
+- `9CG9_HMGB1.pdb` - Reference PDB structure (managed by Git LFS)
 
 ## Design Reference
 
@@ -127,4 +128,4 @@ Sample files are in `data/test_data/`:
 - Mock server simulates 500-1200ms delays between step events
 - Thumbnail generation uses canvas toDataURL
 - Structure viewer is a lightweight Canvas 2D implementation
-- For production, integrate actual Mol* viewer from `@molstar/`
+- For production, integrate actual Mol\* viewer from `@molstar/`

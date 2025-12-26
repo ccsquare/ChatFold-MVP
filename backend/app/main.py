@@ -5,6 +5,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .routers import conversations_router, structures_router, tasks_router
+from .utils.logging import setup_logging
+
+# Initialize logging
+logger = setup_logging("chatfold")
 
 app = FastAPI(
     title="ChatFold API",
@@ -27,14 +31,16 @@ app.include_router(tasks_router)
 app.include_router(structures_router)
 
 
+@app.on_event("startup")
+async def startup_event():
+    """Log startup message."""
+    logger.info("ChatFold API started successfully")
+
+
 @app.get("/")
 async def root():
     """Health check endpoint."""
-    return {
-        "status": "ok",
-        "service": "ChatFold API",
-        "version": "0.1.0"
-    }
+    return {"status": "ok", "service": "ChatFold API", "version": "0.1.0"}
 
 
 @app.get("/health")
@@ -45,9 +51,5 @@ async def health():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "app.main:app",
-        host=settings.host,
-        port=settings.port,
-        reload=settings.debug
-    )
+
+    uvicorn.run("app.main:app", host=settings.host, port=settings.port, reload=settings.debug)
