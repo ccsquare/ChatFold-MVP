@@ -5,6 +5,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .routers import conversations_router, structures_router, tasks_router
+from .utils.logging import setup_logging
+
+# Initialize logging
+logger = setup_logging("chatfold")
 
 app = FastAPI(
     title="ChatFold API",
@@ -25,6 +29,12 @@ app.add_middleware(
 app.include_router(conversations_router)
 app.include_router(tasks_router)
 app.include_router(structures_router)
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Log startup message."""
+    logger.info("ChatFold API started successfully")
 
 
 @app.get("/")

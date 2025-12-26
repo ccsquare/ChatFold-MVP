@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     # API settings
     api_prefix: str = ""
 
+    # Logging settings
+    log_max_bytes: int = 20 * 1024 * 1024  # 20MB
+    log_backup_count: int = 5
+
     class Config:
         env_prefix = "CHATFOLD_"
         env_file = ".env"
