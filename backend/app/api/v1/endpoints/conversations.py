@@ -1,14 +1,14 @@
-"""Conversations API router."""
+"""Conversations API endpoint."""
 
 import time
 
 from fastapi import APIRouter, HTTPException
 
-from ..models.schemas import Conversation, CreateConversationRequest
-from ..services.storage import storage
-from ..utils.id_generator import generate_id
+from app.models.schemas import Conversation, CreateConversationRequest
+from app.services.storage import storage
+from app.utils.id_generator import generate_id
 
-router = APIRouter(prefix="/api/conversations", tags=["conversations"])
+router = APIRouter(tags=["Conversations"])
 
 
 @router.post("")
