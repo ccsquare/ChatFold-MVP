@@ -19,7 +19,7 @@ ChatFold 是一个 ChatGPT 风格的蛋白质折叠工作台，支持实时流�
 
 **输出**:
 
-- 3D 蛋白质结构可视化（Mol*）
+- 3D 蛋白质结构可视化（Mol\*）
 - 折叠进度实时展示（SSE 流式）
 - 结构质量评估指标（pLDDT, PAE）
 - 可下载的 PDB 结构文件
@@ -62,7 +62,7 @@ ChatFold-MVP/
 - **状态管理**: Zustand
 - **UI 组件**: shadcn/ui (Radix UI)
 - **样式**: TailwindCSS
-- **3D 可视化**: Mol* 4.5.0
+- **3D 可视化**: Mol\* 4.5.0
 - **测试**: Vitest + Playwright
 
 ### 后端
@@ -132,13 +132,13 @@ uvicorn app.main:app --reload --port 8000
 
 - **三栏布局** (`web/src/components/LayoutShell.tsx`)
   - 左侧边栏: 文件管理、对话列表
-  - 中央画布: Mol* 3D 结构查看器
+  - 中央画布: Mol\* 3D 结构查看器
   - 右侧控制台: 步骤时间线、聊天、图表
 
 - **状态管理** (`web/src/lib/store.ts`)
   - Zustand 全局状态，支持持久化
 
-- **Mol* 集成** (`web/src/components/MolstarViewer.tsx`)
+- **Mol\* 集成** (`web/src/components/MolstarViewer.tsx`)
   - 动态导入避免 SSR 问题
   - 支持结构加载、缩略图生成
 
@@ -147,12 +147,12 @@ uvicorn app.main:app --reload --port 8000
 
 ### API 端点
 
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| `/api/conversations` | POST/GET | 创建/列表对话 |
-| `/api/tasks` | POST/GET | 创建/列表任务 |
-| `/api/tasks/{id}/stream` | GET | SSE 折叠进度流 |
-| `/api/structures/{id}` | GET | 下载 PDB 文件 |
+| 端点                     | 方法     | 说明           |
+| ------------------------ | -------- | -------------- |
+| `/api/conversations`     | POST/GET | 创建/列表对话  |
+| `/api/tasks`             | POST/GET | 创建/列表任务  |
+| `/api/tasks/{id}/stream` | GET      | SSE 折叠进度流 |
+| `/api/structures/{id}`   | GET      | 下载 PDB 文件  |
 
 ## 6. 开发规范
 
@@ -218,13 +218,13 @@ Benefits:
 }
 ```
 
-### Mol* 动态加载
+### Mol\* 动态加载
 
 避免 SSR 问题的模块加载模式：
 
 ```typescript
 // 动态导入 Mol* 模块
-const molstar = await import('molstar/lib/mol-plugin-ui');
+const molstar = await import("molstar/lib/mol-plugin-ui");
 ```
 
 ### Zustand 状态持久化
@@ -246,7 +246,7 @@ persist(
 
 2. **了解项目**
    - [docs/features/](./docs/features/) - 功能实现文档
-   - [docs/features/molstar-usage-guide.md](./docs/features/molstar-usage-guide.md) - Mol* 使用指南
+   - [docs/features/molstar-usage-guide.md](./docs/features/molstar-usage-guide.md) - Mol\* 使用指南
 
 3. **开始开发**
    - 遵循开发规范中的 Commit 规范

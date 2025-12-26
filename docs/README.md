@@ -23,8 +23,8 @@
 
 具体功能的技术实现细节
 
-- **[molstar-usage-guide.md](./features/molstar-usage-guide.md)** - Mol* 3D 可视化使用指南
-- **[molstar-quick-reference.md](./features/molstar-quick-reference.md)** - Mol* 快速参考
+- **[molstar-usage-guide.md](./features/molstar-usage-guide.md)** - Mol\* 3D 可视化使用指南
+- **[molstar-quick-reference.md](./features/molstar-quick-reference.md)** - Mol\* 快速参考
 - **[design_concept.md](./features/design_concept.md)** - 设计概念文档
 - **[prompt.md](./features/prompt.md)** - Prompt 设计
 

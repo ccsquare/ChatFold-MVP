@@ -5,14 +5,17 @@
 ### 1. 最简单的使用（CDN）
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/molstar@latest/build/viewer/molstar.css" />
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/molstar@latest/build/viewer/molstar.css"
+/>
 <script src="https://cdn.jsdelivr.net/npm/molstar@latest/build/viewer/molstar.js"></script>
 
 <div id="app" style="width: 800px; height: 600px;"></div>
 
 <script>
-  molstar.Viewer.create('app').then(viewer => {
-    viewer.loadPdb('1grm');
+  molstar.Viewer.create("app").then((viewer) => {
+    viewer.loadPdb("1grm");
   });
 </script>
 ```
@@ -62,20 +65,20 @@ export function MolstarViewer({ pdbId }: { pdbId: string }) {
 ```typescript
 // 从 URL 加载
 const data = await plugin.builders.data.download(
-  { url: 'https://files.rcsb.org/download/1grm.pdb', isBinary: false },
-  { state: { isGhost: true } }
+  { url: "https://files.rcsb.org/download/1grm.pdb", isBinary: false },
+  { state: { isGhost: true } },
 );
 
 // 从文件加载
 const data = await plugin.builders.data.readFile(
   { file: File, isBinary: false },
-  { state: { isGhost: true } }
+  { state: { isGhost: true } },
 );
 
 // 从字符串加载
 const data = await plugin.builders.data.rawData(
-  { data: pdbString, label: 'structure' },
-  { state: { isGhost: true } }
+  { data: pdbString, label: "structure" },
+  { state: { isGhost: true } },
 );
 ```
 
@@ -83,21 +86,21 @@ const data = await plugin.builders.data.rawData(
 
 ```typescript
 // 解析轨迹
-const trajectory = await plugin.builders.structure.parseTrajectory(data, 'pdb');
+const trajectory = await plugin.builders.structure.parseTrajectory(data, "pdb");
 
 // 应用预设
 await plugin.builders.structure.hierarchy.applyPreset(
   trajectory,
-  'default',
-  { representationPreset: 'auto' }  // 'cartoon', 'ball-and-stick', 'spacefill'
+  "default",
+  { representationPreset: "auto" }, // 'cartoon', 'ball-and-stick', 'spacefill'
 );
 ```
 
 ### 清除和销毁
 
 ```typescript
-await plugin.clear();     // 清除当前结构
-plugin.dispose();         // 销毁插件实例
+await plugin.clear(); // 清除当前结构
+plugin.dispose(); // 销毁插件实例
 ```
 
 ---
@@ -107,13 +110,13 @@ plugin.dispose();         // 销毁插件实例
 ### 设置背景颜色
 
 ```typescript
-import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
-import { Color } from 'molstar/lib/mol-util/color';
+import { PluginCommands } from "molstar/lib/mol-plugin/commands";
+import { Color } from "molstar/lib/mol-util/color";
 
 PluginCommands.Canvas3D.SetSettings(plugin, {
-  settings: props => {
-    props.renderer.backgroundColor = Color(0xffffff);  // 白色
-  }
+  settings: (props) => {
+    props.renderer.backgroundColor = Color(0xffffff); // 白色
+  },
 });
 ```
 
@@ -127,18 +130,18 @@ PluginCommands.Camera.Reset(plugin, {});
 PluginCommands.Canvas3D.SetSettings(plugin, {
   settings: {
     trackball: {
-      animate: { name: 'spin', params: { speed: 1 } }
-    }
-  }
+      animate: { name: "spin", params: { speed: 1 } },
+    },
+  },
 });
 
 // 停止旋转
 PluginCommands.Canvas3D.SetSettings(plugin, {
   settings: {
     trackball: {
-      animate: { name: 'off', params: {} }
-    }
-  }
+      animate: { name: "off", params: {} },
+    },
+  },
 });
 ```
 
@@ -147,12 +150,12 @@ PluginCommands.Canvas3D.SetSettings(plugin, {
 ```typescript
 const imageData = await PluginCommands.Canvas3D.GetImageData(plugin, {
   width: 1920,
-  height: 1080
+  height: 1080,
 });
 
 // 下载
-const link = document.createElement('a');
-link.download = 'screenshot.png';
+const link = document.createElement("a");
+link.download = "screenshot.png";
 link.href = imageData.data;
 link.click();
 ```
@@ -161,13 +164,13 @@ link.click();
 
 ## 支持的文件格式
 
-| 格式 | 扩展名 | 用途 |
-|------|--------|------|
-| PDB | `.pdb`, `.ent` | 蛋白质数据库格式 |
+| 格式  | 扩展名           | 用途                 |
+| ----- | ---------------- | -------------------- |
+| PDB   | `.pdb`, `.ent`   | 蛋白质数据库格式     |
 | mmCIF | `.cif`, `.mmcif` | 宏分子晶体学信息文件 |
-| GRO | `.gro` | GROMACS 格式 |
-| MOL2 | `.mol2` | Tripos 分子格式 |
-| SDF | `.sdf` | 结构数据文件 |
+| GRO   | `.gro`           | GROMACS 格式         |
+| MOL2  | `.mol2`          | Tripos 分子格式      |
+| SDF   | `.sdf`           | 结构数据文件         |
 
 ---
 
@@ -197,6 +200,7 @@ link.click();
 ### 问题: 组件不显示
 
 **检查**:
+
 - 容器是否有明确的宽高
 - 是否正确导入样式文件
 - 查看浏览器控制台错误
@@ -220,7 +224,9 @@ useEffect(() => {
 
   async function init() {
     if (!isMounted) return;
-    plugin = await createPluginUI({ /* ... */ });
+    plugin = await createPluginUI({
+      /* ... */
+    });
     if (!isMounted) {
       plugin?.dispose();
       return;

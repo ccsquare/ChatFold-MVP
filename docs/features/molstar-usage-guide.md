@@ -32,6 +32,7 @@ Molstar 是一个现代化的 Web 应用框架，专门用于 **3D 可视化和�
 ### 1.3 支持的文件格式
 
 **结构文件**：
+
 - PDB/PDBQT: `.pdb`, `.ent`, `.pdbqt`
 - mmCIF: `.cif`, `.bcif`, `.mmcif`, `.mcif`
 - GRO: `.gro`
@@ -40,6 +41,7 @@ Molstar 是一个现代化的 Web 应用框架，专门用于 **3D 可视化和�
 - XYZ: `.xyz`
 
 **体积数据**：
+
 - CCP4/MRC/MAP: `.ccp4`, `.mrc`, `.map`
 - CUBE: `.cub`, `.cube`
 
@@ -105,27 +107,33 @@ npm install react react-dom
 ```html
 <!DOCTYPE html>
 <html>
-<head>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/molstar@latest/build/viewer/molstar.css" />
+  <head>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/molstar@latest/build/viewer/molstar.css"
+    />
     <script src="https://cdn.jsdelivr.net/npm/molstar@latest/build/viewer/molstar.js"></script>
-</head>
-<body>
-    <div id="molstar-app" style="position: absolute; width: 100%; height: 100vh;"></div>
+  </head>
+  <body>
+    <div
+      id="molstar-app"
+      style="position: absolute; width: 100%; height: 100vh;"
+    ></div>
 
     <script>
-        molstar.Viewer.create('molstar-app', {
-            layoutIsExpanded: false,
-            layoutShowControls: true,
-            layoutShowSequence: true,
-        }).then(viewer => {
-            // 从 PDB ID 加载
-            viewer.loadPdb('1grm');
+      molstar.Viewer.create("molstar-app", {
+        layoutIsExpanded: false,
+        layoutShowControls: true,
+        layoutShowSequence: true,
+      }).then((viewer) => {
+        // 从 PDB ID 加载
+        viewer.loadPdb("1grm");
 
-            // 或从 URL 加载
-            // viewer.loadStructureFromUrl('https://files.rcsb.org/download/1grm.pdb', 'pdb');
-        });
+        // 或从 URL 加载
+        // viewer.loadStructureFromUrl('https://files.rcsb.org/download/1grm.pdb', 'pdb');
+      });
     </script>
-</body>
+  </body>
 </html>
 ```
 
@@ -327,11 +335,11 @@ const nextConfig = {
     // 处理 SCSS 文件
     config.module.rules.push({
       test: /\.scss$/,
-      use: ['style-loader', 'css-loader', 'sass-loader']
+      use: ["style-loader", "css-loader", "sass-loader"],
     });
 
     return config;
-  }
+  },
 };
 
 module.exports = nextConfig;
@@ -344,13 +352,15 @@ module.exports = nextConfig;
 ### 6.1 创建插件实例
 
 ```typescript
-import { createPluginUI } from 'molstar/lib/mol-plugin-ui';
-import { renderReact18 } from 'molstar/lib/mol-plugin-ui/react18';
+import { createPluginUI } from "molstar/lib/mol-plugin-ui";
+import { renderReact18 } from "molstar/lib/mol-plugin-ui/react18";
 
 const plugin = await createPluginUI({
-  target: document.getElementById('app')!,
+  target: document.getElementById("app")!,
   render: renderReact18,
-  spec: { /* 配置选项 */ }
+  spec: {
+    /* 配置选项 */
+  },
 });
 ```
 
@@ -359,20 +369,20 @@ const plugin = await createPluginUI({
 ```typescript
 // 方法 1: 从 URL 下载
 const data = await plugin.builders.data.download(
-  { url: 'https://files.rcsb.org/download/1grm.pdb', isBinary: false },
-  { state: { isGhost: true } }
+  { url: "https://files.rcsb.org/download/1grm.pdb", isBinary: false },
+  { state: { isGhost: true } },
 );
 
 // 方法 2: 从本地文件
 const data = await plugin.builders.data.readFile(
   { file: File, isBinary: false },
-  { state: { isGhost: true } }
+  { state: { isGhost: true } },
 );
 
 // 方法 3: 从字符串
 const data = await plugin.builders.data.rawData(
-  { data: pdbString, label: 'structure' },
-  { state: { isGhost: true } }
+  { data: pdbString, label: "structure" },
+  { state: { isGhost: true } },
 );
 ```
 
@@ -381,7 +391,7 @@ const data = await plugin.builders.data.rawData(
 ```typescript
 const trajectory = await plugin.builders.structure.parseTrajectory(
   data,
-  'pdb'  // 或 'mmcif', 'gro', 'mol2' 等
+  "pdb", // 或 'mmcif', 'gro', 'mol2' 等
 );
 ```
 
@@ -390,21 +400,22 @@ const trajectory = await plugin.builders.structure.parseTrajectory(
 ```typescript
 await plugin.builders.structure.hierarchy.applyPreset(
   trajectory,
-  'default',  // 预设名称
+  "default", // 预设名称
   {
     structure: {
-      name: 'model',      // 或 'assembly'
-      params: { id: '1' } // assembly ID（可选）
+      name: "model", // 或 'assembly'
+      params: { id: "1" }, // assembly ID（可选）
     },
     showUnitcell: false,
-    representationPreset: 'auto'  // 或 'cartoon', 'ball-and-stick' 等
-  }
+    representationPreset: "auto", // 或 'cartoon', 'ball-and-stick' 等
+  },
 );
 ```
 
 ### 6.5 常用预设类型
 
 **结构预设** (`representationPreset`):
+
 - `'auto'`: 自动选择（推荐）
 - `'empty'`: 空
 - `'cartoon'`: 卡通模式（蛋白质二级结构）
@@ -432,13 +443,13 @@ plugin.dispose();
 ### 7.1 设置背景颜色
 
 ```typescript
-import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
-import { Color } from 'molstar/lib/mol-util/color';
+import { PluginCommands } from "molstar/lib/mol-plugin/commands";
+import { Color } from "molstar/lib/mol-util/color";
 
 PluginCommands.Canvas3D.SetSettings(plugin, {
-  settings: props => {
+  settings: (props) => {
     props.renderer.backgroundColor = Color(0xffffff); // 白色
-  }
+  },
 });
 ```
 
@@ -452,40 +463,42 @@ PluginCommands.Camera.Reset(plugin, {});
 PluginCommands.Canvas3D.SetSettings(plugin, {
   settings: {
     trackball: {
-      animate: { name: 'spin', params: { speed: 1 } }
-    }
-  }
+      animate: { name: "spin", params: { speed: 1 } },
+    },
+  },
 });
 
 // 停止旋转
 PluginCommands.Canvas3D.SetSettings(plugin, {
   settings: {
     trackball: {
-      animate: { name: 'off', params: {} }
-    }
-  }
+      animate: { name: "off", params: {} },
+    },
+  },
 });
 ```
 
 ### 7.3 选择和高亮
 
 ```typescript
-import { Script } from 'molstar/lib/mol-script/script';
-import { StructureSelection } from 'molstar/lib/mol-model/structure';
-import { EmptyLoci } from 'molstar/lib/mol-model/loci';
+import { Script } from "molstar/lib/mol-script/script";
+import { StructureSelection } from "molstar/lib/mol-model/structure";
+import { EmptyLoci } from "molstar/lib/mol-model/loci";
 
 // 高亮特定残基
-const data = plugin.managers.structure.hierarchy.current.structures[0]?.cell.obj?.data;
+const data =
+  plugin.managers.structure.hierarchy.current.structures[0]?.cell.obj?.data;
 if (data) {
-  const selection = Script.getStructureSelection(Q =>
-    Q.struct.generator.atomGroups({
-      'residue-test': Q.core.rel.eq([
-        Q.struct.atomProperty.macromolecular.label_seq_id(),
-        7  // 残基序号
-      ]),
-      'group-by': Q.struct.atomProperty.macromolecular.residueKey()
-    }),
-    data
+  const selection = Script.getStructureSelection(
+    (Q) =>
+      Q.struct.generator.atomGroups({
+        "residue-test": Q.core.rel.eq([
+          Q.struct.atomProperty.macromolecular.label_seq_id(),
+          7, // 残基序号
+        ]),
+        "group-by": Q.struct.atomProperty.macromolecular.residueKey(),
+      }),
+    data,
   );
 
   const loci = StructureSelection.toLociWithSourceUnits(selection);
@@ -494,7 +507,7 @@ if (data) {
 
 // 清除高亮
 plugin.managers.interactivity.lociHighlights.highlightOnly({
-  loci: EmptyLoci
+  loci: EmptyLoci,
 });
 ```
 
@@ -506,7 +519,7 @@ await plugin.dataTransaction(async () => {
   for (const s of plugin.managers.structure.hierarchy.current.structures) {
     await plugin.managers.structure.component.updateRepresentationsTheme(
       s.components,
-      { color: 'default' }
+      { color: "default" },
     );
   }
 });
@@ -517,17 +530,17 @@ await plugin.dataTransaction(async () => {
 ### 7.5 截图
 
 ```typescript
-import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
+import { PluginCommands } from "molstar/lib/mol-plugin/commands";
 
 // 创建截图
 const imageData = await PluginCommands.Canvas3D.GetImageData(plugin, {
   width: 1920,
-  height: 1080
+  height: 1080,
 });
 
 // 下载截图
-const link = document.createElement('a');
-link.download = 'screenshot.png';
+const link = document.createElement("a");
+link.download = "screenshot.png";
 link.href = imageData.data;
 link.click();
 ```
@@ -573,18 +586,18 @@ function handleFileUpload(file: File, plugin: PluginUIContext) {
 ### 7.7 动画控制
 
 ```typescript
-import { AnimateModelIndex } from 'molstar/lib/mol-plugin-state/animation/built-in/model-index';
+import { AnimateModelIndex } from "molstar/lib/mol-plugin-state/animation/built-in/model-index";
 
 // 播放动画
 plugin.managers.animation.play(AnimateModelIndex, {
   duration: {
-    name: 'computed',
-    params: { targetFps: 30 }
+    name: "computed",
+    params: { targetFps: 30 },
   },
   mode: {
-    name: 'loop',  // 或 'once', 'palindrome'
-    params: { direction: 'forward' }
-  }
+    name: "loop", // 或 'once', 'palindrome'
+    params: { direction: "forward" },
+  },
 });
 
 // 停止动画
@@ -598,17 +611,19 @@ plugin.managers.animation.stop();
 ### 8.1 性能优化
 
 1. **使用 `isGhost: true`**
+
    ```typescript
    const data = await plugin.builders.data.download(
      { url },
-     { state: { isGhost: true } }  // 避免不必要的状态更新
+     { state: { isGhost: true } }, // 避免不必要的状态更新
    );
    ```
 
 2. **延迟加载大型结构**
+
    ```typescript
    // 使用 Web Worker 或异步加载
-   import { Task } from 'molstar/lib/mol-task';
+   import { Task } from "molstar/lib/mol-task";
    ```
 
 3. **限制渲染质量**
@@ -626,17 +641,20 @@ plugin.managers.animation.stop();
 ```typescript
 try {
   const data = await plugin.builders.data.download({ url });
-  const trajectory = await plugin.builders.structure.parseTrajectory(data, format);
-  await plugin.builders.structure.hierarchy.applyPreset(trajectory, 'default');
+  const trajectory = await plugin.builders.structure.parseTrajectory(
+    data,
+    format,
+  );
+  await plugin.builders.structure.hierarchy.applyPreset(trajectory, "default");
 } catch (error) {
-  console.error('Failed to load structure:', error);
+  console.error("Failed to load structure:", error);
   // 显示友好的错误提示
-  if (error.message.includes('404')) {
-    showError('Structure not found');
-  } else if (error.message.includes('parse')) {
-    showError('Invalid file format');
+  if (error.message.includes("404")) {
+    showError("Structure not found");
+  } else if (error.message.includes("parse")) {
+    showError("Invalid file format");
   } else {
-    showError('Failed to load structure');
+    showError("Failed to load structure");
   }
 }
 ```
@@ -653,7 +671,9 @@ useEffect(() => {
   async function init() {
     if (!isMounted) return;
 
-    plugin = await createPluginUI({ /* ... */ });
+    plugin = await createPluginUI({
+      /* ... */
+    });
 
     if (!isMounted && plugin) {
       plugin.dispose();
@@ -708,6 +728,7 @@ useEffect(() => {
 #### 问题 1: "Cannot find module 'molstar/lib/...'"
 
 **解决方案**：
+
 ```bash
 # 确保正确安装
 npm install molstar
@@ -720,18 +741,21 @@ npm install
 #### 问题 2: SCSS 导入错误
 
 **解决方案**：
+
 ```bash
 npm install sass
 ```
 
 或使用 CSS 代替：
+
 ```typescript
-import 'molstar/lib/mol-plugin-ui/skin/light.css';  // 如果提供了 CSS 版本
+import "molstar/lib/mol-plugin-ui/skin/light.css"; // 如果提供了 CSS 版本
 ```
 
 #### 问题 3: WebGL 上下文丢失
 
 **解决方案**：
+
 ```typescript
 plugin.canvas3d?.webgl?.handleContextLost();
 ```
@@ -743,6 +767,7 @@ plugin.canvas3d?.webgl?.handleContextLost();
 #### 问题 5: 结构加载失败
 
 **检查清单**：
+
 - [ ] URL 是否正确
 - [ ] 文件格式是否匹配
 - [ ] CORS 设置是否正确
@@ -751,20 +776,22 @@ plugin.canvas3d?.webgl?.handleContextLost();
 ### 9.2 调试技巧
 
 1. **启用调试模式**
+
    ```typescript
    // 在浏览器控制台
    setMolStarDebugMode(true, true);
    ```
 
 2. **查看状态树**
+
    ```typescript
    console.log(plugin.state.data);
    ```
 
 3. **监听事件**
    ```typescript
-   plugin.state.events.object.updated.subscribe(e => {
-     console.log('State updated:', e);
+   plugin.state.events.object.updated.subscribe((e) => {
+     console.log("State updated:", e);
    });
    ```
 
@@ -782,19 +809,22 @@ plugin.canvas3d?.webgl?.handleContextLost();
 ### B. 示例项目
 
 可以参考本项目中的：
+
 - `molstar/src/examples/basic-wrapper/` - 基础封装示例
 - `molstar/src/apps/viewer/` - 完整查看器应用
 
 ### C. 主题定制
 
 可用的内置主题：
+
 - `light.scss` - 浅色主题
 - `dark.scss` - 深色主题
 - `blue.scss` - 蓝色主题
 
 引入方式：
+
 ```typescript
-import 'molstar/lib/mol-plugin-ui/skin/dark.scss';
+import "molstar/lib/mol-plugin-ui/skin/dark.scss";
 ```
 
 ---
