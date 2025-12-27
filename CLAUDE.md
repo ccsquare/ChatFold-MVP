@@ -1,215 +1,82 @@
 # CLAUDE.md - ChatFold Project Guidance
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code when working with this repository.
 
-> **📍 完整文档体系**: 参考 [docs/README.md](./docs/README.md) 查看完整文档导航
-> **📍 快速入门**: 新成员请先阅读本文档的项目概览和开发命令部分
+## Product Overview
 
-## 1. 产品概览
+ChatFold is a ChatGPT-style protein folding workbench with real-time streaming progress and 3D structure visualization.
 
-ChatFold 是一个 ChatGPT 风格的蛋白质折叠工作台，支持实时流式折叠进度和 3D 结构可视化。
+### Input
 
-### 核心功能
+- FASTA format protein sequences (10-5000 amino acids)
+- PDB structure files (drag & drop upload)
+- Natural language chat instructions
 
-**输入**:
+### Output
 
-- FASTA 格式蛋白质序列
-- PDB 结构文件上传
-- 自然语言对话指令
+- 3D protein structure visualization (Mol*)
+- Real-time folding progress (SSE streaming)
+- Structure quality metrics (pLDDT, PAE)
+- Downloadable PDB structure files
 
-**输出**:
+## Project Structure
 
-- 3D 蛋白质结构可视化（Mol\*）
-- 折叠进度实时展示（SSE 流式）
-- 结构质量评估指标（pLDDT, PAE）
-- 可下载的 PDB 结构文件
-
-## 2. 项目结构
-
-```text
+```
 ChatFold-MVP/
-├── web/                 # Next.js 前端应用
+├── web/                 # Next.js 14 frontend
 │   ├── src/
-│   │   ├── app/         # App Router 页面
-│   │   ├── components/  # React 组件
-│   │   ├── hooks/       # 自定义 Hooks
-│   │   └── lib/         # 工具函数和状态管理
-│   ├── public/
-│   │   └── images/      # Logo 等静态图片 (Git LFS)
-│   └── tests/
-│       └── fixtures/    # 测试数据 (FASTA, PDB)
+│   │   ├── app/         # App Router pages
+│   │   ├── components/  # React components
+│   │   ├── hooks/       # Custom hooks
+│   │   └── lib/         # Utils and Zustand store
+│   └── tests/fixtures/  # Test data (FASTA, PDB)
 │
-├── backend/             # FastAPI 后端服务
-│   ├── app/
-│   │   ├── api/v1/      # API v1 路由
-│   │   │   ├── api.py   # 路由聚合器
-│   │   │   └── endpoints/  # 端点模块
-│   │   ├── services/    # 业务逻辑
-│   │   ├── models/      # 数据模型
-│   │   └── utils/       # 工具函数
-│   └── requirements.txt
+├── backend/             # FastAPI backend
+│   └── app/
+│       ├── api/v1/      # API endpoints
+│       ├── services/    # Business logic
+│       └── models/      # Pydantic schemas
 │
-└── docs/                # 项目文档
-    ├── developer/       # 开发者文档
-    ├── workflow/        # 工作流程文档
-    ├── features/        # 功能实现文档
-    └── standards/       # 通用准则
+└── docs/                # Documentation
 ```
 
-## 3. 技术栈
+## Tech Stack
 
-### 前端
+**Frontend**: Next.js 14, React 18, TypeScript, TailwindCSS, Zustand, Mol* 4.5.0, shadcn/ui
 
-- **框架**: Next.js 14+ / React 18 / TypeScript
-- **状态管理**: Zustand
-- **UI 组件**: shadcn/ui (Radix UI)
-- **样式**: TailwindCSS
-- **3D 可视化**: Mol\* 4.5.0
-- **测试**: Vitest + Playwright
+**Backend**: Python 3.10+, FastAPI, Pydantic, Uvicorn
 
-### 后端
-
-- **框架**: Python 3.10+ / FastAPI
-- **数据模型**: Pydantic
-- **异步**: asyncio + httpx
-
-### 开发工具
-
-- **代码检查**: ESLint (前端) / ruff (后端)
-- **测试**: Vitest (单元) / Playwright (E2E) / pytest (后端)
-
-## 4. 快速开发命令
-
-### 前端开发
+## Quick Commands
 
 ```bash
-# 进入前端目录
-cd web
+# Frontend (port 3000)
+cd web && npm install && npm run dev
 
-# 安装依赖
-npm install
-
-# 启动开发服务器（端口 3000）
-npm run dev
-
-# 构建生产版本
-npm run build
-
-# 运行测试
-npm run test
-npm run test:ui
-```
-
-### 后端开发
-
-```bash
-# 进入后端目录
-cd backend
-
-# 安装依赖
-pip install -r requirements.txt
-
-# 启动开发服务器（端口 8000）
+# Backend (port 8000)
+cd backend && pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
-## 5. 系统架构
+## Key Components
 
-```
-  前端 (Next.js)                后端 (FastAPI)
-  ┌──────────────┐              ┌──────────────────────────┐
-  │  Web UI      │◄────HTTP─────┤  API Endpoints           │
-  │  Port: 3000  │              │  Port: 8000              │
-  └──────────────┘              └──────────────────────────┘
-         │                                │
-         │                                │
-         ▼                                ▼
-  ┌──────────────┐              ┌──────────────────────────┐
-  │  Mol* 3D     │              │  SSE Streaming           │
-  │  Viewer      │              │  Mock Folding Pipeline   │
-  └──────────────┘              └──────────────────────────┘
-```
+- **LayoutShell.tsx**: Three-column layout (sidebar | canvas | console)
+- **MolstarViewer.tsx**: 3D structure viewer with dynamic loading
+- **store.ts**: Zustand global state with persistence
+- **useFoldingTask.ts**: SSE streaming hook
 
-### 关键组件
+## API Endpoints (v1)
 
-- **三栏布局** (`web/src/components/LayoutShell.tsx`)
-  - 左侧边栏: 文件管理、对话列表
-  - 中央画布: Mol\* 3D 结构查看器
-  - 右侧控制台: 步骤时间线、聊天、图表
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/health` | GET | Health check |
+| `/api/v1/conversations` | POST/GET | Conversation CRUD |
+| `/api/v1/tasks` | POST/GET | Task management |
+| `/api/v1/tasks/{id}/stream` | GET | SSE folding progress |
+| `/api/v1/structures/{id}` | GET | Download PDB file |
 
-- **状态管理** (`web/src/lib/store.ts`)
-  - Zustand 全局状态，支持持久化
-
-- **Mol\* 集成** (`web/src/components/MolstarViewer.tsx`)
-  - 动态导入避免 SSR 问题
-  - 支持结构加载、缩略图生成
-
-- **SSE 流式** (`backend/app/api/v1/endpoints/tasks.py`)
-  - 实时推送折叠进度事件
-
-### API 端点 (v1)
-
-| 端点                        | 方法     | 说明           |
-| --------------------------- | -------- | -------------- |
-| `/api/v1/health`            | GET      | 健康检查       |
-| `/api/v1/conversations`     | POST/GET | 创建/列表对话  |
-| `/api/v1/tasks`             | POST/GET | 创建/列表任务  |
-| `/api/v1/tasks/{id}/stream` | GET      | SSE 折叠进度流 |
-| `/api/v1/structures/{id}`   | GET      | 下载 PDB 文件  |
-
-## 6. 开发规范
-
-### Git Commit Message 规范
-
-**格式**: 多行格式（首行 + 详细说明）
-
-```text
-type: subject
-
-Changes:
-- 具体修改点1
-- 具体修改点2
-
-Benefits:
-- 改进带来的好处1
-- 改进带来的好处2
-```
-
-**类型 (type)**:
-
-- `feat`: 新功能
-- `fix`: 修复 bug
-- `docs`: 文档更新
-- `style`: 代码格式调整
-- `refactor`: 重构
-- `perf`: 性能优化
-- `test`: 测试相关
-- `build`: 构建相关
-- `chore`: 其他杂项
-
-**要求**:
-
-- 全部使用英文
-- 第一行不超过 50 个字符，无标点符号
-- 第二行空行
-- 第三行开始：Changes 和 Benefits 部分
-- 不使用 "Generated by" 和 "Co-authored-by" 字段
-
-### 代码质量要求
-
-- **类型注解**: TypeScript 严格模式，Python 使用 type hints
-- **错误处理**: 使用 try-catch/try-except 捕获异常
-- **日志记录**: 使用 logging 模块，避免 console.log/print
-- **测试覆盖**: 新功能必须包含单元测试
-
-## 7. 关键技术模式
-
-### SSE 流式通信
-
-前端通过 EventSource 订阅后端折叠进度：
+## SSE Event Structure
 
 ```typescript
-// StepEvent 结构
 {
   eventId: string;
   taskId: string;
@@ -221,54 +88,20 @@ Benefits:
 }
 ```
 
-### Mol\* 动态加载
+## Commit Message Format
 
-避免 SSR 问题的模块加载模式：
+```
+type: subject (max 50 chars, no punctuation)
 
-```typescript
-// 动态导入 Mol* 模块
-const molstar = await import("molstar/lib/mol-plugin-ui");
+Changes:
+- Specific change 1
+- Specific change 2
+
+Benefits:
+- Improvement 1
+- Improvement 2
 ```
 
-### Zustand 状态持久化
+Types: feat, fix, docs, style, refactor, perf, test, build, chore
 
-```typescript
-persist(
-  (set, get) => ({ ... }),
-  { name: 'chatfold-storage' }
-)
-```
-
-## 8. 文档导航
-
-### 新成员入门
-
-1. **快速开始**
-   - 阅读本文档了解项目概览
-   - 运行开发命令启动服务
-
-2. **了解项目**
-   - [docs/features/](./docs/features/) - 功能实现文档
-   - [docs/features/molstar-usage-guide.md](./docs/features/molstar-usage-guide.md) - Mol\* 使用指南
-
-3. **开始开发**
-   - 遵循开发规范中的 Commit 规范
-   - 参考 `web/src/components/` 了解组件结构
-
-## 9. 业务规范
-
-- 确保蛋白质序列验证（10-5000 个氨基酸）
-- 结构文件使用标准 PDB 格式
-- API 密钥和敏感信息使用环境变量，不提交到代码库
-
-## 10. 常用链接
-
-- **前端界面**: <http://localhost:3000> (本地开发)
-- **后端 API**: <http://localhost:8000/docs> (FastAPI 文档)
-- **完整文档**: [docs/README.md](./docs/README.md)
-
----
-
-**版本**: 1.0
-**最后更新**: 2025-12-26
-**维护者**: ChatFold 开发团队
+**Requirements**: English only, no "Generated by" or "Co-authored-by" fields.
