@@ -4,7 +4,7 @@ import React, { useMemo, useRef, useEffect, useState, useCallback, useId } from 
 import { TimelineItem } from '@/hooks/useConversationTimeline';
 import { StructureArtifact, ChatMessage } from '@/lib/types';
 import { cn, formatTimestamp } from '@/lib/utils';
-import { Trophy, Loader2, Link2, Link2Off, RotateCcw } from 'lucide-react';
+import { Trophy, Loader2, Link2, Link2Off, RotateCcw, CheckCircle2 } from 'lucide-react';
 import { StructureArtifactCard } from '@/components/StructureArtifactCard';
 import { resetSyncGroupCamera } from '@/hooks/useCameraSync';
 import {
@@ -29,6 +29,8 @@ interface TimelineRendererProps {
   variant?: 'compact' | 'wide';
   /** Whether currently streaming */
   isStreaming?: boolean;
+  /** Status message from backend during streaming */
+  statusMessage?: string | null;
   /** Additional CSS classes */
   className?: string;
 }
@@ -47,6 +49,7 @@ export function TimelineRenderer({
   timeline,
   variant = 'wide',
   isStreaming = false,
+  statusMessage,
   className,
 }: TimelineRendererProps) {
   const endRef = useRef<HTMLDivElement>(null);
@@ -193,6 +196,7 @@ export function TimelineRenderer({
               allArtifacts={allArtifacts}
               isCompact={isCompact}
               isStreaming={isStreaming}
+              statusMessage={statusMessage}
               syncGroupId={syncGroupId}
               syncEnabled={cameraSyncEnabled}
             />
@@ -254,13 +258,14 @@ function MessageBubble({
 }
 
 /**
- * Artifact group with timeline visualization
+ * Artifact group with timeline visualization wrapped in a container
  */
 function ArtifactGroup({
   artifacts,
   allArtifacts,
   isCompact,
   isStreaming,
+  statusMessage,
   syncGroupId,
   syncEnabled,
 }: {
@@ -268,77 +273,120 @@ function ArtifactGroup({
   allArtifacts: Array<{ type: 'artifact'; data: StructureArtifact; timestamp: number }>;
   isCompact: boolean;
   isStreaming: boolean;
+  statusMessage?: string | null;
   syncGroupId: string;
   syncEnabled: boolean;
 }) {
+  const isComplete = !isStreaming || artifacts[artifacts.length - 1]?.index < allArtifacts.length - 1;
+  const structureCount = artifacts.length;
+
   return (
     <div className="pb-4">
-      {artifacts.map((artifactItem, localIndex) => {
-        const artifact = artifactItem.data;
-        const currentIndex = artifactItem.index;
-
-        // Determine if this is the best result
-        const isFinalByLabel = artifact.label?.toLowerCase() === 'final';
-        const isLastInGroup = localIndex === artifacts.length - 1;
-        const highestPlddt = Math.max(...artifacts.map(a => a.data.metrics.plddtAvg));
-        const isBestByPlddt = artifact.metrics.plddtAvg === highestPlddt && isLastInGroup;
-        const isFinal = isFinalByLabel || isBestByPlddt;
-
-        const hasNextInGroup = localIndex < artifacts.length - 1;
-        const hasNextArtifact = currentIndex < allArtifacts.length - 1;
-        const nodeCenter = isFinal ? 12 : 6; // Half of node diameter (24px or 12px)
-
-        // Show streaming indicator on the last artifact during streaming
-        const isLastAndStreaming = isStreaming && currentIndex === allArtifacts.length - 1;
-
-        return (
-          <div
-            key={artifact.structureId}
-            className={cn("flex gap-3 group relative", hasNextInGroup && "pb-4")}
-          >
-            {/* Timeline node column */}
-            <div className="relative flex-shrink-0 w-6 self-stretch">
-              {/* Connecting line */}
-              {(hasNextArtifact || isLastAndStreaming) && (
-                <div
-                  aria-hidden="true"
-                  className={cn(
-                    "absolute left-1/2 -translate-x-1/2 w-0.5",
-                    isLastAndStreaming ? "bg-cf-success/20 animate-pulse" : "bg-cf-success/40"
-                  )}
-                  style={{
-                    top: `${nodeCenter}px`,
-                    bottom: 0,
-                  }}
-                />
-              )}
-              {/* Timeline node */}
-              <div
-                className={cn(
-                  "relative z-10 flex items-center justify-center rounded-full border-2 transition-all duration-300 mx-auto",
-                  isFinal
-                    ? "w-6 h-6 border-cf-success bg-cf-bg text-cf-success shadow-[0_0_12px_rgba(34,197,94,0.3)] dark:shadow-[0_0_15px_rgba(103,218,122,0.2)]"
-                    : "w-3 h-3 border-cf-success/60 bg-cf-bg group-hover:border-cf-success group-hover:scale-110 group-hover:shadow-[0_0_8px_rgba(103,218,122,0.15)]"
-                )}
-              >
-                {isFinal && <Trophy className="w-3 h-3" />}
-              </div>
-            </div>
-
-            {/* Artifact card */}
-            <div className="flex-1 min-w-0">
-              <StructureArtifactCard
-                artifact={artifact}
-                timestamp={artifactItem.timestamp}
-                stepNumber={currentIndex + 1}
-                showPreview={true} // Always show 3D preview
-                syncGroupId={syncGroupId}
-                syncEnabled={syncEnabled}
-              />
-            </div>
+      {/* Container wrapper with border */}
+      <div className={cn(
+        "rounded-lg border-l-4 bg-cf-bg-secondary/50 overflow-hidden transition-all duration-300",
+        isComplete
+          ? "border-l-cf-success"
+          : "border-l-cf-accent"
+      )}>
+        {/* Header */}
+        <div className={cn(
+          "flex items-center justify-between px-4 py-2.5 border-b",
+          isComplete
+            ? "border-cf-success/20 bg-cf-success/5"
+            : "border-cf-accent/20 bg-cf-accent/5"
+        )}>
+          <div className="flex items-center gap-2">
+            {isComplete ? (
+              <CheckCircle2 className="w-4 h-4 text-cf-success" />
+            ) : (
+              <Loader2 className="w-4 h-4 text-cf-accent animate-spin" />
+            )}
+            <span className={cn(
+              "text-sm font-medium",
+              isComplete ? "text-cf-text" : "text-cf-text-secondary"
+            )}>
+              {isComplete ? 'Folding Complete' : (statusMessage || 'Folding in Progress...')}
+            </span>
           </div>
-        );
-      })}
+
+          <div className="flex items-center gap-3 text-xs">
+            <span className="text-cf-text-muted">
+              {structureCount} {structureCount === 1 ? 'structure' : 'structures'}
+            </span>
+          </div>
+        </div>
+
+        {/* Artifacts list */}
+        <div className="p-3">
+          {artifacts.map((artifactItem, localIndex) => {
+            const artifact = artifactItem.data;
+            const currentIndex = artifactItem.index;
+
+            // Determine if this is the best result
+            const isFinalByLabel = artifact.label?.toLowerCase() === 'final';
+            const isLastInGroup = localIndex === artifacts.length - 1;
+            const highestPlddt = Math.max(...artifacts.map(a => a.data.metrics.plddtAvg));
+            const isBestByPlddt = artifact.metrics.plddtAvg === highestPlddt && isLastInGroup;
+            const isFinal = isFinalByLabel || isBestByPlddt;
+
+            const hasNextInGroup = localIndex < artifacts.length - 1;
+            const hasNextArtifact = currentIndex < allArtifacts.length - 1;
+            const nodeCenter = isFinal ? 12 : 6; // Half of node diameter (24px or 12px)
+
+            // Show streaming indicator on the last artifact during streaming
+            const isLastAndStreaming = isStreaming && currentIndex === allArtifacts.length - 1;
+
+            return (
+              <div
+                key={artifact.structureId}
+                className={cn("flex gap-3 group relative", hasNextInGroup && "pb-4")}
+              >
+                {/* Timeline node column */}
+                <div className="relative flex-shrink-0 w-6 self-stretch">
+                  {/* Connecting line */}
+                  {(hasNextArtifact || isLastAndStreaming) && (
+                    <div
+                      aria-hidden="true"
+                      className={cn(
+                        "absolute left-1/2 -translate-x-1/2 w-0.5",
+                        isLastAndStreaming ? "bg-cf-success/20 animate-pulse" : "bg-cf-success/40"
+                      )}
+                      style={{
+                        top: `${nodeCenter}px`,
+                        bottom: 0,
+                      }}
+                    />
+                  )}
+                  {/* Timeline node */}
+                  <div
+                    className={cn(
+                      "relative z-10 flex items-center justify-center rounded-full border-2 transition-all duration-300 mx-auto",
+                      isFinal
+                        ? "w-6 h-6 border-cf-success bg-cf-bg text-cf-success shadow-[0_0_12px_rgba(34,197,94,0.3)] dark:shadow-[0_0_15px_rgba(103,218,122,0.2)]"
+                        : "w-3 h-3 border-cf-success/60 bg-cf-bg group-hover:border-cf-success group-hover:scale-110 group-hover:shadow-[0_0_8px_rgba(103,218,122,0.15)]"
+                    )}
+                  >
+                    {isFinal && <Trophy className="w-3 h-3" />}
+                  </div>
+                </div>
+
+                {/* Artifact card */}
+                <div className="flex-1 min-w-0">
+                  <StructureArtifactCard
+                    artifact={artifact}
+                    timestamp={artifactItem.timestamp}
+                    stepNumber={currentIndex + 1}
+                    showPreview={true} // Always show 3D preview
+                    syncGroupId={syncGroupId}
+                    syncEnabled={syncEnabled}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

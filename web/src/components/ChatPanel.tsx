@@ -35,7 +35,7 @@ export function ChatPanel() {
   const eventSourceRef = useRef<EventSource | null>(null);
 
   // Use shared timeline hook
-  const { timeline, isStreaming, conversation } = useConversationTimeline();
+  const { timeline, isStreaming, conversation, latestStatusMessage } = useConversationTimeline();
 
   // Cleanup EventSource on unmount
   useEffect(() => {
@@ -307,6 +307,7 @@ export function ChatPanel() {
               timeline={timeline}
               variant="compact"
               isStreaming={isStreaming}
+              statusMessage={latestStatusMessage}
               className="pb-2"
             />
           ) : (
