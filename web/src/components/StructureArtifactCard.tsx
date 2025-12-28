@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useCallback } from 'react';
 import { StructureArtifact } from '@/lib/types';
 import { useAppStore } from '@/lib/store';
 import { cn, downloadPDBFile, formatTimestamp } from '@/lib/utils';
@@ -9,8 +10,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { Download, ExternalLink, GitCompareArrows } from 'lucide-react';
+import { Download, ExternalLink, GitCompareArrows, Loader2 } from 'lucide-react';
 import { MolstarViewer } from '@/components/MolstarViewer';
+import { pdbCache } from '@/hooks/useLazyPdb';
 
 interface StructureArtifactCardProps {
   artifact: StructureArtifact;
@@ -39,26 +41,85 @@ export function StructureArtifactCard({
   const { openStructureTab, openCompareTab } = useAppStore();
   const isFinal = artifact.label?.toLowerCase() === 'final';
 
-  const handleOpenStructure = () => {
-    if (artifact.pdbData) {
-      openStructureTab(artifact, artifact.pdbData);
+  // Lazy loading state
+  const [loadedPdbData, setLoadedPdbData] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Use either the artifact's pdbData or lazy-loaded data
+  const effectivePdbData = artifact.pdbData || loadedPdbData;
+  const needsLazyLoad = !artifact.pdbData && !loadedPdbData;
+
+  // Lazy load PDB data
+  const loadPdbData = useCallback(async (): Promise<string | null> => {
+    if (effectivePdbData) return effectivePdbData;
+    if (isLoading) return null;
+
+    setIsLoading(true);
+    setLoadError(null);
+
+    try {
+      const data = await pdbCache.get(artifact.structureId);
+      if (data) {
+        setLoadedPdbData(data);
+        return data;
+      } else {
+        setLoadError('Failed to load structure');
+        return null;
+      }
+    } catch {
+      setLoadError('Failed to load structure');
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [artifact.structureId, effectivePdbData, isLoading]);
+
+  const handleOpenStructure = async () => {
+    let pdbData = effectivePdbData;
+    if (!pdbData) {
+      pdbData = await loadPdbData();
+    }
+    if (pdbData) {
+      openStructureTab({ ...artifact, pdbData }, pdbData);
     }
   };
 
-  const handleDownload = () => {
-    if (artifact.pdbData) {
-      downloadPDBFile(artifact.pdbData, artifact.filename);
+  const handleDownload = async () => {
+    let pdbData = effectivePdbData;
+    if (!pdbData) {
+      pdbData = await loadPdbData();
+    }
+    if (pdbData) {
+      downloadPDBFile(pdbData, artifact.filename);
     }
   };
 
-  const handleCompare = () => {
-    if (artifact.pdbData && previousArtifact?.pdbData) {
-      openCompareTab(artifact, previousArtifact);
+  const handleCompare = async () => {
+    // Load current structure if needed
+    let currentPdb = effectivePdbData;
+    if (!currentPdb) {
+      currentPdb = await loadPdbData();
     }
+    if (!currentPdb) return;
+
+    // Load previous structure if needed
+    let previousPdb: string | undefined = previousArtifact?.pdbData;
+    if (!previousPdb && previousArtifact) {
+      const loaded = await pdbCache.get(previousArtifact.structureId);
+      if (loaded) previousPdb = loaded;
+    }
+    if (!previousPdb || !previousArtifact) return;
+
+    openCompareTab(
+      { ...artifact, pdbData: currentPdb },
+      { ...previousArtifact, pdbData: previousPdb }
+    );
   };
 
-  const hasPreview = showPreview && artifact.pdbData;
-  const canCompare = !!previousArtifact?.pdbData;
+  const hasPreview = showPreview && effectivePdbData;
+  const canShowPreviewPlaceholder = showPreview && needsLazyLoad;
+  const canCompare = !!previousArtifact;
 
   return (
     <div className={cn(
@@ -111,8 +172,13 @@ export function StructureArtifactCard({
                     : "text-cf-text-secondary hover:text-cf-text hover:bg-cf-highlight"
                 )}
                 onClick={handleOpenStructure}
+                disabled={isLoading}
               >
-                <ExternalLink className="w-3.5 h-3.5" />
+                {isLoading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <ExternalLink className="w-3.5 h-3.5" />
+                )}
               </Button>
             </TooltipTrigger>
             <TooltipContent>Visualize</TooltipContent>
@@ -126,6 +192,7 @@ export function StructureArtifactCard({
                   size="icon"
                   className="h-6 w-6 text-cf-text-secondary hover:text-cf-accent hover:bg-cf-accent/10 rounded-md transition-all active:scale-95"
                   onClick={handleCompare}
+                  disabled={isLoading}
                 >
                   <GitCompareArrows className="w-3.5 h-3.5" />
                 </Button>
@@ -141,6 +208,7 @@ export function StructureArtifactCard({
                 size="icon"
                 className="h-6 w-6 text-cf-text-secondary hover:text-cf-text hover:bg-cf-highlight rounded-md"
                 onClick={handleDownload}
+                disabled={isLoading}
               >
                 <Download className="w-3.5 h-3.5" />
               </Button>
@@ -150,15 +218,14 @@ export function StructureArtifactCard({
         </div>
       </div>
 
-      {/* Content */}
+      {/* Content - Show preview when data is available */}
       {hasPreview && (
         <div className="p-2">
-          {/* Inline Mol* Preview - Always visible */}
           <div className="rounded-md overflow-hidden border border-cf-border/50 bg-white">
             <div className="relative h-40">
               <MolstarViewer
                 tabId={`card-preview-${artifact.structureId}`}
-                pdbData={artifact.pdbData!}
+                pdbData={effectivePdbData!}
                 structureId={artifact.structureId}
                 showControls={false}
                 minimalUI={true}
@@ -169,6 +236,70 @@ export function StructureArtifactCard({
                 {syncEnabled ? 'Drag to rotate all' : 'Drag to rotate'}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Placeholder when PDB needs lazy loading */}
+      {canShowPreviewPlaceholder && (
+        <div className="p-2">
+          <div
+            className={cn(
+              "rounded-md border border-cf-border/50 h-40 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors",
+              isLoading
+                ? "bg-cf-bg-secondary"
+                : "bg-cf-bg-tertiary hover:bg-cf-bg-secondary hover:border-cf-accent/30"
+            )}
+            onClick={!isLoading ? loadPdbData : undefined}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="w-6 h-6 text-cf-accent animate-spin" />
+                <span className="text-xs text-cf-text-muted">Loading structure...</span>
+              </>
+            ) : loadError ? (
+              <>
+                <span className="text-xs text-cf-error">{loadError}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs h-7"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLoadError(null);
+                    loadPdbData();
+                  }}
+                >
+                  Retry
+                </Button>
+              </>
+            ) : (
+              <>
+                {/* Show thumbnail if available */}
+                {artifact.thumbnail ? (
+                  <div className="relative w-full h-full">
+                    <img
+                      src={artifact.thumbnail}
+                      alt={artifact.filename}
+                      className="w-full h-full object-contain opacity-60"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                      <div className="flex flex-col items-center gap-1 text-white">
+                        <ExternalLink className="w-5 h-5" />
+                        <span className="text-xs font-medium">Click to load</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="w-12 h-12 rounded-full bg-cf-bg-secondary flex items-center justify-center">
+                      <ExternalLink className="w-5 h-5 text-cf-text-muted" />
+                    </div>
+                    <span className="text-xs text-cf-text-muted">Click to load preview</span>
+                  </>
+                )}
+              </>
+            )}
           </div>
         </div>
       )}

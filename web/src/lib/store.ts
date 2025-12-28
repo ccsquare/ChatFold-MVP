@@ -566,13 +566,16 @@ export const useAppStore = create<AppState>()(
         });
 
         // Clean conversations: remove pdbData from message artifacts
-        const cleanConversations = state.conversations.map(conv => ({
-          ...conv,
-          messages: conv.messages.map(msg => ({
-            ...msg,
-            artifacts: msg.artifacts?.map(stripPdbData)
-          }))
-        }));
+        // Also filter out empty conversations (no messages) - don't persist blank chats
+        const cleanConversations = state.conversations
+          .filter(conv => conv.messages.length > 0)
+          .map(conv => ({
+            ...conv,
+            messages: conv.messages.map(msg => ({
+              ...msg,
+              artifacts: msg.artifacts?.map(stripPdbData)
+            }))
+          }));
 
         // Clean projects: remove pdbData from outputs
         const cleanProjects = state.projects.map(proj => ({

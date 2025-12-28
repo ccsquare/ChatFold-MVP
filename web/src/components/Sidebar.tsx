@@ -38,6 +38,7 @@ import {
 import { HelixIcon } from '@/components/icons/ProteinIcon';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Project, Asset, StructureArtifact } from '@/lib/types';
+import { pdbCache } from '@/hooks/useLazyPdb';
 
 interface ProjectItemProps {
   project: Project;
@@ -96,9 +97,15 @@ function ProjectItem({
     URL.revokeObjectURL(url);
   }, []);
 
-  const handleDownloadStructure = useCallback((structure: StructureArtifact) => {
-    if (structure.pdbData) {
-      downloadPDBFile(structure.pdbData, structure.filename);
+  const handleDownloadStructure = useCallback(async (structure: StructureArtifact) => {
+    let pdbData: string | undefined = structure.pdbData;
+    if (!pdbData) {
+      // Lazy load PDB data
+      const loaded = await pdbCache.get(structure.structureId);
+      if (loaded) pdbData = loaded;
+    }
+    if (pdbData) {
+      downloadPDBFile(pdbData, structure.filename);
     }
   }, []);
 
@@ -335,9 +342,15 @@ export function Sidebar() {
     });
   }, [activeProjectId, activeConversationId, createProject, createConversation, addProjectInput, addAsset]);
 
-  const handleOpenStructure = useCallback((structure: StructureArtifact) => {
-    if (structure.pdbData) {
-      openStructureTab(structure, structure.pdbData);
+  const handleOpenStructure = useCallback(async (structure: StructureArtifact) => {
+    let pdbData: string | undefined = structure.pdbData;
+    if (!pdbData) {
+      // Lazy load PDB data
+      const loaded = await pdbCache.get(structure.structureId);
+      if (loaded) pdbData = loaded;
+    }
+    if (pdbData) {
+      openStructureTab({ ...structure, pdbData }, pdbData);
     }
   }, [openStructureTab]);
 
@@ -500,7 +513,9 @@ export function Sidebar() {
           </div>
           <ScrollArea className="max-h-[160px]">
             <ul role="list">
-              {conversations.map(conv => (
+              {conversations
+                .filter(conv => conv.messages.length > 0 || conv.id === activeConversationId)
+                .map(conv => (
                 <li key={conv.id} className="group relative">
                   {confirmingDeleteId === conv.id ? (
                     // Confirmation UI
@@ -553,7 +568,7 @@ export function Sidebar() {
                   )}
                 </li>
               ))}
-              {conversations.length === 0 && (
+              {conversations.filter(conv => conv.messages.length > 0 || conv.id === activeConversationId).length === 0 && (
                 <li className="text-[11px] text-cf-text-muted text-center py-3">No conversations yet</li>
               )}
             </ul>
