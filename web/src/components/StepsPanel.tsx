@@ -162,10 +162,9 @@ export function StepsPanel() {
                                 <p className="text-xs font-medium text-cf-text truncate">
                                   {artifact.filename}
                                 </p>
-                                <div className="flex gap-2 text-[10px] text-cf-text-muted">
-                                  <span>pLDDT: {artifact.metrics.plddtAvg.toFixed(1)}</span>
-                                  <span>PAE: {artifact.metrics.paeAvg.toFixed(1)}</span>
-                                </div>
+                                <p className="text-[10px] text-cf-text-muted truncate">
+                                  {artifact.label}
+                                </p>
                               </div>
 
                               {/* Actions */}
@@ -173,9 +172,9 @@ export function StepsPanel() {
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button
-                                      variant="ghost"
+                                      variant="ghost-icon"
                                       size="icon"
-                                      className="h-6 w-6 text-cf-text-secondary hover:text-cf-text"
+                                      className="h-6 w-6"
                                       onClick={() => handleOpenStructure(artifact)}
                                     >
                                       <ExternalLink className="w-3.5 h-3.5" />
@@ -188,9 +187,9 @@ export function StepsPanel() {
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button
-                                      variant="ghost"
+                                      variant="ghost-icon"
                                       size="icon"
-                                      className="h-6 w-6 text-cf-text-secondary hover:text-cf-text"
+                                      className="h-6 w-6"
                                       onClick={() => {
                                         if (artifact.pdbData) {
                                           downloadPDBFile(artifact.pdbData, artifact.filename);

@@ -213,9 +213,9 @@ export function ChatView() {
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                variant="ghost"
+                variant="ghost-icon"
                 size="icon"
-                className="h-7 w-7 text-cf-text-secondary hover:text-cf-text disabled:text-cf-text-muted disabled:opacity-50"
+                className="h-7 w-7"
                 onClick={switchToViewerMode}
                 disabled={!hasStructures}
               >

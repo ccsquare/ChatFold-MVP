@@ -348,7 +348,6 @@ export function Sidebar() {
       structureId: asset.id,
       label: asset.name,
       filename: asset.name,
-      metrics: { plddtAvg: 0, paeAvg: 0, constraint: 0 }, // Placeholder metrics
       pdbData: asset.content
     };
     openStructureTab(structure, asset.content);
@@ -392,9 +391,9 @@ export function Sidebar() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  variant="ghost"
+                  variant="ghost-icon"
                   size="icon"
-                  className="h-6 w-6 text-cf-text-secondary hover:text-cf-text transition-colors"
+                  className="h-6 w-6"
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <Upload className="w-3.5 h-3.5" aria-hidden="true" />
@@ -406,9 +405,9 @@ export function Sidebar() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  variant="ghost"
+                  variant="ghost-icon"
                   size="icon"
-                  className="h-6 w-6 text-cf-text-secondary hover:text-cf-text transition-colors"
+                  className="h-6 w-6"
                   onClick={handleNewProject}
                 >
                   <Plus className="w-3.5 h-3.5" aria-hidden="true" />
@@ -509,7 +508,7 @@ export function Sidebar() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-5 px-2 text-[10px] text-cf-text-muted hover:text-cf-text"
+                          className="h-5 px-2 text-[10px] text-cf-text-muted hover:text-cf-text hover:bg-cf-highlight"
                           onClick={() => setConfirmingDeleteId(null)}
                         >
                           Cancel
@@ -538,9 +537,9 @@ export function Sidebar() {
                         <p className="text-[10px] text-cf-text-muted">{formatTimestamp(conv.updatedAt)}</p>
                       </div>
                       <Button
-                        variant="ghost"
+                        variant="ghost-icon-danger"
                         size="icon"
-                        className="h-5 w-5 opacity-0 group-hover:opacity-100 text-cf-text-muted hover:text-cf-error transition-all"
+                        className="h-5 w-5 opacity-0 group-hover:opacity-100"
                         onClick={(e) => {
                           e.stopPropagation();
                           setConfirmingDeleteId(conv.id);
