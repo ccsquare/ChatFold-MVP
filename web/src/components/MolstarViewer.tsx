@@ -334,12 +334,53 @@ export const MolstarViewer = memo(forwardRef<MolstarViewerRef, MolstarViewerProp
   const [useFallback, setUseFallback] = useState(false);
   const [pluginReady, setPluginReady] = useState(false);
   const resetViewRef = useRef<() => void>(() => {});
+  const isSpinningRef = useRef(false);
+  const hasUserInteractedRef = useRef(false);
 
   // Camera sync hook for synchronizing views across multiple viewers
   useCameraSync(tabId, syncGroupId, syncEnabled && pluginReady, pluginRef);
 
   // Handle sync group camera reset (uses ref to avoid circular dependency)
   useCameraSyncReset(syncGroupId, useCallback(() => resetViewRef.current?.(), []));
+
+  // Start auto-spin animation for structure preview
+  const startAutoSpin = useCallback(() => {
+    const plugin = pluginRef.current;
+    if (!plugin?.canvas3d || hasUserInteractedRef.current) return;
+
+    try {
+      // Use Mol*'s trackball animate parameter with 'spin' mode
+      plugin.canvas3d.setProps({
+        trackball: {
+          ...plugin.canvas3d.props.trackball,
+          animate: { name: 'spin', params: { speed: 1 } }
+        }
+      });
+      isSpinningRef.current = true;
+    } catch (e) {
+      console.warn('Failed to start auto-spin:', e);
+    }
+  }, []);
+
+  // Stop auto-spin animation (called on first user interaction)
+  const stopAutoSpin = useCallback(() => {
+    const plugin = pluginRef.current;
+    if (!plugin?.canvas3d || !isSpinningRef.current) return;
+
+    try {
+      // Turn off animation
+      plugin.canvas3d.setProps({
+        trackball: {
+          ...plugin.canvas3d.props.trackball,
+          animate: { name: 'off', params: {} }
+        }
+      });
+      isSpinningRef.current = false;
+      hasUserInteractedRef.current = true;
+    } catch (e) {
+      console.warn('Failed to stop auto-spin:', e);
+    }
+  }, []);
 
   // Parse PDB to count atoms (for display purposes)
   const parseAtomCount = useCallback((pdb: string): number => {
@@ -597,6 +638,10 @@ export const MolstarViewer = memo(forwardRef<MolstarViewerRef, MolstarViewerProp
       setIsLoading(true);
       const plugin = pluginRef.current;
 
+      // Reset interaction state for new structure (enables auto-spin)
+      hasUserInteractedRef.current = false;
+      isSpinningRef.current = false;
+
       // Clear existing structures
       await plugin.clear();
 
@@ -770,13 +815,19 @@ export const MolstarViewer = memo(forwardRef<MolstarViewerRef, MolstarViewerProp
         generateThumbnail();
       }, 500);
 
+      // Start auto-spin animation after structure is fully loaded
+      // This gives users a 360° preview of the structure until they interact
+      setTimeout(() => {
+        startAutoSpin();
+      }, 800);
+
       setIsLoading(false);
     } catch (err) {
       console.error('Failed to load structure:', err);
       setError('Failed to load structure. Using fallback renderer.');
       renderFallback();
     }
-  }, [pdbData, structureId, parseAtomCount, minimalUI]);
+  }, [pdbData, structureId, parseAtomCount, minimalUI, startAutoSpin]);
 
   // Generate thumbnail from canvas
   const generateThumbnail = useCallback(() => {
@@ -1076,6 +1127,33 @@ export const MolstarViewer = memo(forwardRef<MolstarViewerRef, MolstarViewerProp
     zoomOut: handleZoomOut,
     setRepresentation,
   }), [handleResetView, handleZoomIn, handleZoomOut, setRepresentation]);
+
+  // Stop auto-spin on user interaction (mouse/touch/wheel)
+  useEffect(() => {
+    if (!pluginReady) return;
+
+    const plugin = pluginRef.current;
+    if (!plugin?.canvas3d) return;
+
+    // Get the canvas element to listen for interactions
+    const canvas = containerRef.current?.querySelector('canvas');
+    if (!canvas) return;
+
+    const handleInteraction = () => {
+      stopAutoSpin();
+    };
+
+    // Listen for various user interactions
+    canvas.addEventListener('mousedown', handleInteraction);
+    canvas.addEventListener('wheel', handleInteraction);
+    canvas.addEventListener('touchstart', handleInteraction);
+
+    return () => {
+      canvas.removeEventListener('mousedown', handleInteraction);
+      canvas.removeEventListener('wheel', handleInteraction);
+      canvas.removeEventListener('touchstart', handleInteraction);
+    };
+  }, [pluginReady, stopAutoSpin]);
 
   // Set up click event handling
   useEffect(() => {
