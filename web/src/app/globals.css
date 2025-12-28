@@ -237,12 +237,12 @@ body {
 
 /* Molstar - only layout/size overrides, preserve Molstar's native styling */
 /* Viewport controls (zoom, reset, etc.) positioned at viewport edges */
-/* Adjusted position to prevent overlap with Structure Tools panel on the right */
+/* Position on the right side, symmetric with left panel controls */
 .msp-viewport-controls {
   position: absolute !important;
   z-index: 5 !important;
-  right: auto !important;
-  left: 8px !important;
+  left: auto !important;
+  right: 40px !important;
   top: 8px !important;
 }
 

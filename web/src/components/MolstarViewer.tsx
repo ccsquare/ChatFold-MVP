@@ -1,10 +1,21 @@
 'use client';
 
-import { useEffect, useRef, useCallback, useState, useLayoutEffect, memo } from 'react';
+import { useEffect, useRef, useCallback, useState, useLayoutEffect, memo, forwardRef, useImperativeHandle } from 'react';
 import { useAppStore } from '@/lib/store';
 import { AtomInfo } from '@/lib/types';
 import { Loader2, AlertCircle, Maximize2, Minimize2, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
 import { useCameraSync, useCameraSyncReset } from '@/hooks/useCameraSync';
+
+// Representation types for structure visualization
+export type RepresentationType = 'cartoon' | 'surface' | 'ball-and-stick';
+
+// Ref interface for imperative control of MolstarViewer
+export interface MolstarViewerRef {
+  resetView: () => void;
+  zoomIn: () => void;
+  zoomOut: () => void;
+  setRepresentation: (rep: RepresentationType) => Promise<void>;
+}
 
 // Residue information in selection
 export interface ResidueInfo {
@@ -293,7 +304,7 @@ function adjustColor(color: string, amount: number): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
-export const MolstarViewer = memo(function MolstarViewer({
+export const MolstarViewer = memo(forwardRef<MolstarViewerRef, MolstarViewerProps>(function MolstarViewer({
   tabId,
   pdbData,
   pdbUrl,
@@ -308,7 +319,7 @@ export const MolstarViewer = memo(function MolstarViewer({
   onAtomCountChange,
   syncGroupId = null,
   syncEnabled = false,
-}: MolstarViewerProps) {
+}, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const molstarContainerRef = useRef<HTMLDivElement | null>(null);
   const pluginRef = useRef<MolstarPlugin | null>(null);
@@ -991,6 +1002,81 @@ export const MolstarViewer = memo(function MolstarViewer({
     }
   }, []);
 
+  // Change structure representation (cartoon, surface, ball-and-stick)
+  const setRepresentation = useCallback(async (rep: RepresentationType) => {
+    const plugin = pluginRef.current;
+    if (!plugin) return;
+
+    try {
+      // Get all structures in the plugin
+      const structures = plugin.managers.structure.hierarchy.current.structures;
+
+      for (const structure of structures) {
+        // Get components for this structure
+        const components = structure.components;
+
+        // Remove all existing representations
+        for (const component of components) {
+          for (const repr of component.representations) {
+            await plugin.managers.structure.component.removeRepresentations([repr.cell]);
+          }
+        }
+      }
+
+      // Get the root structure reference
+      const structureRef = plugin.managers.structure.hierarchy.current.structures[0]?.cell;
+      if (!structureRef) return;
+
+      // Create polymer component and add new representation
+      const polymerComponent = await plugin.builders.structure.tryCreateComponentStatic(
+        structureRef,
+        'polymer'
+      );
+
+      if (polymerComponent) {
+        if (rep === 'cartoon') {
+          await plugin.builders.structure.representation.addRepresentation(
+            polymerComponent,
+            { type: 'cartoon', color: 'sequence-id' }
+          );
+        } else if (rep === 'surface') {
+          await plugin.builders.structure.representation.addRepresentation(
+            polymerComponent,
+            { type: 'molecular-surface', color: 'sequence-id' }
+          );
+        } else if (rep === 'ball-and-stick') {
+          await plugin.builders.structure.representation.addRepresentation(
+            polymerComponent,
+            { type: 'ball-and-stick', color: 'element-symbol' }
+          );
+        }
+      }
+
+      // Also handle ligands
+      const ligandComponent = await plugin.builders.structure.tryCreateComponentStatic(
+        structureRef,
+        'ligand'
+      );
+
+      if (ligandComponent) {
+        await plugin.builders.structure.representation.addRepresentation(
+          ligandComponent,
+          { type: 'ball-and-stick', color: 'element-symbol' }
+        );
+      }
+    } catch (err) {
+      console.error('Failed to change representation:', err);
+    }
+  }, []);
+
+  // Expose methods via ref for imperative control
+  useImperativeHandle(ref, () => ({
+    resetView: handleResetView,
+    zoomIn: handleZoomIn,
+    zoomOut: handleZoomOut,
+    setRepresentation,
+  }), [handleResetView, handleZoomIn, handleZoomOut, setRepresentation]);
+
   // Set up click event handling
   useEffect(() => {
     if (!pluginRef.current || !onAtomClick) return;
@@ -1543,4 +1629,4 @@ export const MolstarViewer = memo(function MolstarViewer({
       )}
     </div>
   );
-});
+}));
