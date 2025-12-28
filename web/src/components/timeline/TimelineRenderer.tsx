@@ -306,7 +306,7 @@ function ArtifactGroup({
               "text-sm font-medium",
               isComplete ? "text-cf-text" : "text-cf-text-secondary"
             )}>
-              {isComplete ? 'Folding Complete' : (statusMessage || 'Folding in Progress...')}
+              {isComplete ? 'Folding Completed.' : (statusMessage || 'Folding in Progress...')}
             </span>
           </div>
 
@@ -375,6 +375,7 @@ function ArtifactGroup({
                 <div className="flex-1 min-w-0">
                   <StructureArtifactCard
                     artifact={artifact}
+                    previousArtifact={currentIndex > 0 ? allArtifacts[currentIndex - 1]?.data : null}
                     timestamp={artifactItem.timestamp}
                     stepNumber={currentIndex + 1}
                     showPreview={true} // Always show 3D preview
