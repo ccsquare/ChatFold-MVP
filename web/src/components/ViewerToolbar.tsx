@@ -95,9 +95,9 @@ export function ViewerToolbar({ isExpanded = false, onToggleExpand }: ViewerTool
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                variant="ghost"
+                variant="ghost-icon"
                 size="icon"
-                className="h-8 w-8 text-cf-text-secondary hover:text-cf-text"
+                className="h-8 w-8"
                 onClick={handleDownload}
               >
                 <Download className="w-4 h-4" />
@@ -110,9 +110,9 @@ export function ViewerToolbar({ isExpanded = false, onToggleExpand }: ViewerTool
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                variant="ghost"
+                variant="ghost-icon"
                 size="icon"
-                className="h-8 w-8 text-cf-text-secondary hover:text-cf-text"
+                className="h-8 w-8"
                 onClick={handleScreenshot}
               >
                 <Camera className="w-4 h-4" />
@@ -125,9 +125,9 @@ export function ViewerToolbar({ isExpanded = false, onToggleExpand }: ViewerTool
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                variant="ghost"
+                variant="ghost-icon"
                 size="icon"
-                className="h-8 w-8 text-cf-text-secondary hover:text-cf-text disabled:opacity-40"
+                className="h-8 w-8"
                 disabled
               >
                 <GitCompare className="w-4 h-4" />
@@ -140,9 +140,9 @@ export function ViewerToolbar({ isExpanded = false, onToggleExpand }: ViewerTool
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                variant="ghost"
+                variant="ghost-icon"
                 size="icon"
-                className="h-8 w-8 text-cf-text-secondary hover:text-cf-text"
+                className="h-8 w-8"
                 onClick={handleReset}
               >
                 <RotateCcw className="w-4 h-4" />
@@ -159,13 +159,9 @@ export function ViewerToolbar({ isExpanded = false, onToggleExpand }: ViewerTool
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                variant="ghost"
+                variant={isToolsPanelVisible ? "ghost-icon-active" : "ghost-icon"}
                 size="icon"
-                className={`h-8 w-8 transition-colors ${
-                  isToolsPanelVisible
-                    ? 'text-cf-accent hover:text-cf-accent hover:bg-cf-accent/10'
-                    : 'text-cf-text-secondary hover:text-cf-text hover:bg-cf-highlight'
-                }`}
+                className="h-8 w-8"
                 onClick={handleToggleToolsPanel}
               >
                 <Wrench className="w-4 h-4" />
@@ -178,9 +174,9 @@ export function ViewerToolbar({ isExpanded = false, onToggleExpand }: ViewerTool
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                variant="ghost"
+                variant="ghost-icon"
                 size="icon"
-                className="h-8 w-8 text-cf-text-secondary hover:text-cf-text"
+                className="h-8 w-8"
                 onClick={onToggleExpand}
               >
                 {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}

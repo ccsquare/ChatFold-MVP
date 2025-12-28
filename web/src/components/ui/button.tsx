@@ -19,6 +19,13 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
+        // Icon button variants for consistent toolbar styling
+        "ghost-icon":
+          "text-cf-text-secondary hover:text-cf-text hover:bg-cf-highlight transition-colors",
+        "ghost-icon-active":
+          "text-cf-accent hover:text-cf-accent hover:bg-cf-accent/10 transition-colors",
+        "ghost-icon-danger":
+          "text-cf-text-muted hover:text-cf-error hover:bg-cf-error/10 transition-colors",
       },
       size: {
         default: "h-9 px-4 py-2",

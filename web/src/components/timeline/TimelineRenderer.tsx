@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useMemo, useRef, useEffect, useState, useCallback, useId } from 'react';
+import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react';
 import { TimelineItem } from '@/hooks/useConversationTimeline';
 import { StructureArtifact, ChatMessage } from '@/lib/types';
 import { cn, formatTimestamp } from '@/lib/utils';
-import { Trophy, Loader2, Link2, Link2Off, RotateCcw, CheckCircle2 } from 'lucide-react';
+import { Trophy, Loader2, Link2, Link2Off, RotateCcw, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
 import { StructureArtifactCard } from '@/components/StructureArtifactCard';
 import { resetSyncGroupCamera } from '@/hooks/useCameraSync';
 import {
@@ -55,22 +55,6 @@ export function TimelineRenderer({
   const endRef = useRef<HTMLDivElement>(null);
   const isCompact = variant === 'compact';
 
-  // Generate unique sync group ID for this timeline instance
-  const syncGroupId = useId();
-
-  // Camera sync state - enabled by default for better comparison
-  const [cameraSyncEnabled, setCameraSyncEnabled] = useState(true);
-
-  // Toggle camera sync
-  const handleToggleCameraSync = useCallback(() => {
-    setCameraSyncEnabled(prev => !prev);
-  }, []);
-
-  // Reset all synced cameras to default view
-  const handleResetAllCameras = useCallback(() => {
-    resetSyncGroupCamera(syncGroupId);
-  }, [syncGroupId]);
-
   // Auto-scroll to bottom when new items arrive
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -119,65 +103,8 @@ export function TimelineRenderer({
     return null;
   }
 
-  // Check if there are multiple artifacts (sync makes sense only with 2+)
-  const hasMultipleArtifacts = allArtifacts.length >= 2;
-
   return (
     <div className={cn("flex flex-col", className)}>
-      {/* Camera sync controls - only show when multiple structures exist */}
-      {hasMultipleArtifacts && (
-        <div className="flex items-center justify-end gap-1 mb-3 px-1">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleResetAllCameras}
-                className={cn(
-                  "h-7 px-2 text-xs gap-1.5",
-                  "text-cf-text-secondary hover:text-cf-text hover:bg-cf-highlight"
-                )}
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Reset All</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Reset all structure views</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleToggleCameraSync}
-                className={cn(
-                  "h-7 px-2 text-xs gap-1.5",
-                  cameraSyncEnabled
-                    ? "text-cf-accent hover:text-cf-accent/80 bg-cf-accent/10 hover:bg-cf-accent/15"
-                    : "text-cf-text-secondary hover:text-cf-text hover:bg-cf-highlight"
-                )}
-              >
-                {cameraSyncEnabled ? (
-                  <Link2 className="w-3.5 h-3.5" />
-                ) : (
-                  <Link2Off className="w-3.5 h-3.5" />
-                )}
-                <span className="hidden sm:inline">
-                  {cameraSyncEnabled ? 'Synced' : 'Sync Off'}
-                </span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {cameraSyncEnabled
-                ? 'Views are synced - drag one to rotate all'
-                : 'Enable view sync to rotate all structures together'
-              }
-            </TooltipContent>
-          </Tooltip>
-        </div>
-      )}
-
       {groups.map((group, groupIndex) => {
         if (group.type === 'message') {
           return (
@@ -192,13 +119,12 @@ export function TimelineRenderer({
           return (
             <ArtifactGroup
               key={`artifact-group-${groupIndex}`}
+              groupIndex={groupIndex}
               artifacts={group.artifacts}
               allArtifacts={allArtifacts}
               isCompact={isCompact}
               isStreaming={isStreaming}
               statusMessage={statusMessage}
-              syncGroupId={syncGroupId}
-              syncEnabled={cameraSyncEnabled}
             />
           );
         }
@@ -261,24 +187,53 @@ function MessageBubble({
  * Artifact group with timeline visualization wrapped in a container
  */
 function ArtifactGroup({
+  groupIndex,
   artifacts,
   allArtifacts,
   isCompact,
   isStreaming,
   statusMessage,
-  syncGroupId,
-  syncEnabled,
 }: {
+  groupIndex: number;
   artifacts: Array<{ data: StructureArtifact; timestamp: number; index: number }>;
   allArtifacts: Array<{ type: 'artifact'; data: StructureArtifact; timestamp: number }>;
   isCompact: boolean;
   isStreaming: boolean;
   statusMessage?: string | null;
-  syncGroupId: string;
-  syncEnabled: boolean;
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
   const isComplete = !isStreaming || artifacts[artifacts.length - 1]?.index < allArtifacts.length - 1;
   const structureCount = artifacts.length;
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Unique sync group ID for this artifact group
+  const syncGroupId = `artifact-group-${groupIndex}`;
+
+  // Camera sync state - enabled by default for better comparison
+  const [cameraSyncEnabled, setCameraSyncEnabled] = useState(true);
+
+  // Toggle camera sync
+  const handleToggleCameraSync = useCallback(() => {
+    setCameraSyncEnabled(prev => !prev);
+  }, []);
+
+  // Reset all synced cameras to default view
+  const handleResetAllCameras = useCallback(() => {
+    resetSyncGroupCamera(syncGroupId);
+  }, [syncGroupId]);
+
+  // Check if there are multiple artifacts (sync makes sense only with 2+)
+  const hasMultipleArtifacts = artifacts.length >= 2;
+
+  // Auto-scroll to the bottom when new artifacts arrive (only when collapsed)
+  useEffect(() => {
+    if (scrollRef.current && !isExpanded) {
+      scrollRef.current.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior: 'smooth',
+      });
+    }
+  }, [artifacts.length, isExpanded]);
 
   return (
     <div className="pb-4">
@@ -289,13 +244,14 @@ function ArtifactGroup({
           ? "border-l-cf-success"
           : "border-l-cf-accent"
       )}>
-        {/* Header */}
+        {/* Header - consolidated single row */}
         <div className={cn(
           "flex items-center justify-between px-4 py-2.5 border-b",
           isComplete
             ? "border-cf-success/20 bg-cf-success/5"
             : "border-cf-accent/20 bg-cf-accent/5"
         )}>
+          {/* Left: Status */}
           <div className="flex items-center gap-2">
             {isComplete ? (
               <CheckCircle2 className="w-4 h-4 text-cf-success" />
@@ -310,82 +266,142 @@ function ArtifactGroup({
             </span>
           </div>
 
-          <div className="flex items-center gap-3 text-xs">
-            <span className="text-cf-text-muted">
+          {/* Right: Controls */}
+          <div className="flex items-center gap-1.5">
+            {/* Camera controls - only for multiple structures */}
+            {hasMultipleArtifacts && (
+              <>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleResetAllCameras}
+                      className="h-6 w-6 text-cf-text-secondary hover:text-cf-text hover:bg-cf-highlight"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Reset all views</TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={cameraSyncEnabled ? "ghost-icon-active" : "ghost-icon"}
+                      size="icon"
+                      onClick={handleToggleCameraSync}
+                      className={cn(
+                        "h-6 w-6",
+                        cameraSyncEnabled && "bg-cf-accent/10 hover:bg-cf-accent/15"
+                      )}
+                    >
+                      {cameraSyncEnabled ? (
+                        <Link2 className="w-3.5 h-3.5" />
+                      ) : (
+                        <Link2Off className="w-3.5 h-3.5" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    {cameraSyncEnabled ? 'Views synced - click to unlink' : 'Sync all views'}
+                  </TooltipContent>
+                </Tooltip>
+
+                {/* Subtle divider */}
+                <div className="w-px h-4 bg-cf-border/50 mx-1" />
+              </>
+            )}
+
+            {/* Structure count + Expand */}
+            <span className="text-xs text-cf-text-muted">
               {structureCount} {structureCount === 1 ? 'structure' : 'structures'}
             </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="h-6 w-6 text-cf-text-secondary hover:text-cf-text hover:bg-cf-highlight"
+            >
+              {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </Button>
           </div>
         </div>
 
-        {/* Artifacts list */}
-        <div className="p-3">
-          {artifacts.map((artifactItem, localIndex) => {
-            const artifact = artifactItem.data;
-            const currentIndex = artifactItem.index;
+        {/* Artifacts list - vertical scroll */}
+        <div
+          ref={scrollRef}
+          className={cn(
+            "p-3 overflow-y-auto scrollbar-thin scrollbar-thumb-cf-border scrollbar-track-transparent transition-all duration-300",
+            !isExpanded && "max-h-[480px]"
+          )}
+        >
+          <div className="flex flex-col gap-3">
+            {artifacts.map((artifactItem, localIndex) => {
+              const artifact = artifactItem.data;
+              const currentIndex = artifactItem.index;
 
-            // Determine if this is the best result
-            const isFinalByLabel = artifact.label?.toLowerCase() === 'final';
-            const isLastInGroup = localIndex === artifacts.length - 1;
-            const highestPlddt = Math.max(...artifacts.map(a => a.data.metrics.plddtAvg));
-            const isBestByPlddt = artifact.metrics.plddtAvg === highestPlddt && isLastInGroup;
-            const isFinal = isFinalByLabel || isBestByPlddt;
+              // Determine if this is the best result (based on label or last in group)
+              const isFinalByLabel = artifact.label?.toLowerCase() === 'final';
+              const isLastInGroup = localIndex === artifacts.length - 1;
+              const isFinal = isFinalByLabel || isLastInGroup;
 
-            const hasNextInGroup = localIndex < artifacts.length - 1;
-            const hasNextArtifact = currentIndex < allArtifacts.length - 1;
-            const nodeCenter = isFinal ? 12 : 6; // Half of node diameter (24px or 12px)
+              const hasNextInGroup = localIndex < artifacts.length - 1;
+              const hasNextArtifact = currentIndex < allArtifacts.length - 1;
 
-            // Show streaming indicator on the last artifact during streaming
-            const isLastAndStreaming = isStreaming && currentIndex === allArtifacts.length - 1;
+              // Show streaming indicator on the last artifact during streaming
+              const isLastAndStreaming = isStreaming && currentIndex === allArtifacts.length - 1;
 
-            return (
-              <div
-                key={artifact.structureId}
-                className={cn("flex gap-3 group relative", hasNextInGroup && "pb-4")}
-              >
-                {/* Timeline node column */}
-                <div className="relative flex-shrink-0 w-6 self-stretch">
-                  {/* Connecting line */}
-                  {(hasNextArtifact || isLastAndStreaming) && (
+              return (
+                <div
+                  key={artifact.structureId}
+                  className="flex gap-3 group relative"
+                >
+                  {/* Vertical timeline node column */}
+                  <div className="relative flex flex-col items-center pt-1">
+                    {/* Timeline node */}
                     <div
-                      aria-hidden="true"
                       className={cn(
-                        "absolute left-1/2 -translate-x-1/2 w-0.5",
-                        isLastAndStreaming ? "bg-cf-success/20 animate-pulse" : "bg-cf-success/40"
+                        "relative z-10 flex items-center justify-center rounded-full border-2 transition-all duration-300",
+                        isFinal
+                          ? "w-6 h-6 border-cf-success bg-cf-bg text-cf-success shadow-[0_0_12px_rgba(34,197,94,0.3)] dark:shadow-[0_0_15px_rgba(103,218,122,0.2)]"
+                          : "w-3 h-3 border-cf-success/60 bg-cf-bg group-hover:border-cf-success group-hover:scale-110 group-hover:shadow-[0_0_8px_rgba(103,218,122,0.15)]"
                       )}
-                      style={{
-                        top: `${nodeCenter}px`,
-                        bottom: 0,
-                      }}
-                    />
-                  )}
-                  {/* Timeline node */}
-                  <div
-                    className={cn(
-                      "relative z-10 flex items-center justify-center rounded-full border-2 transition-all duration-300 mx-auto",
-                      isFinal
-                        ? "w-6 h-6 border-cf-success bg-cf-bg text-cf-success shadow-[0_0_12px_rgba(34,197,94,0.3)] dark:shadow-[0_0_15px_rgba(103,218,122,0.2)]"
-                        : "w-3 h-3 border-cf-success/60 bg-cf-bg group-hover:border-cf-success group-hover:scale-110 group-hover:shadow-[0_0_8px_rgba(103,218,122,0.15)]"
+                    >
+                      {isFinal && <Trophy className="w-3 h-3" />}
+                    </div>
+                    {/* Vertical connecting line */}
+                    {(hasNextInGroup || isLastAndStreaming) && (
+                      <div
+                        aria-hidden="true"
+                        className={cn(
+                          "absolute w-0.5 left-1/2 -translate-x-1/2",
+                          isLastAndStreaming ? "bg-cf-success/20 animate-pulse" : "bg-cf-success/40"
+                        )}
+                        style={{
+                          top: isFinal ? '24px' : '12px',
+                          bottom: '-12px',
+                        }}
+                      />
                     )}
-                  >
-                    {isFinal && <Trophy className="w-3 h-3" />}
+                  </div>
+
+                  {/* Artifact card */}
+                  <div className="flex-1 min-w-0">
+                    <StructureArtifactCard
+                      artifact={artifact}
+                      previousArtifact={currentIndex > 0 ? allArtifacts[currentIndex - 1]?.data : null}
+                      timestamp={artifactItem.timestamp}
+                      stepNumber={currentIndex + 1}
+                      showPreview={true}
+                      syncGroupId={syncGroupId}
+                      syncEnabled={cameraSyncEnabled}
+                    />
                   </div>
                 </div>
-
-                {/* Artifact card */}
-                <div className="flex-1 min-w-0">
-                  <StructureArtifactCard
-                    artifact={artifact}
-                    previousArtifact={currentIndex > 0 ? allArtifacts[currentIndex - 1]?.data : null}
-                    timestamp={artifactItem.timestamp}
-                    stepNumber={currentIndex + 1}
-                    showPreview={true} // Always show 3D preview
-                    syncGroupId={syncGroupId}
-                    syncEnabled={syncEnabled}
-                  />
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
