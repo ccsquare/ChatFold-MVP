@@ -9,11 +9,13 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { Download, ExternalLink } from 'lucide-react';
+import { Download, ExternalLink, GitCompareArrows } from 'lucide-react';
 import { MolstarViewer } from '@/components/MolstarViewer';
 
 interface StructureArtifactCardProps {
   artifact: StructureArtifact;
+  /** Previous artifact for comparison (if available) */
+  previousArtifact?: StructureArtifact | null;
   timestamp?: number;
   isLast?: boolean;
   stepNumber?: number;
@@ -26,6 +28,7 @@ interface StructureArtifactCardProps {
 
 export function StructureArtifactCard({
   artifact,
+  previousArtifact,
   timestamp,
   isLast = false,
   stepNumber,
@@ -33,7 +36,7 @@ export function StructureArtifactCard({
   syncGroupId = null,
   syncEnabled = false,
 }: StructureArtifactCardProps) {
-  const { openStructureTab } = useAppStore();
+  const { openStructureTab, openCompareTab } = useAppStore();
   const isFinal = artifact.label?.toLowerCase() === 'final';
 
   const handleOpenStructure = () => {
@@ -48,7 +51,14 @@ export function StructureArtifactCard({
     }
   };
 
+  const handleCompare = () => {
+    if (artifact.pdbData && previousArtifact?.pdbData) {
+      openCompareTab(artifact, previousArtifact);
+    }
+  };
+
   const hasPreview = showPreview && artifact.pdbData;
+  const canCompare = !!previousArtifact?.pdbData;
 
   return (
     <div className={cn(
@@ -67,7 +77,7 @@ export function StructureArtifactCard({
         <div className="flex items-center gap-2 min-w-0">
           {isFinal ? (
             <span className="text-[11px] font-bold text-cf-success flex items-center gap-1.5 uppercase tracking-wider">
-              Best Result
+              Final Result
               <span className="w-1 h-1 rounded-full bg-cf-success/60 animate-pulse" />
             </span>
           ) : (
@@ -107,6 +117,22 @@ export function StructureArtifactCard({
             </TooltipTrigger>
             <TooltipContent>Visualize</TooltipContent>
           </Tooltip>
+
+          {canCompare && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-cf-text-secondary hover:text-cf-accent hover:bg-cf-accent/10 rounded-md transition-all active:scale-95"
+                  onClick={handleCompare}
+                >
+                  <GitCompareArrows className="w-3.5 h-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Compare with previous</TooltipContent>
+            </Tooltip>
+          )}
 
           <Tooltip>
             <TooltipTrigger asChild>
