@@ -3,7 +3,7 @@
 import { useAppStore } from '@/lib/store';
 import { cn, downloadPDBFile } from '@/lib/utils';
 import { StepEvent, StructureArtifact } from '@/lib/types';
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { HelixIcon } from '@/components/icons/ProteinIcon';
 import { STAGE_ICONS, STAGE_LABELS } from '@/lib/constants/stages';
+import { pdbCache } from '@/hooks/useLazyPdb';
 
 export function StepsPanel() {
   const { activeTask, isStreaming, openStructureTab, thumbnails } = useAppStore();
@@ -33,6 +34,31 @@ export function StepsPanel() {
       stepsEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
   }, [activeTask?.steps]);
+
+  // Must define callbacks before early return to follow rules of hooks
+  const handleOpenStructure = useCallback(async (artifact: StructureArtifact) => {
+    let pdbData: string | undefined = artifact.pdbData;
+    if (!pdbData) {
+      // Lazy load PDB data
+      const loaded = await pdbCache.get(artifact.structureId);
+      if (loaded) pdbData = loaded;
+    }
+    if (pdbData) {
+      openStructureTab({ ...artifact, pdbData }, pdbData);
+    }
+  }, [openStructureTab]);
+
+  const handleDownload = useCallback(async (artifact: StructureArtifact) => {
+    let pdbData: string | undefined = artifact.pdbData;
+    if (!pdbData) {
+      // Lazy load PDB data
+      const loaded = await pdbCache.get(artifact.structureId);
+      if (loaded) pdbData = loaded;
+    }
+    if (pdbData) {
+      downloadPDBFile(pdbData, artifact.filename);
+    }
+  }, []);
 
   if (!activeTask) {
     return (
@@ -59,12 +85,6 @@ export function StepsPanel() {
 
   const stages = Object.keys(stageGroups);
   const currentStage = stages[stages.length - 1] || 'QUEUED';
-
-  const handleOpenStructure = (artifact: StructureArtifact) => {
-    if (artifact.pdbData) {
-      openStructureTab(artifact, artifact.pdbData);
-    }
-  };
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -190,11 +210,7 @@ export function StepsPanel() {
                                       variant="ghost-icon"
                                       size="icon"
                                       className="h-6 w-6"
-                                      onClick={() => {
-                                        if (artifact.pdbData) {
-                                          downloadPDBFile(artifact.pdbData, artifact.filename);
-                                        }
-                                      }}
+                                      onClick={() => handleDownload(artifact)}
                                     >
                                       <Download className="w-3.5 h-3.5" />
                                       <span className="sr-only">Download PDB</span>
