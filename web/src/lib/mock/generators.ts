@@ -164,43 +164,25 @@ export function* generateStepEvents(taskId: string, sequence: string): Generator
       if (stage === 'MODEL' && i >= 2) {
         const candidateNum = i - 1; // 1, 2, 3, 4, 5
         const structureId = `str_${taskId}_${candidateNum}`;
-        // Gradually improving quality as candidates progress
-        const baseQuality = 60 + candidateNum * 5; // 65, 70, 75, 80, 85
-        const plddt = baseQuality + Math.random() * 10;
-        const pae = 20 - candidateNum * 2.5 + Math.random() * 5; // Decreasing error
-        const constraint = 50 + candidateNum * 8 + Math.random() * 10; // Increasing satisfaction
 
         artifacts.push({
           type: 'structure',
           structureId,
           label: `candidate-${candidateNum}`,
           filename: `candidate_${candidateNum}.pdb`,
-          metrics: {
-            plddtAvg: Math.round(plddt * 10) / 10,
-            paeAvg: Math.round(pae * 10) / 10,
-            constraint: Math.round(Math.min(100, constraint) * 10) / 10
-          },
           createdAt: Date.now()
         });
       }
 
-      // Generate final structure at DONE stage (best quality)
+      // Generate final structure at DONE stage
       if (stage === 'DONE') {
         const structureId = `str_${taskId}_final`;
-        const plddt = 85 + Math.random() * 10; // 85-95
-        const pae = 3 + Math.random() * 5; // 3-8
-        const constraint = 90 + Math.random() * 10; // 90-100
 
         artifacts.push({
           type: 'structure',
           structureId,
           label: 'final',
           filename: 'final_structure.pdb',
-          metrics: {
-            plddtAvg: Math.round(plddt * 10) / 10,
-            paeAvg: Math.round(pae * 10) / 10,
-            constraint: Math.round(Math.min(100, constraint) * 10) / 10
-          },
           createdAt: Date.now()
         });
       }

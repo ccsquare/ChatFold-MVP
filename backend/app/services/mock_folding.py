@@ -9,7 +9,6 @@ from ..models.schemas import (
     StatusType,
     StepEvent,
     StructureArtifact,
-    StructureMetrics,
 )
 from ..utils.pdb_generator import generate_mock_pdb
 
@@ -79,12 +78,6 @@ def generate_step_events(task_id: str, sequence: str) -> Generator[StepEvent, No
                 candidate_num = i - 1  # 1, 2, 3, 4, 5
                 structure_id = f"str_{task_id}_{candidate_num}"
 
-                # Gradually improving quality as candidates progress
-                base_quality = 60 + candidate_num * 5  # 65, 70, 75, 80, 85
-                plddt = base_quality + random.random() * 10
-                pae = 20 - candidate_num * 2.5 + random.random() * 5  # Decreasing error
-                constraint = 50 + candidate_num * 8 + random.random() * 10  # Increasing satisfaction
-
                 # Generate PDB data for this candidate
                 pdb_data = generate_mock_pdb(sequence, structure_id, structure_count)
 
@@ -94,21 +87,15 @@ def generate_step_events(task_id: str, sequence: str) -> Generator[StepEvent, No
                         structureId=structure_id,
                         label=f"candidate-{candidate_num}",
                         filename=f"candidate_{candidate_num}.pdb",
-                        metrics=StructureMetrics(
-                            plddtAvg=round(plddt, 1), paeAvg=round(pae, 1), constraint=round(min(100, constraint), 1)
-                        ),
                         pdbData=pdb_data,
                         createdAt=int(time.time() * 1000),
                     )
                 )
 
-            # Generate final structure at DONE stage (best quality)
+            # Generate final structure at DONE stage
             if stage == StageType.DONE:
                 structure_count += 1
                 structure_id = f"str_{task_id}_final"
-                plddt = 85 + random.random() * 10  # 85-95
-                pae = 3 + random.random() * 5  # 3-8
-                constraint = 90 + random.random() * 10  # 90-100
 
                 # Generate PDB data for final structure
                 pdb_data = generate_mock_pdb(sequence, structure_id, structure_count)
@@ -119,9 +106,6 @@ def generate_step_events(task_id: str, sequence: str) -> Generator[StepEvent, No
                         structureId=structure_id,
                         label="final",
                         filename="final_structure.pdb",
-                        metrics=StructureMetrics(
-                            plddtAvg=round(plddt, 1), paeAvg=round(pae, 1), constraint=round(min(100, constraint), 1)
-                        ),
                         pdbData=pdb_data,
                         createdAt=int(time.time() * 1000),
                     )
