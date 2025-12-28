@@ -6,6 +6,7 @@ import { useAppStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { CanvasTabs } from './CanvasTabs';
 import { MolstarViewer } from './MolstarViewer';
+import { CompareViewer } from './CompareViewer';
 import { SequenceViewer } from './SequenceViewer';
 import { AtomInfo } from '@/lib/types';
 import { ViewerToolbar } from './ViewerToolbar';
@@ -59,15 +60,24 @@ export function Canvas() {
                   className="fixed inset-0 z-[9999] bg-cf-bg flex flex-col"
                   aria-label="3D structure viewer (expanded)"
                 >
-                  {/* Toolbar */}
-                  <ViewerToolbar
-                    isExpanded={isExpanded}
-                    onToggleExpand={handleToggleExpand}
-                  />
+                  {/* Toolbar - hide in compare mode (CompareViewer has its own toolbar) */}
+                  {!activeTab.isCompare && (
+                    <ViewerToolbar
+                      isExpanded={isExpanded}
+                      onToggleExpand={handleToggleExpand}
+                    />
+                  )}
 
                   {/* Viewer Content */}
                   <div className="flex-1 relative">
-                    {activeTab.filename && /\.(fasta|fa|txt)$/i.test(activeTab.filename) ? (
+                    {activeTab.isCompare ? (
+                      <CompareViewer
+                        key={`${activeTab.id}-expanded`}
+                        tab={activeTab}
+                        isExpanded={isExpanded}
+                        onToggleExpand={handleToggleExpand}
+                      />
+                    ) : activeTab.filename && /\.(fasta|fa|txt)$/i.test(activeTab.filename) ? (
                       <SequenceViewer
                         content={activeTab.pdbData}
                         label={activeTab.label}
@@ -93,8 +103,8 @@ export function Canvas() {
                 className="flex-1 flex flex-col overflow-hidden relative"
                 aria-label="3D structure viewer"
               >
-                {/* Toolbar - hide when Mol* built-in expand is active */}
-                {!isMolstarExpanded && (
+                {/* Toolbar - hide when Mol* built-in expand is active or in compare mode (CompareViewer has its own toolbar) */}
+                {!isMolstarExpanded && !activeTab.isCompare && (
                   <ViewerToolbar
                     isExpanded={isExpanded}
                     onToggleExpand={handleToggleExpand}
@@ -103,7 +113,14 @@ export function Canvas() {
 
                 {/* Viewer Content */}
                 <div className="flex-1 relative overflow-hidden">
-                  {activeTab.filename && /\.(fasta|fa|txt)$/i.test(activeTab.filename) ? (
+                  {activeTab.isCompare ? (
+                    <CompareViewer
+                      key={activeTab.id}
+                      tab={activeTab}
+                      isExpanded={isExpanded}
+                      onToggleExpand={handleToggleExpand}
+                    />
+                  ) : activeTab.filename && /\.(fasta|fa|txt)$/i.test(activeTab.filename) ? (
                     <SequenceViewer
                       content={activeTab.pdbData}
                       label={activeTab.label}
