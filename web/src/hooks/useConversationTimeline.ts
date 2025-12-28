@@ -142,6 +142,15 @@ export function useConversationTimeline(options: TimelineOptions = {}) {
     return result;
   }, [activeTask, conversationId, includeStreaming]);
 
+  // Latest status message from streaming task
+  const latestStatusMessage = useMemo(() => {
+    if (!includeStreaming || !activeTask?.steps || activeTask.conversationId !== conversationId) {
+      return null;
+    }
+    const lastStep = activeTask.steps[activeTask.steps.length - 1];
+    return lastStep?.message || null;
+  }, [activeTask, conversationId, includeStreaming]);
+
   return {
     /** Full timeline with messages and artifacts sorted by timestamp */
     timeline,
@@ -155,5 +164,7 @@ export function useConversationTimeline(options: TimelineOptions = {}) {
     isStreaming: isStreaming && activeTask?.conversationId === conversationId,
     /** The active conversation */
     conversation,
+    /** Latest status message from backend during streaming */
+    latestStatusMessage,
   };
 }

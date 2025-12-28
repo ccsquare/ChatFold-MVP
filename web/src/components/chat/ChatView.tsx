@@ -40,7 +40,7 @@ export function ChatView() {
   } = useAppStore();
 
   const { submit, artifacts: streamingArtifacts } = useFoldingTask();
-  const { timeline, isStreaming, conversation } = useConversationTimeline();
+  const { timeline, isStreaming, conversation, latestStatusMessage } = useConversationTimeline();
 
   const [inputValue, setInputValue] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -315,6 +315,7 @@ export function ChatView() {
                 timeline={timeline}
                 variant="wide"
                 isStreaming={isStreaming}
+                statusMessage={latestStatusMessage}
               />
               <div ref={messagesEndRef} />
             </div>
