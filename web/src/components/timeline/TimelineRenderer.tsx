@@ -1,11 +1,18 @@
 'use client';
 
-import React, { useMemo, useRef, useEffect } from 'react';
+import React, { useMemo, useRef, useEffect, useState, useCallback, useId } from 'react';
 import { TimelineItem } from '@/hooks/useConversationTimeline';
 import { StructureArtifact, ChatMessage } from '@/lib/types';
 import { cn, formatTimestamp } from '@/lib/utils';
-import { Trophy, Loader2 } from 'lucide-react';
+import { Trophy, Loader2, Link2, Link2Off, RotateCcw } from 'lucide-react';
 import { StructureArtifactCard } from '@/components/StructureArtifactCard';
+import { resetSyncGroupCamera } from '@/hooks/useCameraSync';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { Button } from '@/components/ui/button';
 
 /**
  * Grouped timeline items for rendering.
@@ -44,6 +51,22 @@ export function TimelineRenderer({
 }: TimelineRendererProps) {
   const endRef = useRef<HTMLDivElement>(null);
   const isCompact = variant === 'compact';
+
+  // Generate unique sync group ID for this timeline instance
+  const syncGroupId = useId();
+
+  // Camera sync state - enabled by default for better comparison
+  const [cameraSyncEnabled, setCameraSyncEnabled] = useState(true);
+
+  // Toggle camera sync
+  const handleToggleCameraSync = useCallback(() => {
+    setCameraSyncEnabled(prev => !prev);
+  }, []);
+
+  // Reset all synced cameras to default view
+  const handleResetAllCameras = useCallback(() => {
+    resetSyncGroupCamera(syncGroupId);
+  }, [syncGroupId]);
 
   // Auto-scroll to bottom when new items arrive
   useEffect(() => {
@@ -93,8 +116,65 @@ export function TimelineRenderer({
     return null;
   }
 
+  // Check if there are multiple artifacts (sync makes sense only with 2+)
+  const hasMultipleArtifacts = allArtifacts.length >= 2;
+
   return (
     <div className={cn("flex flex-col", className)}>
+      {/* Camera sync controls - only show when multiple structures exist */}
+      {hasMultipleArtifacts && (
+        <div className="flex items-center justify-end gap-1 mb-3 px-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleResetAllCameras}
+                className={cn(
+                  "h-7 px-2 text-xs gap-1.5",
+                  "text-cf-text-secondary hover:text-cf-text hover:bg-cf-highlight"
+                )}
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Reset All</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Reset all structure views</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleToggleCameraSync}
+                className={cn(
+                  "h-7 px-2 text-xs gap-1.5",
+                  cameraSyncEnabled
+                    ? "text-cf-accent hover:text-cf-accent/80 bg-cf-accent/10 hover:bg-cf-accent/15"
+                    : "text-cf-text-secondary hover:text-cf-text hover:bg-cf-highlight"
+                )}
+              >
+                {cameraSyncEnabled ? (
+                  <Link2 className="w-3.5 h-3.5" />
+                ) : (
+                  <Link2Off className="w-3.5 h-3.5" />
+                )}
+                <span className="hidden sm:inline">
+                  {cameraSyncEnabled ? 'Synced' : 'Sync Off'}
+                </span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {cameraSyncEnabled
+                ? 'Views are synced - drag one to rotate all'
+                : 'Enable view sync to rotate all structures together'
+              }
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      )}
+
       {groups.map((group, groupIndex) => {
         if (group.type === 'message') {
           return (
@@ -113,6 +193,8 @@ export function TimelineRenderer({
               allArtifacts={allArtifacts}
               isCompact={isCompact}
               isStreaming={isStreaming}
+              syncGroupId={syncGroupId}
+              syncEnabled={cameraSyncEnabled}
             />
           );
         }
@@ -179,11 +261,15 @@ function ArtifactGroup({
   allArtifacts,
   isCompact,
   isStreaming,
+  syncGroupId,
+  syncEnabled,
 }: {
   artifacts: Array<{ data: StructureArtifact; timestamp: number; index: number }>;
   allArtifacts: Array<{ type: 'artifact'; data: StructureArtifact; timestamp: number }>;
   isCompact: boolean;
   isStreaming: boolean;
+  syncGroupId: string;
+  syncEnabled: boolean;
 }) {
   return (
     <div className="pb-4">
@@ -201,10 +287,6 @@ function ArtifactGroup({
         const hasNextInGroup = localIndex < artifacts.length - 1;
         const hasNextArtifact = currentIndex < allArtifacts.length - 1;
         const nodeCenter = isFinal ? 12 : 6; // Half of node diameter (24px or 12px)
-
-        // Previous artifact for delta calculation
-        const previousPlddt =
-          currentIndex > 0 ? allArtifacts[currentIndex - 1].data.metrics.plddtAvg : undefined;
 
         // Show streaming indicator on the last artifact during streaming
         const isLastAndStreaming = isStreaming && currentIndex === allArtifacts.length - 1;
@@ -249,9 +331,9 @@ function ArtifactGroup({
                 artifact={artifact}
                 timestamp={artifactItem.timestamp}
                 stepNumber={currentIndex + 1}
-                previousPlddt={previousPlddt}
-                showPreview={!isCompact} // Only show 3D preview in wide mode
-                defaultExpanded={isFinal && !isCompact}
+                showPreview={true} // Always show 3D preview
+                syncGroupId={syncGroupId}
+                syncEnabled={syncEnabled}
               />
             </div>
           </div>

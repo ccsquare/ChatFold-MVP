@@ -4,6 +4,7 @@ import { useEffect, useRef, useCallback, useState, useLayoutEffect, memo } from 
 import { useAppStore } from '@/lib/store';
 import { AtomInfo } from '@/lib/types';
 import { Loader2, AlertCircle, Maximize2, Minimize2, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
+import { useCameraSync, useCameraSyncReset } from '@/hooks/useCameraSync';
 
 // Residue information in selection
 export interface ResidueInfo {
@@ -44,6 +45,10 @@ interface MolstarViewerProps {
   onAtomClick?: (atomInfo: AtomInfo) => void;
   onSelectionChange?: (selectionInfo: SelectionInfo | null) => void;
   onAtomCountChange?: (count: number) => void;
+  /** Camera sync group ID - viewers with same ID will sync camera */
+  syncGroupId?: string | null;
+  /** Whether camera sync is enabled */
+  syncEnabled?: boolean;
 }
 
 // Type definitions for Mol* (using any for compatibility)
@@ -289,6 +294,7 @@ function adjustColor(color: string, amount: number): string {
 }
 
 export const MolstarViewer = memo(function MolstarViewer({
+  tabId,
   pdbData,
   pdbUrl,
   format = 'pdb',
@@ -299,7 +305,9 @@ export const MolstarViewer = memo(function MolstarViewer({
   onToggleExpand,
   onAtomClick,
   onSelectionChange,
-  onAtomCountChange
+  onAtomCountChange,
+  syncGroupId = null,
+  syncEnabled = false,
 }: MolstarViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const molstarContainerRef = useRef<HTMLDivElement | null>(null);
@@ -314,6 +322,13 @@ export const MolstarViewer = memo(function MolstarViewer({
   const isMountedRef = useRef(true);
   const [useFallback, setUseFallback] = useState(false);
   const [pluginReady, setPluginReady] = useState(false);
+  const resetViewRef = useRef<() => void>(() => {});
+
+  // Camera sync hook for synchronizing views across multiple viewers
+  useCameraSync(tabId, syncGroupId, syncEnabled && pluginReady, pluginRef);
+
+  // Handle sync group camera reset (uses ref to avoid circular dependency)
+  useCameraSyncReset(syncGroupId, useCallback(() => resetViewRef.current?.(), []));
 
   // Parse PDB to count atoms (for display purposes)
   const parseAtomCount = useCallback((pdb: string): number => {
@@ -946,6 +961,11 @@ export const MolstarViewer = memo(function MolstarViewer({
       plugin.canvas3d.requestCameraReset();
     }
   }, []);
+
+  // Update ref for camera sync reset callback
+  useEffect(() => {
+    resetViewRef.current = handleResetView;
+  }, [handleResetView]);
 
   const handleZoomIn = useCallback(() => {
     if (pluginRef.current?.canvas3d && pluginCommandsRef.current) {
