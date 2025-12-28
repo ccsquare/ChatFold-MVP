@@ -280,7 +280,7 @@ export const useAppStore = create<AppState>()(
   // Tab actions
   openStructureTab: (structure, pdbData) => {
     const existingTab = get().viewerTabs.find(
-      tab => tab.structureId === structure.structureId
+      tab => tab.structureId === structure.structureId && !tab.isCompare
     );
 
     if (existingTab) {
@@ -298,11 +298,53 @@ export const useAppStore = create<AppState>()(
       structureId: structure.structureId,
       label: structure.label,
       filename: structure.filename,
-      pdbData,
-      metrics: structure.metrics
+      pdbData
     };
 
     // Auto-switch to viewer mode and ensure console is visible
+    set(state => ({
+      viewerTabs: [...state.viewerTabs, tab],
+      activeTabId: tab.id,
+      layoutMode: 'viewer-focus',
+      consoleCollapsed: false
+    }));
+  },
+
+  openCompareTab: (current, previous) => {
+    // Generate a unique compare tab ID based on both structure IDs
+    const compareId = `compare_${current.structureId}_${previous.structureId}`;
+
+    // Check if a compare tab for these two structures already exists
+    const existingTab = get().viewerTabs.find(
+      tab => tab.isCompare &&
+        tab.structureId === current.structureId &&
+        tab.compareWith?.structureId === previous.structureId
+    );
+
+    if (existingTab) {
+      set({
+        activeTabId: existingTab.id,
+        layoutMode: 'viewer-focus',
+        consoleCollapsed: false
+      });
+      return;
+    }
+
+    const tab: ViewerTab = {
+      id: generateId('cmp'),
+      structureId: current.structureId,
+      label: `Compare: ${current.label || 'Current'}`,
+      filename: current.filename,
+      pdbData: current.pdbData || '',
+      isCompare: true,
+      compareWith: {
+        structureId: previous.structureId,
+        label: previous.label || 'Previous',
+        filename: previous.filename,
+        pdbData: previous.pdbData || ''
+      }
+    };
+
     set(state => ({
       viewerTabs: [...state.viewerTabs, tab],
       activeTabId: tab.id,
@@ -515,19 +557,43 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'chatfold-storage',
-      partialize: (state) => ({
-        // Persist layout settings, projects, and conversations
-        // Note: active task and streaming state are not persisted
-        conversations: state.conversations,
-        activeConversationId: state.activeConversationId,
-        layoutMode: state.layoutMode,
-        sidebarWidth: state.sidebarWidth,
-        sidebarCollapsed: state.sidebarCollapsed,
-        consoleWidth: state.consoleWidth,
-        consoleCollapsed: state.consoleCollapsed,
-        projects: state.projects,
-        activeProjectId: state.activeProjectId
-      })
+      partialize: (state) => {
+        // Strip large pdbData from artifacts to avoid localStorage quota issues
+        const stripPdbData = (artifact: StructureArtifact): StructureArtifact => ({
+          ...artifact,
+          pdbData: undefined, // Don't persist large PDB data
+          thumbnail: artifact.thumbnail // Keep small thumbnails
+        });
+
+        // Clean conversations: remove pdbData from message artifacts
+        const cleanConversations = state.conversations.map(conv => ({
+          ...conv,
+          messages: conv.messages.map(msg => ({
+            ...msg,
+            artifacts: msg.artifacts?.map(stripPdbData)
+          }))
+        }));
+
+        // Clean projects: remove pdbData from outputs
+        const cleanProjects = state.projects.map(proj => ({
+          ...proj,
+          outputs: proj.outputs.map(stripPdbData)
+        }));
+
+        return {
+          // Persist layout settings, projects, and conversations
+          // Note: active task, streaming state, and pdbData are not persisted
+          conversations: cleanConversations,
+          activeConversationId: state.activeConversationId,
+          layoutMode: state.layoutMode,
+          sidebarWidth: state.sidebarWidth,
+          sidebarCollapsed: state.sidebarCollapsed,
+          consoleWidth: state.consoleWidth,
+          consoleCollapsed: state.consoleCollapsed,
+          projects: cleanProjects,
+          activeProjectId: state.activeProjectId
+        };
+      }
     }
   )
 );
