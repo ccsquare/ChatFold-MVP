@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { ViewerTab } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { PanelRightClose, PanelRightOpen, Info, Gauge, NotebookPen, MousePointerClick } from 'lucide-react';
+import { PanelRightClose, PanelRightOpen, Info, NotebookPen, MousePointerClick } from 'lucide-react';
 
 interface InspectorPanelProps {
   tab: ViewerTab;
@@ -126,49 +126,6 @@ export function InspectorPanel({ tab }: InspectorPanelProps) {
           </div>
         </div>
 
-        {/* Metrics Section */}
-        {tab.metrics && (
-          <div className="p-3 border-b border-cf-border">
-            <div className="flex items-center gap-1.5 mb-2">
-              <Gauge className="w-3.5 h-3.5 text-cf-text-muted" />
-              <span className="text-xs font-medium text-cf-text-secondary">Metrics</span>
-            </div>
-            <div className="space-y-2">
-              <div>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="text-cf-text-muted">pLDDT</span>
-                  <span className={cn(
-                    "font-medium",
-                    tab.metrics.plddtAvg >= 70 ? "text-cf-success" : "text-cf-confidence-fair"
-                  )}>
-                    {tab.metrics.plddtAvg.toFixed(1)}
-                  </span>
-                </div>
-                <div className="h-1.5 bg-cf-bg rounded-full overflow-hidden">
-                  <div
-                    className={cn(
-                      "h-full rounded-full",
-                      tab.metrics.plddtAvg >= 70 ? "bg-cf-success" : "bg-cf-confidence-fair"
-                    )}
-                    style={{ width: `${tab.metrics.plddtAvg}%` }}
-                  />
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="text-cf-text-muted">PAE</span>
-                  <span className="text-cf-text font-medium">{tab.metrics.paeAvg.toFixed(1)} Å</span>
-                </div>
-                <div className="h-1.5 bg-cf-bg rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-cf-info rounded-full"
-                    style={{ width: `${Math.min(100, (30 - tab.metrics.paeAvg) / 30 * 100)}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Notes Section */}
         <div className="p-3">

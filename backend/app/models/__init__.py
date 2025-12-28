@@ -9,14 +9,12 @@ from .schemas import (
     StatusType,
     StepEvent,
     StructureArtifact,
-    StructureMetrics,
     Task,
 )
 
 __all__ = [
     "StageType",
     "StatusType",
-    "StructureMetrics",
     "StructureArtifact",
     "StepEvent",
     "Asset",

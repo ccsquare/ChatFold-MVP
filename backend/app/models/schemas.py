@@ -25,18 +25,11 @@ class StatusType(str, Enum):
     canceled = "canceled"
 
 
-class StructureMetrics(BaseModel):
-    plddtAvg: float = Field(..., ge=0, le=100, description="pLDDT confidence score (0-100)")
-    paeAvg: float = Field(..., ge=0, le=30, description="Predicted alignment error (0-30)")
-    constraint: float = Field(..., ge=0, le=100, description="Constraint satisfaction (0-100)")
-
-
 class StructureArtifact(BaseModel):
     type: Literal["structure"] = "structure"
     structureId: str
     label: str  # 'candidate-1', 'candidate-2', ..., 'final'
     filename: str
-    metrics: StructureMetrics
     pdbData: str | None = None
     thumbnail: str | None = None
     createdAt: int | None = None  # Timestamp for timeline ordering

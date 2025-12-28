@@ -3,18 +3,11 @@
 export type StageType = 'QUEUED' | 'MSA' | 'MODEL' | 'RELAX' | 'QA' | 'DONE' | 'ERROR';
 export type StatusType = 'queued' | 'running' | 'partial' | 'complete' | 'failed' | 'canceled';
 
-export interface StructureMetrics {
-  plddtAvg: number;   // 0-100, 预测置信度
-  paeAvg: number;     // 0-30, 预测误差
-  constraint: number; // 0-100, 约束满足度
-}
-
 export interface StructureArtifact {
   type: 'structure';
   structureId: string;
   label: 'candidate' | 'intermediate' | 'final' | string;
   filename: string;
-  metrics: StructureMetrics;
   pdbData?: string; // PDB file content
   thumbnail?: string; // Base64 encoded thumbnail
   createdAt?: number; // Timestamp when artifact was generated (for timeline ordering)
@@ -124,10 +117,17 @@ export interface ViewerTab {
   label: string;
   filename: string;
   pdbData: string;
-  metrics?: StructureMetrics;
   thumbnail?: string;
   selection?: AtomInfo | null;
   atomCount?: number;
+  // Comparison mode
+  isCompare?: boolean;
+  compareWith?: {
+    structureId: string;
+    label: string;
+    filename: string;
+    pdbData: string;
+  };
 }
 
 /**
@@ -212,6 +212,7 @@ export interface AppState {
   setSidebarCollapsed: (collapsed: boolean) => void;
 
   openStructureTab: (structure: StructureArtifact, pdbData: string) => void;
+  openCompareTab: (current: StructureArtifact, previous: StructureArtifact) => void;
   closeTab: (tabId: string) => void;
   setActiveTab: (tabId: string) => void;
 
