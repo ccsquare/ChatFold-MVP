@@ -20,7 +20,6 @@ import {
 } from '@/components/ui/context-menu';
 import {
   PanelLeftClose,
-  Plus,
   Upload,
   FolderOpen,
   FolderClosed,
@@ -34,6 +33,7 @@ import {
   Pencil,
   Download,
   Eye,
+  SquarePen,
 } from 'lucide-react';
 import { HelixIcon } from '@/components/icons/ProteinIcon';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -285,6 +285,8 @@ export function Sidebar() {
     deleteProject,
     openStructureTab,
     setSidebarCollapsed,
+    layoutMode,
+    switchToChatMode,
   } = useAppStore();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -292,6 +294,10 @@ export function Sidebar() {
 
   const handleNewChat = () => {
     createConversation();
+    // If in viewer-focus mode, switch to chat-focus mode to show the new chat
+    if (layoutMode === 'viewer-focus') {
+      switchToChatMode();
+    }
   };
 
   const handleDeleteConversation = useCallback((convId: string) => {
@@ -375,37 +381,33 @@ export function Sidebar() {
             <div className="w-5 h-5 bg-gradient-to-br from-purple-500 to-pink-500 rounded-md" aria-hidden="true" />
             <span className="text-sm font-semibold text-cf-text">ChatFold</span>
           </div>
-          <div className="flex items-center gap-0.5">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-cf-text-secondary hover:text-cf-text hover:bg-cf-highlight transition-colors"
-                  onClick={() => setSidebarCollapsed(true)}
-                >
-                  <PanelLeftClose className="w-4 h-4" aria-hidden="true" />
-                  <span className="sr-only">Collapse sidebar</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Collapse sidebar</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-cf-text-secondary hover:text-cf-text hover:bg-cf-highlight transition-colors"
-                  onClick={handleNewChat}
-                >
-                  <Plus className="w-4 h-4" aria-hidden="true" />
-                  <span className="sr-only">New chat</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">New chat</TooltipContent>
-            </Tooltip>
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-cf-text-secondary hover:text-cf-text hover:bg-cf-highlight transition-colors"
+                onClick={() => setSidebarCollapsed(true)}
+              >
+                <PanelLeftClose className="w-4 h-4" aria-hidden="true" />
+                <span className="sr-only">Collapse sidebar</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Collapse sidebar</TooltipContent>
+          </Tooltip>
         </header>
+
+        {/* New Chat Button */}
+        <div className="px-2 py-2">
+          <Button
+            variant="ghost"
+            className="w-full h-10 justify-start gap-2 px-3 bg-cf-bg-tertiary text-cf-text-secondary hover:bg-cf-highlight hover:text-cf-text transition-colors rounded-lg"
+            onClick={handleNewChat}
+          >
+            <SquarePen className="w-4 h-4" aria-hidden="true" />
+            <span className="flex-1 text-left text-sm">New chat</span>
+          </Button>
+        </div>
 
         {/* Project Files Header */}
         <div className="flex items-center justify-between px-2 py-1">
