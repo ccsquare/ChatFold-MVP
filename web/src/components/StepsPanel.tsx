@@ -18,13 +18,14 @@ import {
   ExternalLink,
   Timer,
   CheckCircle2,
+  GitCompareArrows,
 } from 'lucide-react';
 import { HelixIcon } from '@/components/icons/ProteinIcon';
 import { STAGE_ICONS, STAGE_LABELS } from '@/lib/constants/stages';
 import { pdbCache } from '@/hooks/useLazyPdb';
 
 export function StepsPanel() {
-  const { activeTask, isStreaming, openStructureTab, thumbnails } = useAppStore();
+  const { activeTask, isStreaming, openStructureTab, openCompareTab, thumbnails } = useAppStore();
   const stepsEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to latest step
@@ -60,6 +61,29 @@ export function StepsPanel() {
     }
   }, []);
 
+  const handleCompare = useCallback(async (artifact: StructureArtifact, previousArtifact: StructureArtifact) => {
+    // Load current structure
+    let currentPdb: string | undefined = artifact.pdbData;
+    if (!currentPdb) {
+      const loaded = await pdbCache.get(artifact.structureId);
+      if (loaded) currentPdb = loaded;
+    }
+    if (!currentPdb) return;
+
+    // Load previous structure
+    let previousPdb: string | undefined = previousArtifact.pdbData;
+    if (!previousPdb) {
+      const loaded = await pdbCache.get(previousArtifact.structureId);
+      if (loaded) previousPdb = loaded;
+    }
+    if (!previousPdb) return;
+
+    openCompareTab(
+      { ...artifact, pdbData: currentPdb },
+      { ...previousArtifact, pdbData: previousPdb }
+    );
+  }, [openCompareTab]);
+
   if (!activeTask) {
     return (
       <div className="p-4 border-b border-cf-border">
@@ -85,6 +109,11 @@ export function StepsPanel() {
 
   const stages = Object.keys(stageGroups);
   const currentStage = stages[stages.length - 1] || 'QUEUED';
+
+  // Collect all artifacts in order for comparison
+  const allArtifacts: StructureArtifact[] = (activeTask.steps || []).flatMap(
+    step => step.artifacts || []
+  );
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -156,7 +185,14 @@ export function StepsPanel() {
                       {/* Structure Artifacts */}
                       {hasArtifacts && (
                         <div className="mt-2 space-y-1.5">
-                          {step.artifacts!.map(artifact => (
+                          {step.artifacts!.map(artifact => {
+                            // Find previous artifact for comparison
+                            const artifactIndex = allArtifacts.findIndex(
+                              a => a.structureId === artifact.structureId
+                            );
+                            const previousArtifact = artifactIndex > 0 ? allArtifacts[artifactIndex - 1] : null;
+
+                            return (
                             <div
                               key={artifact.structureId}
                               className="flex items-center gap-2 bg-cf-bg rounded p-2"
@@ -204,6 +240,23 @@ export function StepsPanel() {
                                   <TooltipContent>Open in full viewer</TooltipContent>
                                 </Tooltip>
 
+                                {previousArtifact && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost-icon"
+                                        size="icon"
+                                        className="h-6 w-6"
+                                        onClick={() => handleCompare(artifact, previousArtifact)}
+                                      >
+                                        <GitCompareArrows className="w-3.5 h-3.5" />
+                                        <span className="sr-only">Compare with previous</span>
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Compare with previous</TooltipContent>
+                                  </Tooltip>
+                                )}
+
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button
@@ -220,7 +273,8 @@ export function StepsPanel() {
                                 </Tooltip>
                               </div>
                             </div>
-                          ))}
+                          );
+                          })}
                         </div>
                       )}
                     </div>

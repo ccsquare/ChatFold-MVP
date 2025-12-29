@@ -815,11 +815,10 @@ export const MolstarViewer = memo(forwardRef<MolstarViewerRef, MolstarViewerProp
         generateThumbnail();
       }, 500);
 
-      // Start auto-spin animation after structure is fully loaded
-      // This gives users a 360° preview of the structure until they interact
-      setTimeout(() => {
-        startAutoSpin();
-      }, 800);
+      // Auto-spin animation disabled
+      // setTimeout(() => {
+      //   startAutoSpin();
+      // }, 800);
 
       setIsLoading(false);
     } catch (err) {
