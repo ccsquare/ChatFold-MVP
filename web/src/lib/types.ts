@@ -191,6 +191,9 @@ export interface AppState {
   // Molstar expanded state (for hiding overlays when Mol* is in fullscreen)
   isMolstarExpanded: boolean;
 
+  // Compare selection (for two-click compare from timeline)
+  compareSelection: StructureArtifact | null;
+
   // Actions
   createConversation: () => string;
   setActiveConversation: (id: string | null) => void;
@@ -232,4 +235,8 @@ export interface AppState {
   setLayoutMode: (mode: LayoutMode) => void;
   switchToViewerMode: () => void;
   switchToChatMode: () => void;
+
+  // Compare selection actions (two-click compare from timeline)
+  selectForCompare: (artifact: StructureArtifact) => void;
+  clearCompareSelection: () => void;
 }
