@@ -2,7 +2,7 @@
 
 import { useAppStore } from '@/lib/store';
 import { ChatPanel } from './ChatPanel';
-import { Plus, PanelRightClose, Maximize2 } from 'lucide-react';
+import { PanelRightClose, Maximize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -14,7 +14,6 @@ import {
 export function ConsoleDrawer() {
   const {
     setConsoleCollapsed,
-    createConversation,
     switchToChatMode
   } = useAppStore();
 
@@ -25,20 +24,6 @@ export function ConsoleDrawer() {
         <div className="flex items-center justify-between px-3 h-10 border-b border-cf-border bg-cf-bg-secondary">
           <span className="text-sm font-medium text-cf-text">Chat</span>
           <div className="flex items-center gap-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-cf-text-secondary hover:text-cf-text hover:bg-cf-highlight transition-colors"
-                  onClick={createConversation}
-                >
-                  <Plus className="w-4 h-4" />
-                  <span className="sr-only">New conversation</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">New conversation</TooltipContent>
-            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
