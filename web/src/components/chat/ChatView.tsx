@@ -5,7 +5,7 @@ import { useAppStore } from '@/lib/store';
 import { MentionableFile } from '@/lib/types';
 import { ChatInput } from './ChatInput';
 import { cn } from '@/lib/utils';
-import { Sparkles, PanelRight, Loader2 } from 'lucide-react';
+import { Sparkles, PanelRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { HelixIcon } from '@/components/icons/ProteinIcon';
 import {
@@ -39,7 +39,7 @@ export function ChatView() {
     viewerTabs
   } = useAppStore();
 
-  const { submit, artifacts: streamingArtifacts } = useFoldingTask();
+  const { submit } = useFoldingTask();
   const { timeline, isStreaming, conversation, latestStatusMessage } = useConversationTimeline();
 
   const [inputValue, setInputValue] = useState('');
@@ -228,21 +228,6 @@ export function ChatView() {
             </TooltipContent>
           </Tooltip>
         </div>
-
-        {/* Progress indicator when streaming */}
-        {isStreaming && (
-          <div className="flex-shrink-0 bg-cf-bg-tertiary border-b border-cf-border">
-            <div className="flex items-center justify-between px-4 py-2">
-              <div className="flex items-center gap-2">
-                <Loader2 className="w-4 h-4 text-cf-success animate-spin" />
-                <span className="text-xs font-medium text-cf-text">Thinking...</span>
-              </div>
-              <span className="text-xs text-cf-text-muted">
-                {streamingArtifacts.length} structures generated
-              </span>
-            </div>
-          </div>
-        )}
 
         {/* Scrollable content area */}
         <div className="flex-1 overflow-y-auto">
