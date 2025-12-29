@@ -73,6 +73,11 @@ export function ChatPanel() {
         eventSourceRef.current = null;
       });
 
+      eventSource.addEventListener('canceled', () => {
+        eventSource.close();
+        eventSourceRef.current = null;
+      });
+
       eventSource.onerror = () => {
         eventSource.close();
         eventSourceRef.current = null;
@@ -213,6 +218,41 @@ export function ChatPanel() {
       startTaskStream,
     ]
   );
+
+  // Handle stop button click
+  const handleStop = useCallback(async () => {
+    // Close the EventSource connection
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+
+    // Cancel on backend
+    if (activeTask?.id) {
+      try {
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+        await fetch(`${backendUrl}/api/v1/tasks/${activeTask.id}/cancel`, {
+          method: 'POST',
+        });
+      } catch (error) {
+        console.error('Failed to cancel task:', error);
+      }
+    }
+
+    // Update state to canceled
+    if (activeTask) {
+      setActiveTask({ ...activeTask, status: 'canceled' });
+    }
+    setIsSending(false);
+
+    // Add cancellation message to chat
+    if (activeConversationId) {
+      addMessage(activeConversationId, {
+        role: 'assistant',
+        content: 'Structure prediction was canceled.',
+      });
+    }
+  }, [activeTask, activeConversationId, addMessage, setActiveTask]);
 
   // Build available files for @ mentions with full path identification
   const availableFiles = useMemo(() => {
@@ -388,9 +428,10 @@ export function ChatPanel() {
             value={input}
             onChange={setInput}
             onSend={handleSend}
+            onStop={handleStop}
             availableFiles={availableFiles}
             placeholder="输入序列或问题... (输入 @ 引用文件)"
-            isSending={isSending}
+            isSending={isSending || isStreaming}
             thinkingIntensity={thinkingIntensity}
             onThinkingIntensityChange={setThinkingIntensity}
             enableFileMentions={true}

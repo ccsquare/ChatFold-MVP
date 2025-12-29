@@ -17,6 +17,7 @@ class InMemoryStorage:
         self._tasks: dict[str, Task] = {}
         self._task_sequences: dict[str, str] = {}
         self._structure_cache: dict[str, str] = {}
+        self._canceled_tasks: set[str] = set()  # Track canceled task IDs
 
     # Conversation operations
     def save_conversation(self, conversation: Conversation) -> None:
@@ -69,6 +70,20 @@ class InMemoryStorage:
         with self._lock:
             return self._structure_cache.get(structure_id)
 
+    # Task cancellation
+    def cancel_task(self, task_id: str) -> bool:
+        """Mark a task as canceled. Returns True if task exists."""
+        with self._lock:
+            if task_id in self._tasks:
+                self._canceled_tasks.add(task_id)
+                return True
+            return False
+
+    def is_task_canceled(self, task_id: str) -> bool:
+        """Check if a task has been canceled."""
+        with self._lock:
+            return task_id in self._canceled_tasks
+
     def clear_all(self) -> None:
         """Clear all data (useful for testing)."""
         with self._lock:
@@ -76,6 +91,7 @@ class InMemoryStorage:
             self._tasks.clear()
             self._task_sequences.clear()
             self._structure_cache.clear()
+            self._canceled_tasks.clear()
 
 
 # Singleton instance

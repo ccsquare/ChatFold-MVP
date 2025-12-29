@@ -59,6 +59,11 @@ export function useFoldingTask() {
         eventSourceRef.current = null;
       });
 
+      eventSource.addEventListener('canceled', () => {
+        eventSource.close();
+        eventSourceRef.current = null;
+      });
+
       eventSource.onerror = () => {
         eventSource.close();
         eventSourceRef.current = null;
@@ -141,8 +146,52 @@ export function useFoldingTask() {
     }
   }, []);
 
+  /**
+   * Cancel the current streaming task
+   * @returns true if cancellation was initiated successfully
+   */
+  const cancel = useCallback(async (): Promise<boolean> => {
+    const currentTask = activeTask;
+    if (!currentTask || !eventSourceRef.current) {
+      return false;
+    }
+
+    try {
+      // 1. Close the SSE connection immediately
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+
+      // 2. Call backend cancel API
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+      const response = await fetch(`${backendUrl}/api/v1/tasks/${currentTask.id}/cancel`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        console.error('Failed to cancel task on backend');
+      }
+
+      // 3. Update local state regardless of backend response
+      setActiveTask({
+        ...currentTask,
+        status: 'canceled',
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Error canceling task:', error);
+      // Still update local state for optimistic UI
+      setActiveTask({
+        ...currentTask,
+        status: 'canceled',
+      });
+      return false;
+    }
+  }, [activeTask, setActiveTask]);
+
   return {
     submit,
+    cancel,
     cleanup,
     startStream,
     task: activeTask,

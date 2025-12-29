@@ -15,7 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Paperclip, ArrowUp, Loader2, Sparkles, Scale, Zap, FileText, X } from 'lucide-react';
+import { Paperclip, ArrowUp, Loader2, Sparkles, Scale, Zap, FileText, X, Square } from 'lucide-react';
 import { HelixIcon } from '@/components/icons/ProteinIcon';
 import { cn } from '@/lib/utils';
 import { MentionableFile } from '@/lib/types';
@@ -35,6 +35,7 @@ export interface ChatInputBaseProps {
   placeholder?: string;
   disabled?: boolean;
   isSending?: boolean;
+  onStop?: () => void; // Callback when stop button is clicked
   showDisclaimer?: boolean;
   disclaimerText?: string;
 
@@ -60,6 +61,7 @@ export function ChatInputBase({
   placeholder = '输入序列或问题...',
   disabled = false,
   isSending = false,
+  onStop,
   showDisclaimer = false,
   disclaimerText = 'ChatFold AI can make mistakes. Verify scientific results independently.',
   enableFileMentions = true,
@@ -385,7 +387,7 @@ export function ChatInputBase({
               )}
             </div>
 
-            {/* Send button */}
+            {/* Send/Stop button */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -393,22 +395,24 @@ export function ChatInputBase({
                   size="icon"
                   className={cn(
                     "h-8 w-8",
-                    value.trim() && !isSending
-                      ? "bg-cf-highlight hover:bg-cf-highlight-strong text-cf-text"
-                      : "text-cf-text-muted"
+                    isSending
+                      ? "bg-red-500/10 hover:bg-red-500/20 text-red-500"
+                      : value.trim()
+                        ? "bg-cf-highlight hover:bg-cf-highlight-strong text-cf-text"
+                        : "text-cf-text-muted"
                   )}
-                  onClick={handleSubmit}
-                  disabled={!value.trim() || disabled || isSending}
+                  onClick={isSending ? onStop : handleSubmit}
+                  disabled={!isSending && (!value.trim() || disabled)}
                 >
                   {isSending ? (
-                    <Loader2 className="w-4 h-4 text-cf-success animate-spin" />
+                    <Square className="w-4 h-4 fill-current" />
                   ) : (
                     <ArrowUp className="w-4 h-4" />
                   )}
-                  <span className="sr-only">Send message</span>
+                  <span className="sr-only">{isSending ? 'Stop' : 'Send message'}</span>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Send message</TooltipContent>
+              <TooltipContent>{isSending ? 'Stop generation' : 'Send message'}</TooltipContent>
             </Tooltip>
           </div>
         </div>

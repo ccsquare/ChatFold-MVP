@@ -83,6 +83,26 @@ async def register_sequence(task_id: str, request: RegisterSequenceRequest):
     return {"ok": True}
 
 
+@router.post("/{task_id}/cancel")
+async def cancel_task(task_id: str):
+    """Cancel a running task."""
+    if not TASK_ID_PATTERN.match(task_id):
+        raise HTTPException(status_code=400, detail="Invalid task ID")
+
+    task = storage.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    # Check if task is still running
+    if task.status not in [StatusType.queued, StatusType.running]:
+        return {"ok": False, "message": "Task is not running", "status": task.status.value}
+
+    # Mark as canceled
+    success = storage.cancel_task(task_id)
+
+    return {"ok": success, "taskId": task_id, "status": "canceled" if success else task.status.value}
+
+
 @router.get("/{task_id}/stream")
 async def stream_task(task_id: str, sequence: str | None = Query(None)):
     """Stream task progress events via Server-Sent Events (SSE)."""
@@ -105,16 +125,25 @@ async def stream_task(task_id: str, sequence: str | None = Query(None)):
     async def event_stream():
         """Generate SSE events for the folding task."""
         for event in generate_step_events(task_id, final_sequence):
+            # Check if task was canceled before each event
+            if storage.is_task_canceled(task_id):
+                yield f'event: canceled\ndata: {{"taskId": "{task_id}", "message": "Task canceled by user"}}\n\n'
+                return
+
             # Format as SSE
             event_data = event.model_dump_json()
             yield f"event: step\ndata: {event_data}\n\n"
 
-            # Simulate processing time (500-1200ms between events)
-            delay = 0.5 + random.random() * 0.7
-            await asyncio.sleep(delay)
+            # Simulate processing time, split into smaller chunks for faster cancellation detection
+            for _ in range(5):
+                if storage.is_task_canceled(task_id):
+                    yield f'event: canceled\ndata: {{"taskId": "{task_id}", "message": "Task canceled by user"}}\n\n'
+                    return
+                await asyncio.sleep(0.1 + random.random() * 0.14)
 
-        # Send done event
-        yield f'event: done\ndata: {{"taskId": "{task_id}"}}\n\n'
+        # Send done event only if not canceled
+        if not storage.is_task_canceled(task_id):
+            yield f'event: done\ndata: {{"taskId": "{task_id}"}}\n\n'
 
     return StreamingResponse(
         event_stream(),
