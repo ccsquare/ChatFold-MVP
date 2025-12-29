@@ -6,7 +6,7 @@ import { parseFasta } from '@/lib/mock/generators';
 import { StepEvent, MentionableFile } from '@/lib/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { HelixIcon } from '@/components/icons/ProteinIcon';
 import { ChatInputBase, ThinkingIntensity } from './chat/ChatInputBase';
@@ -328,18 +328,6 @@ export function ChatPanel() {
   return (
     <TooltipProvider delayDuration={300}>
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        {/* Progress indicator when streaming */}
-        {isStreaming && (
-          <div className="flex-shrink-0 bg-cf-bg-tertiary border-b border-cf-border">
-            <div className="flex items-center justify-between px-3 py-2">
-              <div className="flex items-center gap-2">
-                <Loader2 className="w-4 h-4 text-cf-success animate-spin" />
-                <span className="text-xs font-medium text-cf-text">Thinking...</span>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Unified Timeline using shared component */}
         <ScrollArea className="flex-1 min-h-0 p-3">
           {timeline.length > 0 ? (
