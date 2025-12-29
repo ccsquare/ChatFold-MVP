@@ -585,10 +585,10 @@ export const useAppStore = create<AppState>()(
 
         return {
           // Persist layout settings, projects, and conversations
-          // Note: active task, streaming state, and pdbData are not persisted
+          // Note: active task, streaming state, layoutMode, and pdbData are not persisted
+          // layoutMode is intentionally not persisted - always start in chat-focus mode on refresh
           conversations: cleanConversations,
           activeConversationId: state.activeConversationId,
-          layoutMode: state.layoutMode,
           sidebarWidth: state.sidebarWidth,
           sidebarCollapsed: state.sidebarCollapsed,
           consoleWidth: state.consoleWidth,
