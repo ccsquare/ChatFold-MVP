@@ -82,6 +82,7 @@ export const useAppStore = create<AppState>()(
   isStreaming: false,
   thumbnails: {},
   isMolstarExpanded: false,
+  compareSelection: null,
 
   // Conversation actions
   createConversation: () => {
@@ -553,6 +554,27 @@ export const useAppStore = create<AppState>()(
     setTimeout(() => {
       set({ isLayoutTransitioning: false });
     }, 300);
+  },
+
+  // Compare selection actions (two-click compare from timeline)
+  selectForCompare: (artifact) => {
+    const current = get().compareSelection;
+
+    if (!current) {
+      // First selection - store it
+      set({ compareSelection: artifact });
+    } else if (current.structureId === artifact.structureId) {
+      // Clicked same one - deselect
+      set({ compareSelection: null });
+    } else {
+      // Second selection - open compare and clear
+      get().openCompareTab(artifact, current);
+      set({ compareSelection: null });
+    }
+  },
+
+  clearCompareSelection: () => {
+    set({ compareSelection: null });
   }
     }),
     {

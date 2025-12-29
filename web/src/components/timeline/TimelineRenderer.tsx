@@ -4,9 +4,10 @@ import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react'
 import { TimelineItem } from '@/hooks/useConversationTimeline';
 import { StructureArtifact, ChatMessage } from '@/lib/types';
 import { cn, formatTimestamp } from '@/lib/utils';
-import { Trophy, Loader2, Link2, Link2Off, RotateCcw, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, Link2, Link2Off, RotateCcw, CheckCircle2, ChevronDown, ChevronUp, Check } from 'lucide-react';
 import { StructureArtifactCard } from '@/components/StructureArtifactCard';
 import { resetSyncGroupCamera } from '@/hooks/useCameraSync';
+import { useAppStore } from '@/lib/store';
 import {
   Tooltip,
   TooltipContent,
@@ -205,6 +206,22 @@ function ArtifactGroup({
   const isComplete = !isStreaming || artifacts[artifacts.length - 1]?.index < allArtifacts.length - 1;
   const [isExpanded, setIsExpanded] = useState(false);
 
+  // Compare selection state
+  const compareSelection = useAppStore(state => state.compareSelection);
+  const selectForCompare = useAppStore(state => state.selectForCompare);
+  const clearCompareSelection = useAppStore(state => state.clearCompareSelection);
+
+  // ESC key to cancel selection
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && compareSelection) {
+        clearCompareSelection();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [compareSelection, clearCompareSelection]);
+
   // Unique sync group ID for this artifact group
   const syncGroupId = `artifact-group-${groupIndex}`;
 
@@ -337,13 +354,7 @@ function ArtifactGroup({
               const artifact = artifactItem.data;
               const currentIndex = artifactItem.index;
 
-              // Determine if this is the best result (based on label or last in group)
-              const isFinalByLabel = artifact.label?.toLowerCase() === 'final';
-              const isLastInGroup = localIndex === artifacts.length - 1;
-              const isFinal = isFinalByLabel || isLastInGroup;
-
               const hasNextInGroup = localIndex < artifacts.length - 1;
-              const hasNextArtifact = currentIndex < allArtifacts.length - 1;
 
               // Show streaming indicator on the last artifact during streaming
               const isLastAndStreaming = isStreaming && currentIndex === allArtifacts.length - 1;
@@ -355,17 +366,33 @@ function ArtifactGroup({
                 >
                   {/* Vertical timeline node column */}
                   <div className="relative flex flex-col items-center pt-1">
-                    {/* Timeline node */}
-                    <div
-                      className={cn(
-                        "relative z-10 flex items-center justify-center rounded-full border-2 transition-all duration-300",
-                        isFinal
-                          ? "w-6 h-6 border-cf-success bg-cf-bg text-cf-success shadow-[0_0_12px_rgba(34,197,94,0.3)] dark:shadow-[0_0_15px_rgba(103,218,122,0.2)]"
-                          : "w-3 h-3 border-cf-success/60 bg-cf-bg group-hover:border-cf-success group-hover:scale-110 group-hover:shadow-[0_0_8px_rgba(103,218,122,0.15)]"
-                      )}
-                    >
-                      {isFinal && <Trophy className="w-3 h-3" />}
-                    </div>
+                    {/* Timeline node - clickable for compare selection */}
+                    {(() => {
+                      const isSelected = compareSelection?.structureId === artifact.structureId;
+                      return (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                selectForCompare(artifact);
+                              }}
+                              className={cn(
+                                "relative z-10 flex items-center justify-center rounded-full border-2 transition-all duration-200 cursor-pointer",
+                                isSelected
+                                  ? "w-5 h-5 border-cf-accent bg-cf-accent text-white ring-2 ring-cf-accent/30 scale-110"
+                                  : "w-3 h-3 border-cf-success/60 bg-cf-bg hover:border-cf-accent hover:scale-125 hover:shadow-[0_0_8px_rgba(139,92,246,0.3)]"
+                              )}
+                            >
+                              {isSelected && <Check className="w-3 h-3" strokeWidth={3} />}
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="left" className="text-xs">
+                            {isSelected ? 'Click another to compare' : compareSelection ? 'Compare with selected' : 'Select for compare'}
+                          </TooltipContent>
+                        </Tooltip>
+                      );
+                    })()}
                     {/* Vertical connecting line */}
                     {(hasNextInGroup || isLastAndStreaming) && (
                       <div
@@ -375,7 +402,7 @@ function ArtifactGroup({
                           isLastAndStreaming ? "bg-cf-success/20 animate-pulse" : "bg-cf-success/40"
                         )}
                         style={{
-                          top: isFinal ? '24px' : '12px',
+                          top: '12px',
                           bottom: '-12px',
                         }}
                       />
