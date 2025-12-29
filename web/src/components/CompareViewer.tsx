@@ -52,8 +52,8 @@ export function CompareViewer({ tab, className, isExpanded = false, onToggleExpa
   const syncGroupId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // View mode: side-by-side (default) or overlay
-  const [viewMode, setViewMode] = useState<CompareViewMode>('side-by-side');
+  // View mode: overlay (default) or side-by-side
+  const [viewMode, setViewMode] = useState<CompareViewMode>('overlay');
 
   // Camera sync enabled by default (only relevant for side-by-side mode)
   const [cameraSyncEnabled, setCameraSyncEnabled] = useState(true);
@@ -213,27 +213,6 @@ export function CompareViewer({ tab, className, isExpanded = false, onToggleExpa
           {/* Separator */}
           <div className="w-px h-5 bg-cf-border mx-1" />
 
-          {/* View mode toggle */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={viewMode === 'overlay' ? "ghost-icon-active" : "ghost-icon"}
-                size="icon"
-                onClick={handleToggleViewMode}
-                className="h-8 w-8"
-              >
-                {viewMode === 'overlay' ? (
-                  <Combine className="w-4 h-4" />
-                ) : (
-                  <SplitSquareHorizontal className="w-4 h-4" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {viewMode === 'overlay' ? 'Overlay mode (click for side-by-side)' : 'Side-by-side mode (click for overlay)'}
-            </TooltipContent>
-          </Tooltip>
-
           {/* Camera sync toggle - only show in side-by-side mode */}
           {viewMode === 'side-by-side' && (
             <Tooltip>
@@ -256,6 +235,27 @@ export function CompareViewer({ tab, className, isExpanded = false, onToggleExpa
               </TooltipContent>
             </Tooltip>
           )}
+
+          {/* View mode toggle */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant={viewMode === 'overlay' ? "ghost-icon-active" : "ghost-icon"}
+                size="icon"
+                onClick={handleToggleViewMode}
+                className="h-8 w-8"
+              >
+                {viewMode === 'overlay' ? (
+                  <Combine className="w-4 h-4" />
+                ) : (
+                  <SplitSquareHorizontal className="w-4 h-4" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {viewMode === 'overlay' ? 'Overlay mode (click for side-by-side)' : 'Side-by-side mode (click for overlay)'}
+            </TooltipContent>
+          </Tooltip>
 
           {/* Fullscreen toggle */}
           <Tooltip>
