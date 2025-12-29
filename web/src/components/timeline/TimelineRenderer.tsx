@@ -203,7 +203,6 @@ function ArtifactGroup({
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const isComplete = !isStreaming || artifacts[artifacts.length - 1]?.index < allArtifacts.length - 1;
-  const structureCount = artifacts.length;
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Unique sync group ID for this artifact group
@@ -313,10 +312,7 @@ function ArtifactGroup({
               </>
             )}
 
-            {/* Structure count + Expand */}
-            <span className="text-xs text-cf-text-muted">
-              {structureCount} {structureCount === 1 ? 'structure' : 'structures'}
-            </span>
+            {/* Expand/Collapse */}
             <Button
               variant="ghost"
               size="icon"
