@@ -1,13 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { MentionableFile } from '@/lib/types';
 import { ChatInput } from './ChatInput';
-import { cn } from '@/lib/utils';
-import { Sparkles, PanelRight } from 'lucide-react';
+import { ChatEmptyState } from './ChatEmptyState';
+import { generateSequenceFilename } from '@/lib/utils';
+import { PanelRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { HelixIcon } from '@/components/icons/ProteinIcon';
 import {
   Tooltip,
   TooltipContent,
@@ -16,16 +16,9 @@ import {
 } from '@/components/ui/tooltip';
 import { useFoldingTask } from '@/hooks/useFoldingTask';
 import { useConversationTimeline } from '@/hooks/useConversationTimeline';
+import { useAvailableFiles } from '@/hooks/useAvailableFiles';
 import { parseFasta } from '@/lib/mock/generators';
 import { TimelineRenderer } from '@/components/timeline';
-import { EXAMPLE_SEQUENCES } from '@/lib/constants/sequences';
-
-// Generate a timestamp-based filename for sequence files
-const generateSequenceFilename = () => {
-  const now = new Date();
-  const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
-  return `sequence_${timestamp}.fasta`;
-};
 
 export function ChatView() {
   const {
@@ -33,14 +26,14 @@ export function ChatView() {
     conversations,
     addMessage,
     createConversation,
-    projects,
-    activeTask,
     switchToViewerMode,
     viewerTabs
   } = useAppStore();
 
+  // Use shared hooks
   const { submit } = useFoldingTask();
-  const { timeline, isStreaming, conversation, latestStatusMessage } = useConversationTimeline();
+  const { timeline, isStreaming, latestStatusMessage } = useConversationTimeline();
+  const availableFiles = useAvailableFiles();
 
   const [inputValue, setInputValue] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -54,66 +47,6 @@ export function ChatView() {
   }, [activeConversationId, conversations.length, createConversation]);
 
   const isEmpty = timeline.length === 0;
-
-  // Build available files for @ mentions with full path identification
-  const availableFiles = useMemo(() => {
-    const files: MentionableFile[] = [];
-
-    // Add files from all projects (with project path for disambiguation)
-    projects.forEach(project => {
-      project.inputs.forEach(input => {
-        files.push({
-          id: `${project.id}/${input.name}`,
-          name: input.name,
-          path: `${project.name}/${input.name}`,
-          type: input.type
-        });
-      });
-
-      project.outputs.forEach(output => {
-        files.push({
-          id: `${project.id}/outputs/${output.filename}`,
-          name: output.filename,
-          path: `${project.name}/outputs/${output.filename}`,
-          type: 'structure'
-        });
-      });
-    });
-
-    // Add files from activeTask
-    if (activeTask?.steps) {
-      activeTask.steps.forEach(step => {
-        step.artifacts?.forEach(artifact => {
-          const id = `task/${activeTask.id}/${artifact.filename}`;
-          if (!files.some(f => f.id === id)) {
-            files.push({
-              id,
-              name: artifact.filename,
-              path: `task/${activeTask.id}/${artifact.filename}`,
-              type: 'structure'
-            });
-          }
-        });
-      });
-    }
-
-    // Add assets from active conversation
-    if (conversation?.assets) {
-      conversation.assets.forEach(asset => {
-        const id = `conversation/${conversation.id}/${asset.name}`;
-        if (!files.some(f => f.id === id)) {
-          files.push({
-            id,
-            name: asset.name,
-            path: `conversation/${conversation.id}/${asset.name}`,
-            type: asset.type
-          });
-        }
-      });
-    }
-
-    return files;
-  }, [projects, activeTask, conversation]);
 
   // Auto scroll to bottom when timeline changes
   useEffect(() => {
@@ -232,67 +165,7 @@ export function ChatView() {
         {/* Scrollable content area */}
         <div className="flex-1 overflow-y-auto">
           {isEmpty ? (
-            // Empty state: centered content with examples
-            <div className="h-full flex flex-col items-center justify-center px-4 py-8">
-              <div className="w-full max-w-xl">
-                {/* Header */}
-                <div className="text-center mb-6">
-                  <div className="w-16 h-16 mx-auto mb-4 opacity-40">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/window.svg" alt="" className="w-full h-full" />
-                  </div>
-                  <p className="text-cf-text-secondary text-sm mb-1">How can I help you?</p>
-                  <p className="text-cf-text-muted text-xs">
-                    Paste a protein sequence to predict its structure
-                  </p>
-                </div>
-
-                {/* Example sequences section */}
-                <div className="w-full">
-                  {/* Section header */}
-                  <div className="flex items-center justify-center gap-2 mb-4">
-                    <Sparkles className="w-3.5 h-3.5 text-cf-accent/60" />
-                    <span className="text-xs font-medium text-cf-text-muted uppercase tracking-wide">
-                      试试示例序列
-                    </span>
-                  </div>
-
-                  {/* Cards grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {EXAMPLE_SEQUENCES.map((example, index) => (
-                      <button
-                        key={index}
-                        onClick={() => handleExampleClick(example.sequence)}
-                        style={{ animationDelay: `${index * 50}ms` }}
-                        className={cn(
-                          "animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards",
-                          "group relative flex flex-col items-start gap-1.5 p-3 text-left",
-                          "rounded-xl border border-cf-border/60",
-                          "bg-cf-bg-tertiary/40",
-                          "hover:bg-cf-bg-tertiary hover:border-cf-accent/60",
-                          "hover:-translate-y-0.5",
-                          "active:scale-[0.98] active:translate-y-0",
-                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-accent",
-                          "focus-visible:ring-offset-2 focus-visible:ring-offset-cf-bg",
-                          "transition-all duration-200 ease-out",
-                          "cursor-pointer"
-                        )}
-                      >
-                        <div className="absolute top-2.5 right-2.5">
-                          <HelixIcon className="w-4 h-4 text-cf-text-muted opacity-30 group-hover:text-cf-accent group-hover:opacity-100 group-hover:scale-110 transition-all duration-200" />
-                        </div>
-                        <span className="text-sm font-medium text-cf-text group-hover:text-cf-text pr-6 transition-colors duration-200">
-                          {example.name}
-                        </span>
-                        <span className="text-xs text-cf-text-muted line-clamp-1">
-                          {example.description}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
+            <ChatEmptyState onExampleClick={handleExampleClick} variant="wide" />
           ) : (
             // Active state: unified timeline
             <div className="max-w-4xl mx-auto px-4 py-6">
