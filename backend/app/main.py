@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .api.v1.api import api_router as api_v1_router
-from .config import settings
+from .settings import settings
 from .utils.logging import setup_logging
 
 # Initialize logging

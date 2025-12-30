@@ -1,7 +1,11 @@
 """Unified logging configuration for ChatFold backend.
 
 Provides consistent logging with both console and file output.
-Log files are written to /app/logs/ directory with rotation support.
+Log files are written to workspace/logs/ directory with rotation support.
+
+Paths:
+- local-dev: {project_root}/chatfold-workspace/logs/
+- production: /app/logs/
 """
 
 import logging
@@ -9,7 +13,7 @@ import os
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-from app.config import settings
+from app.settings import settings
 
 # Default log format
 LOG_FORMAT = "[%(asctime)s.%(msecs)03d][%(levelname)s][%(filename)s:%(lineno)d]: %(message)s"
@@ -57,8 +61,9 @@ def setup_logging(log_name: str = "chatfold") -> logging.Logger:
     """
     Setup logging configuration with console and file output.
 
-    Log file path pattern: /app/logs/{log_name}.log
-    In local development (no /app/logs), falls back to ./logs/{log_name}.log
+    Log file path pattern:
+    - local-dev: {project_root}/chatfold-workspace/logs/{log_name}.log
+    - production: /app/logs/{log_name}.log
 
     Args:
         log_name: The name of the log file (without .log extension).
@@ -70,8 +75,8 @@ def setup_logging(log_name: str = "chatfold") -> logging.Logger:
     # Always ensure app parent logger is configured first
     _ensure_app_logger_configured()
 
-    # Determine log directory
-    log_dir = _get_logs_root()
+    # Get log directory from settings
+    log_dir = settings.get_logs_root()
 
     # Configure component-specific file handler
     logger_name = f"app.{log_name}"
@@ -80,7 +85,7 @@ def setup_logging(log_name: str = "chatfold") -> logging.Logger:
     if log_dir:
         os.makedirs(log_dir, exist_ok=True)
 
-        log_file_path = os.path.join(log_dir, f"{log_name}.log")
+        log_file_path = str(log_dir / f"{log_name}.log")
 
         # Add file handler to app parent logger
         app_logger = logging.getLogger("app")
@@ -120,35 +125,6 @@ def get_logger(name: str) -> logging.Logger:
         name = f"app.{name}"
 
     return logging.getLogger(name)
-
-
-def _get_logs_root() -> Path | None:
-    """
-    Get the logs root directory.
-
-    Returns /app/logs if it exists (production), otherwise ./logs (development).
-    Returns None if neither can be created.
-    """
-    # Production path
-    prod_logs = Path("/app/logs")
-    if prod_logs.exists() or _can_create_dir(prod_logs):
-        return prod_logs
-
-    # Development fallback - relative to backend directory
-    dev_logs = Path(__file__).parent.parent.parent / "logs"
-    if _can_create_dir(dev_logs):
-        return dev_logs
-
-    return None
-
-
-def _can_create_dir(path: Path) -> bool:
-    """Check if a directory can be created."""
-    try:
-        path.mkdir(parents=True, exist_ok=True)
-        return True
-    except (OSError, PermissionError):
-        return False
 
 
 # Configure app parent logger on module import

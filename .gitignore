@@ -70,6 +70,9 @@ logs/
 *.local
 tmp/
 
+# local-dev storage(for test)
+chatfold-workspace
+
 # Playwright
 /test-results/
 /playwright-report/
