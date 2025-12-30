@@ -76,11 +76,40 @@ class Task(BaseModel):
 
 class Conversation(BaseModel):
     id: str
+    folderId: str | None = None  # 1:1 association with Folder
     title: str
     createdAt: int
     updatedAt: int
     messages: list[ChatMessage] = Field(default_factory=list)
     assets: list[Asset] = Field(default_factory=list)
+
+
+class Folder(BaseModel):
+    """Folder contains input sequences and output structures."""
+    id: str
+    userId: str | None = None  # For future multi-user support
+    name: str
+    createdAt: int
+    updatedAt: int
+    isExpanded: bool = True
+    inputs: list[Asset] = Field(default_factory=list)
+    outputs: list[StructureArtifact] = Field(default_factory=list)
+    taskId: str | None = None
+    conversationId: str | None = None  # 1:1 association with Conversation
+
+
+class UserPlan(str, Enum):
+    free = "free"
+    pro = "pro"
+
+
+class User(BaseModel):
+    """User model for multi-user support."""
+    id: str
+    name: str
+    email: str
+    plan: UserPlan = UserPlan.free
+    createdAt: int | None = None
 
 
 # Request/Response models
@@ -121,6 +150,18 @@ class CreateTaskRequest(BaseModel):
 
 class CreateConversationRequest(BaseModel):
     title: str | None = "New Conversation"
+    folderId: str | None = None  # Optional folder association
+
+
+class CreateFolderRequest(BaseModel):
+    name: str | None = None  # Auto-generate if not provided
+    conversationId: str | None = None  # Optional conversation association
+
+
+class AddFolderInputRequest(BaseModel):
+    name: str
+    type: Literal["fasta", "pdb", "text"]
+    content: str
 
 
 class CachePDBRequest(BaseModel):
