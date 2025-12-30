@@ -37,11 +37,11 @@ import {
 } from 'lucide-react';
 import { HelixIcon } from '@/components/icons/ProteinIcon';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { Project, Asset, StructureArtifact } from '@/lib/types';
+import { Folder, Asset, StructureArtifact } from '@/lib/types';
 import { pdbCache } from '@/hooks/useLazyPdb';
 
-interface ProjectItemProps {
-  project: Project;
+interface FolderItemProps {
+  folder: Folder;
   isActive: boolean;
   onSelect: () => void;
   onToggle: () => void;
@@ -51,8 +51,8 @@ interface ProjectItemProps {
   onOpenAsset: (asset: Asset) => void;
 }
 
-function ProjectItem({
-  project,
+function FolderItem({
+  folder,
   isActive,
   onSelect,
   onToggle,
@@ -60,32 +60,32 @@ function ProjectItem({
   onDelete,
   onOpenStructure,
   onOpenAsset,
-}: ProjectItemProps) {
+}: FolderItemProps) {
   const [isRenaming, setIsRenaming] = useState(false);
-  const [renameValue, setRenameValue] = useState(project.name);
+  const [renameValue, setRenameValue] = useState(folder.name);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleStartRename = useCallback(() => {
-    setRenameValue(project.name);
+    setRenameValue(folder.name);
     setIsRenaming(true);
     setTimeout(() => inputRef.current?.select(), 0);
-  }, [project.name]);
+  }, [folder.name]);
 
   const handleSubmitRename = useCallback(() => {
-    if (renameValue.trim() && renameValue !== project.name) {
+    if (renameValue.trim() && renameValue !== folder.name) {
       onRename(renameValue.trim());
     }
     setIsRenaming(false);
-  }, [renameValue, project.name, onRename]);
+  }, [renameValue, folder.name, onRename]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleSubmitRename();
     } else if (e.key === 'Escape') {
       setIsRenaming(false);
-      setRenameValue(project.name);
+      setRenameValue(folder.name);
     }
-  }, [handleSubmitRename, project.name]);
+  }, [handleSubmitRename, folder.name]);
 
   const handleDownload = useCallback((asset: Asset) => {
     const blob = new Blob([asset.content], { type: 'text/plain' });
@@ -128,7 +128,7 @@ function ProjectItem({
                 onToggle();
               }}
             >
-              {project.isExpanded ? (
+              {folder.isExpanded ? (
                 <ChevronDown className="w-3.5 h-3.5 text-cf-text-secondary group-hover/toggle:text-cf-text transition-colors" />
               ) : (
                 <ChevronRight className="w-3.5 h-3.5 text-cf-text-secondary group-hover/toggle:text-cf-text transition-colors" />
@@ -136,7 +136,7 @@ function ProjectItem({
             </button>
 
             {/* Folder Icon */}
-            {project.isExpanded ? (
+            {folder.isExpanded ? (
               <FolderOpen className="w-4 h-4 text-cf-warning/70 flex-shrink-0" />
             ) : (
               <FolderClosed className="w-4 h-4 text-cf-warning/70 flex-shrink-0" />
@@ -156,7 +156,7 @@ function ProjectItem({
               />
             ) : (
               <span className="text-[13px] truncate flex-1 text-cf-text">
-                {project.name}
+                {folder.name}
               </span>
             )}
           </div>
@@ -174,16 +174,16 @@ function ProjectItem({
       </ContextMenu>
 
       {/* Expanded Content */}
-      {project.isExpanded && (
+      {folder.isExpanded && (
         <ul className="ml-4 border-l border-cf-border/50">
           {/* Input Files */}
-          {project.inputs.length > 0 && (
+          {folder.inputs.length > 0 && (
             <li className="ml-2 mt-0.5">
               <span className="text-[11px] text-cf-text-muted uppercase tracking-wide px-1">
                 Inputs
               </span>
               <ul>
-                {project.inputs.map((input) => (
+                {folder.inputs.map((input) => (
                   <li key={input.id}>
                     <ContextMenu>
                       <ContextMenuTrigger asChild>
@@ -215,13 +215,13 @@ function ProjectItem({
           )}
 
           {/* Output Structures */}
-          {project.outputs.length > 0 && (
+          {folder.outputs.length > 0 && (
             <li className="ml-2 mt-0.5">
               <span className="text-[11px] text-cf-text-muted uppercase tracking-wide px-1">
                 Outputs
               </span>
               <ul>
-                {project.outputs.map((output) => (
+                {folder.outputs.map((output) => (
                   <li key={output.structureId}>
                     <ContextMenu>
                       <ContextMenuTrigger asChild>
@@ -253,7 +253,7 @@ function ProjectItem({
           )}
 
           {/* Empty State */}
-          {project.inputs.length === 0 && project.outputs.length === 0 && (
+          {folder.inputs.length === 0 && folder.outputs.length === 0 && (
             <li className="ml-2 px-1 py-1">
               <span className="text-[11px] text-cf-text-muted italic">
                 No files yet
@@ -275,14 +275,14 @@ export function Sidebar() {
     deleteConversation,
     addAsset,
     activeTask,
-    projects,
-    activeProjectId,
-    createProject,
-    setActiveProject,
-    renameProject,
-    toggleProjectExpanded,
-    addProjectInput,
-    deleteProject,
+    folders,
+    activeFolderId,
+    createFolder,
+    setActiveFolder,
+    renameFolder,
+    toggleFolderExpanded,
+    addFolderInput,
+    deleteFolder,
     openStructureTab,
     setSidebarCollapsed,
     layoutMode,
@@ -305,17 +305,17 @@ export function Sidebar() {
     setConfirmingDeleteId(null);
   }, [deleteConversation]);
 
-  const handleNewProject = () => {
-    createProject();
+  const handleNewFolder = () => {
+    createFolder();
   };
 
   const handleFileSelect = useCallback((files: FileList | null) => {
     if (!files || files.length === 0) return;
 
-    // Create a new project for the uploaded files
-    let projId = activeProjectId;
-    if (!projId) {
-      projId = createProject();
+    // Create a new folder for the uploaded files
+    let folderId = activeFolderId;
+    if (!folderId) {
+      folderId = createFolder();
     }
 
     // Also maintain backward compatibility with conversations
@@ -330,8 +330,8 @@ export function Sidebar() {
         const content = e.target?.result as string;
         const type = file.name.toLowerCase().endsWith('.pdb') ? 'pdb' : 'fasta';
 
-        // Add to project
-        addProjectInput(projId!, {
+        // Add to folder
+        addFolderInput(folderId!, {
           name: file.name,
           type,
           content
@@ -346,7 +346,7 @@ export function Sidebar() {
       };
       reader.readAsText(file);
     });
-  }, [activeProjectId, activeConversationId, createProject, createConversation, addProjectInput, addAsset]);
+  }, [activeFolderId, activeConversationId, createFolder, createConversation, addFolderInput, addAsset]);
 
   const handleOpenStructure = useCallback(async (structure: StructureArtifact) => {
     let pdbData: string | undefined = structure.pdbData;
@@ -413,7 +413,7 @@ export function Sidebar() {
         <div className="flex items-center justify-between px-2 py-1">
           <div className="flex items-center gap-1">
             <FolderOpen className="w-4 h-4 text-cf-text-secondary" aria-hidden="true" />
-            <span className="text-[13px] font-medium text-cf-text">Projects</span>
+            <span className="text-[13px] font-medium text-cf-text">Project</span>
           </div>
           <div className="flex items-center gap-0.5">
             <Tooltip>
@@ -436,7 +436,7 @@ export function Sidebar() {
                   variant="ghost-icon"
                   size="icon"
                   className="h-6 w-6"
-                  onClick={handleNewProject}
+                  onClick={handleNewFolder}
                 >
                   <FolderPlus className="w-3.5 h-3.5" aria-hidden="true" />
                   <span className="sr-only">New folder</span>
@@ -458,20 +458,20 @@ export function Sidebar() {
           aria-label="Select FASTA or PDB files"
         />
 
-        {/* Projects Tree */}
+        {/* Folders Tree */}
         <ScrollArea className="flex-1 px-2">
           <nav aria-label="Project files">
-            {/* Projects List */}
-            <ul role="tree" aria-label="Projects">
-              {projects.map(project => (
-                <ProjectItem
-                  key={project.id}
-                  project={project}
-                  isActive={project.id === activeProjectId}
-                  onSelect={() => setActiveProject(project.id)}
-                  onToggle={() => toggleProjectExpanded(project.id)}
-                  onRename={(name) => renameProject(project.id, name)}
-                  onDelete={() => deleteProject(project.id)}
+            {/* Folders List */}
+            <ul role="tree" aria-label="Folders">
+              {folders.map(folder => (
+                <FolderItem
+                  key={folder.id}
+                  folder={folder}
+                  isActive={folder.id === activeFolderId}
+                  onSelect={() => setActiveFolder(folder.id)}
+                  onToggle={() => toggleFolderExpanded(folder.id)}
+                  onRename={(name) => renameFolder(folder.id, name)}
+                  onDelete={() => deleteFolder(folder.id)}
                   onOpenStructure={handleOpenStructure}
                   onOpenAsset={handleOpenAsset}
                 />
@@ -479,7 +479,7 @@ export function Sidebar() {
             </ul>
 
             {/* Empty State */}
-            {projects.length === 0 && (
+            {folders.length === 0 && (
               <div className="text-center py-6 px-2">
                 <HelixIcon className="w-8 h-8 mx-auto mb-2 text-cf-text-muted opacity-30" />
                 <p className="text-[12px] text-cf-text-muted">
