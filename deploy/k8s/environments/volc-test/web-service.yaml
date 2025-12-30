@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: chatfold-web
+  namespace: chatfold
+  labels:
+    app: chatfold-web
+    component: web
+    environment: test
+spec:
+  type: ClusterIP
+  selector:
+    app: chatfold-web
+  ports:
+  - name: http
+    port: 3000
+    targetPort: 3000
+    protocol: TCP
