@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import { toast } from 'sonner';
 import { useAppStore } from '@/lib/store';
 import { cn, formatTimestamp, downloadPDBFile } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -38,11 +37,11 @@ import {
 } from 'lucide-react';
 import { HelixIcon } from '@/components/icons/ProteinIcon';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { Folder, Asset, StructureArtifact } from '@/lib/types';
+import { Project, Asset, StructureArtifact } from '@/lib/types';
 import { pdbCache } from '@/hooks/useLazyPdb';
 
-interface FolderItemProps {
-  folder: Folder;
+interface ProjectItemProps {
+  project: Project;
   isActive: boolean;
   onSelect: () => void;
   onToggle: () => void;
@@ -52,8 +51,8 @@ interface FolderItemProps {
   onOpenAsset: (asset: Asset) => void;
 }
 
-function FolderItem({
-  folder,
+function ProjectItem({
+  project,
   isActive,
   onSelect,
   onToggle,
@@ -61,32 +60,32 @@ function FolderItem({
   onDelete,
   onOpenStructure,
   onOpenAsset,
-}: FolderItemProps) {
+}: ProjectItemProps) {
   const [isRenaming, setIsRenaming] = useState(false);
-  const [renameValue, setRenameValue] = useState(folder.name);
+  const [renameValue, setRenameValue] = useState(project.name);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleStartRename = useCallback(() => {
-    setRenameValue(folder.name);
+    setRenameValue(project.name);
     setIsRenaming(true);
     setTimeout(() => inputRef.current?.select(), 0);
-  }, [folder.name]);
+  }, [project.name]);
 
   const handleSubmitRename = useCallback(() => {
-    if (renameValue.trim() && renameValue !== folder.name) {
+    if (renameValue.trim() && renameValue !== project.name) {
       onRename(renameValue.trim());
     }
     setIsRenaming(false);
-  }, [renameValue, folder.name, onRename]);
+  }, [renameValue, project.name, onRename]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleSubmitRename();
     } else if (e.key === 'Escape') {
       setIsRenaming(false);
-      setRenameValue(folder.name);
+      setRenameValue(project.name);
     }
-  }, [handleSubmitRename, folder.name]);
+  }, [handleSubmitRename, project.name]);
 
   const handleDownload = useCallback((asset: Asset) => {
     const blob = new Blob([asset.content], { type: 'text/plain' });
@@ -129,7 +128,7 @@ function FolderItem({
                 onToggle();
               }}
             >
-              {folder.isExpanded ? (
+              {project.isExpanded ? (
                 <ChevronDown className="w-3.5 h-3.5 text-cf-text-secondary group-hover/toggle:text-cf-text transition-colors" />
               ) : (
                 <ChevronRight className="w-3.5 h-3.5 text-cf-text-secondary group-hover/toggle:text-cf-text transition-colors" />
@@ -137,7 +136,7 @@ function FolderItem({
             </button>
 
             {/* Folder Icon */}
-            {folder.isExpanded ? (
+            {project.isExpanded ? (
               <FolderOpen className="w-4 h-4 text-cf-warning/70 flex-shrink-0" />
             ) : (
               <FolderClosed className="w-4 h-4 text-cf-warning/70 flex-shrink-0" />
@@ -157,7 +156,7 @@ function FolderItem({
               />
             ) : (
               <span className="text-[13px] truncate flex-1 text-cf-text">
-                {folder.name}
+                {project.name}
               </span>
             )}
           </div>
@@ -175,16 +174,16 @@ function FolderItem({
       </ContextMenu>
 
       {/* Expanded Content */}
-      {folder.isExpanded && (
+      {project.isExpanded && (
         <ul className="ml-4 border-l border-cf-border/50">
           {/* Input Files */}
-          {folder.inputs.length > 0 && (
+          {project.inputs.length > 0 && (
             <li className="ml-2 mt-0.5">
               <span className="text-[11px] text-cf-text-muted uppercase tracking-wide px-1">
                 Inputs
               </span>
               <ul>
-                {folder.inputs.map((input) => (
+                {project.inputs.map((input) => (
                   <li key={input.id}>
                     <ContextMenu>
                       <ContextMenuTrigger asChild>
@@ -216,13 +215,13 @@ function FolderItem({
           )}
 
           {/* Output Structures */}
-          {folder.outputs.length > 0 && (
+          {project.outputs.length > 0 && (
             <li className="ml-2 mt-0.5">
               <span className="text-[11px] text-cf-text-muted uppercase tracking-wide px-1">
                 Outputs
               </span>
               <ul>
-                {folder.outputs.map((output) => (
+                {project.outputs.map((output) => (
                   <li key={output.structureId}>
                     <ContextMenu>
                       <ContextMenuTrigger asChild>
@@ -254,7 +253,7 @@ function FolderItem({
           )}
 
           {/* Empty State */}
-          {folder.inputs.length === 0 && folder.outputs.length === 0 && (
+          {project.inputs.length === 0 && project.outputs.length === 0 && (
             <li className="ml-2 px-1 py-1">
               <span className="text-[11px] text-cf-text-muted italic">
                 No files yet
@@ -269,21 +268,21 @@ function FolderItem({
 
 export function Sidebar() {
   const {
-    currentUser,
     conversations,
     activeConversationId,
     createConversation,
     setActiveConversation,
     deleteConversation,
+    addAsset,
     activeTask,
-    folders,
-    activeFolderId,
-    createFolder,
-    setActiveFolder,
-    renameFolder,
-    toggleFolderExpanded,
-    addFolderInput,
-    deleteFolder,
+    projects,
+    activeProjectId,
+    createProject,
+    setActiveProject,
+    renameProject,
+    toggleProjectExpanded,
+    addProjectInput,
+    deleteProject,
     openStructureTab,
     setSidebarCollapsed,
     layoutMode,
@@ -306,62 +305,40 @@ export function Sidebar() {
     setConfirmingDeleteId(null);
   }, [deleteConversation]);
 
-  const handleNewFolder = () => {
-    createFolder();
+  const handleNewProject = () => {
+    createProject();
   };
 
   const handleFileSelect = useCallback((files: FileList | null) => {
     if (!files || files.length === 0) return;
 
-    // Validate file types - only allow .txt, .fasta, .fa, .pdb
-    const allowedExtensions = ['.txt', '.fasta', '.fa', '.pdb'];
-    const validFiles: File[] = [];
-    const invalidFiles: string[] = [];
+    // Create a new project for the uploaded files
+    let projId = activeProjectId;
+    if (!projId) {
+      projId = createProject();
+    }
+
+    // Also maintain backward compatibility with conversations
+    let convId = activeConversationId;
+    if (!convId) {
+      convId = createConversation();
+    }
 
     Array.from(files).forEach(file => {
-      const fileName = file.name.toLowerCase();
-      const isValid = allowedExtensions.some(ext => fileName.endsWith(ext));
-      if (isValid) {
-        validFiles.push(file);
-      } else {
-        invalidFiles.push(file.name);
-      }
-    });
-
-    // Show error for invalid files
-    if (invalidFiles.length > 0) {
-      toast.error('文件格式不支持', {
-        description: `${invalidFiles.join(', ')}\n只支持 .fasta, .fa, .pdb, .txt 文件`,
-        duration: 5000,
-      });
-    }
-
-    if (validFiles.length === 0) return;
-
-    // Create a new folder for the uploaded files if none active
-    // Asset 统一归属于 Folder.inputs
-    let folderId = activeFolderId;
-    if (!folderId) {
-      // Create folder first, then conversation with 1:1 association
-      folderId = createFolder();
-      createConversation(folderId);
-    }
-
-    validFiles.forEach(file => {
       const reader = new FileReader();
       reader.onload = (e) => {
         const content = e.target?.result as string;
-        // Determine file type from extension
-        const fileName = file.name.toLowerCase();
-        let type: 'fasta' | 'pdb' | 'text' = 'text';
-        if (fileName.endsWith('.fasta') || fileName.endsWith('.fa')) {
-          type = 'fasta';
-        } else if (fileName.endsWith('.pdb')) {
-          type = 'pdb';
-        }
+        const type = file.name.toLowerCase().endsWith('.pdb') ? 'pdb' : 'fasta';
 
-        // Add to folder.inputs (统一归属)
-        addFolderInput(folderId!, {
+        // Add to project
+        addProjectInput(projId!, {
+          name: file.name,
+          type,
+          content
+        });
+
+        // Also add to conversation for backward compatibility
+        addAsset(convId!, {
           name: file.name,
           type,
           content
@@ -369,7 +346,7 @@ export function Sidebar() {
       };
       reader.readAsText(file);
     });
-  }, [activeFolderId, createFolder, createConversation, addFolderInput]);
+  }, [activeProjectId, activeConversationId, createProject, createConversation, addProjectInput, addAsset]);
 
   const handleOpenStructure = useCallback(async (structure: StructureArtifact) => {
     let pdbData: string | undefined = structure.pdbData;
@@ -436,7 +413,7 @@ export function Sidebar() {
         <div className="flex items-center justify-between px-2 py-1">
           <div className="flex items-center gap-1">
             <FolderOpen className="w-4 h-4 text-cf-text-secondary" aria-hidden="true" />
-            <span className="text-[13px] font-medium text-cf-text">Project</span>
+            <span className="text-[13px] font-medium text-cf-text">Projects</span>
           </div>
           <div className="flex items-center gap-0.5">
             <Tooltip>
@@ -459,7 +436,7 @@ export function Sidebar() {
                   variant="ghost-icon"
                   size="icon"
                   className="h-6 w-6"
-                  onClick={handleNewFolder}
+                  onClick={handleNewProject}
                 >
                   <FolderPlus className="w-3.5 h-3.5" aria-hidden="true" />
                   <span className="sr-only">New folder</span>
@@ -484,27 +461,17 @@ export function Sidebar() {
         {/* Projects Tree */}
         <ScrollArea className="flex-1 px-2">
           <nav aria-label="Project files">
-            {/* Active Task Indicator */}
-            {activeTask && activeTask.status === 'running' && (
-              <div className="flex items-center gap-1.5 px-2 py-1.5 mb-2 bg-cf-success/10 rounded-lg" role="status" aria-live="polite">
-                <Loader2 className="w-4 h-4 text-cf-success animate-spin" aria-hidden="true" />
-                <span className="text-[12px] font-medium text-cf-success truncate">
-                  Folding in progress...
-                </span>
-              </div>
-            )}
-
-            {/* Folders List */}
-            <ul role="tree" aria-label="Folders">
-              {folders.map(folder => (
-                <FolderItem
-                  key={folder.id}
-                  folder={folder}
-                  isActive={folder.id === activeFolderId}
-                  onSelect={() => setActiveFolder(folder.id)}
-                  onToggle={() => toggleFolderExpanded(folder.id)}
-                  onRename={(name) => renameFolder(folder.id, name)}
-                  onDelete={() => deleteFolder(folder.id)}
+            {/* Projects List */}
+            <ul role="tree" aria-label="Projects">
+              {projects.map(project => (
+                <ProjectItem
+                  key={project.id}
+                  project={project}
+                  isActive={project.id === activeProjectId}
+                  onSelect={() => setActiveProject(project.id)}
+                  onToggle={() => toggleProjectExpanded(project.id)}
+                  onRename={(name) => renameProject(project.id, name)}
+                  onDelete={() => deleteProject(project.id)}
                   onOpenStructure={handleOpenStructure}
                   onOpenAsset={handleOpenAsset}
                 />
@@ -512,11 +479,11 @@ export function Sidebar() {
             </ul>
 
             {/* Empty State */}
-            {folders.length === 0 && (
+            {projects.length === 0 && (
               <div className="text-center py-6 px-2">
                 <HelixIcon className="w-8 h-8 mx-auto mb-2 text-cf-text-muted opacity-30" />
                 <p className="text-[12px] text-cf-text-muted">
-                  No folders yet
+                  No projects yet
                 </p>
                 <p className="text-[11px] text-cf-text-muted mt-1">
                   Upload files or paste a sequence to create one
@@ -600,16 +567,14 @@ export function Sidebar() {
           </ScrollArea>
         </nav>
 
-        {/* Footer - User Info */}
+        {/* Footer */}
         <footer className="border-t border-cf-border p-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xs font-medium" aria-hidden="true">
-                {currentUser.name.charAt(0).toUpperCase()}
-              </div>
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-pink-500" aria-hidden="true" />
               <div>
-                <p className="text-[12px] font-medium text-cf-text capitalize">{currentUser.name}</p>
-                <p className="text-[10px] text-cf-text-secondary capitalize">{currentUser.plan}</p>
+                <p className="text-[12px] font-medium text-cf-text">User</p>
+                <p className="text-[10px] text-cf-text-secondary">Free</p>
               </div>
             </div>
             <ThemeToggle />
