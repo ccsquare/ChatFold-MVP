@@ -4,7 +4,7 @@ import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react'
 import { TimelineItem } from '@/hooks/useConversationTimeline';
 import { StructureArtifact, ChatMessage } from '@/lib/types';
 import { cn, formatTimestamp } from '@/lib/utils';
-import { Loader2, Link2, Link2Off, RotateCcw, CheckCircle2, ChevronDown, ChevronUp, Check } from 'lucide-react';
+import { Loader2, Link2, Link2Off, RotateCcw, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
 import { StructureArtifactCard } from '@/components/StructureArtifactCard';
 import { ThinkingSummary } from '@/components/ThinkingSummary';
 import { resetSyncGroupCamera } from '@/hooks/useCameraSync';
@@ -207,12 +207,10 @@ function ArtifactGroup({
   const isComplete = !isStreaming || artifacts[artifacts.length - 1]?.index < allArtifacts.length - 1;
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Compare selection state
-  const compareSelection = useAppStore(state => state.compareSelection);
-  const selectForCompare = useAppStore(state => state.selectForCompare);
+  // ESC key to cancel compare selection
   const clearCompareSelection = useAppStore(state => state.clearCompareSelection);
+  const compareSelection = useAppStore(state => state.compareSelection);
 
-  // ESC key to cancel selection
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && compareSelection) {
@@ -351,83 +349,30 @@ function ArtifactGroup({
           )}
         >
           <div className="flex flex-col gap-3">
-            {artifacts.map((artifactItem, localIndex) => {
+            {artifacts.map((artifactItem) => {
               const artifact = artifactItem.data;
               const currentIndex = artifactItem.index;
-
-              const hasNextInGroup = localIndex < artifacts.length - 1;
-
-              // Show streaming indicator on the last artifact during streaming
-              const isLastAndStreaming = isStreaming && currentIndex === allArtifacts.length - 1;
 
               return (
                 <div
                   key={artifact.structureId}
-                  className="flex gap-3 group relative"
+                  className="flex flex-col gap-2"
                 >
-                  {/* Vertical timeline node column */}
-                  <div className="relative flex flex-col items-center pt-[5px]">
-                    {/* Timeline node - clickable for compare selection */}
-                    {(() => {
-                      const isSelected = compareSelection?.structureId === artifact.structureId;
-                      return (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                selectForCompare(artifact);
-                              }}
-                              className={cn(
-                                "relative z-10 flex items-center justify-center rounded-full border-2 transition-all duration-200 cursor-pointer",
-                                isSelected
-                                  ? "w-5 h-5 border-cf-accent bg-cf-accent text-white ring-2 ring-cf-accent/30 scale-110"
-                                  : "w-3 h-3 border-cf-success/60 bg-cf-bg hover:border-cf-accent hover:scale-125 hover:shadow-[0_0_8px_rgba(139,92,246,0.3)]"
-                              )}
-                            >
-                              {isSelected && <Check className="w-3 h-3" strokeWidth={3} />}
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent side="left" className="text-xs">
-                            {isSelected ? 'Click another to compare' : compareSelection ? 'Compare with selected' : 'Select for compare'}
-                          </TooltipContent>
-                        </Tooltip>
-                      );
-                    })()}
-                    {/* Vertical connecting line */}
-                    {(hasNextInGroup || isLastAndStreaming) && (
-                      <div
-                        aria-hidden="true"
-                        className={cn(
-                          "absolute w-0.5 left-1/2 -translate-x-1/2",
-                          isLastAndStreaming ? "bg-cf-success/20 animate-pulse" : "bg-cf-success/40"
-                        )}
-                        style={{
-                          top: '12px',
-                          bottom: '-12px',
-                        }}
-                      />
-                    )}
-                  </div>
+                  {/* CoT Thinking Summary - appears before structure */}
+                  {artifact.cot && (
+                    <ThinkingSummary text={artifact.cot} />
+                  )}
 
-                  {/* Artifact card with optional CoT */}
-                  <div className="flex-1 min-w-0 flex flex-col gap-2">
-                    {/* CoT Thinking Summary - appears before structure */}
-                    {artifact.cot && (
-                      <ThinkingSummary text={artifact.cot} />
-                    )}
-
-                    {/* Structure Card */}
-                    <StructureArtifactCard
-                      artifact={artifact}
-                      previousArtifact={currentIndex > 0 ? allArtifacts[currentIndex - 1]?.data : null}
-                      timestamp={artifactItem.timestamp}
-                      stepNumber={currentIndex + 1}
-                      showPreview={true}
-                      syncGroupId={syncGroupId}
-                      syncEnabled={cameraSyncEnabled}
-                    />
-                  </div>
+                  {/* Structure Card - now directly clickable for compare selection */}
+                  <StructureArtifactCard
+                    artifact={artifact}
+                    previousArtifact={currentIndex > 0 ? allArtifacts[currentIndex - 1]?.data : null}
+                    timestamp={artifactItem.timestamp}
+                    stepNumber={currentIndex + 1}
+                    showPreview={true}
+                    syncGroupId={syncGroupId}
+                    syncEnabled={cameraSyncEnabled}
+                  />
                 </div>
               );
             })}

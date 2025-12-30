@@ -10,9 +10,23 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { Download, ExternalLink, GitCompareArrows, Loader2 } from 'lucide-react';
+import { Download, ExternalLink, GitCompareArrows, Loader2, Check } from 'lucide-react';
 import { MolstarViewer } from '@/components/MolstarViewer';
 import { pdbCache } from '@/hooks/useLazyPdb';
+
+/**
+ * Hook to check if this structure is selected for compare
+ */
+function useIsSelectedForCompare(structureId: string): boolean {
+  return useAppStore(state => state.compareSelection?.structureId === structureId);
+}
+
+/**
+ * Hook to check if there's any compare selection active
+ */
+function useHasCompareSelection(): boolean {
+  return useAppStore(state => !!state.compareSelection);
+}
 
 /**
  * Hook to check if a specific structure is currently displayed in the Canvas
@@ -78,11 +92,15 @@ export function StructureArtifactCard({
   syncGroupId = null,
   syncEnabled = false,
 }: StructureArtifactCardProps) {
-  const { openStructureTab, openCompareTab } = useAppStore();
+  const { openStructureTab, openCompareTab, selectForCompare } = useAppStore();
   const isFinal = artifact.label?.toLowerCase() === 'final';
 
   // Check if this structure is currently displayed in the Canvas
   const isDisplayedInCanvas = useIsDisplayedInCanvas(artifact.structureId);
+
+  // Compare selection state
+  const isSelectedForCompare = useIsSelectedForCompare(artifact.structureId);
+  const hasCompareSelection = useHasCompareSelection();
 
   // Lazy loading state
   const [loadedPdbData, setLoadedPdbData] = useState<string | null>(null);
@@ -118,7 +136,8 @@ export function StructureArtifactCard({
     }
   }, [artifact.structureId, effectivePdbData, isLoading]);
 
-  const handleOpenStructure = async () => {
+  const handleOpenStructure = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click
     let pdbData = effectivePdbData;
     if (!pdbData) {
       pdbData = await loadPdbData();
@@ -128,7 +147,8 @@ export function StructureArtifactCard({
     }
   };
 
-  const handleDownload = async () => {
+  const handleDownload = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click
     let pdbData = effectivePdbData;
     if (!pdbData) {
       pdbData = await loadPdbData();
@@ -138,7 +158,8 @@ export function StructureArtifactCard({
     }
   };
 
-  const handleCompare = async () => {
+  const handleCompare = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click
     // Load current structure if needed
     let currentPdb = effectivePdbData;
     if (!currentPdb) {
@@ -164,16 +185,43 @@ export function StructureArtifactCard({
   const canShowPreviewPlaceholder = showPreview && needsLazyLoad;
   const canCompare = !!previousArtifact;
 
+  // Handle card click for compare selection
+  const handleCardClick = useCallback(() => {
+    selectForCompare(artifact);
+  }, [artifact, selectForCompare]);
+
   return (
-    <div className={cn(
-      "flex-1 min-w-0 rounded-xl border transition-all duration-300 overflow-hidden bg-cf-bg-secondary/60",
-      // Active display highlight with gradient glow
-      isDisplayedInCanvas
-        ? "border-cf-accent border-2 shadow-[0_0_8px_rgba(139,92,246,0.25),0_0_20px_rgba(139,92,246,0.12),0_0_40px_rgba(99,102,241,0.06)]"
-        : isFinal
-          ? "border-cf-success/40"
-          : "border-cf-border/60 hover:border-cf-accent/30"
-    )}>
+    <div
+      onClick={handleCardClick}
+      className={cn(
+        "relative group flex-1 min-w-0 rounded-xl border transition-all duration-300 overflow-hidden bg-cf-bg-secondary/60 cursor-pointer",
+        // Selected for compare - highest priority visual state
+        isSelectedForCompare
+          ? "border-cf-accent border-2 ring-2 ring-cf-accent/30 shadow-[0_0_12px_rgba(139,92,246,0.3)]"
+          // Active display highlight with gradient glow
+          : isDisplayedInCanvas
+            ? "border-cf-accent border-2 shadow-[0_0_8px_rgba(139,92,246,0.25),0_0_20px_rgba(139,92,246,0.12),0_0_40px_rgba(99,102,241,0.06)]"
+            : isFinal
+              ? "border-cf-success/40 hover:border-cf-accent/40 hover:shadow-md"
+              : "border-cf-border/60 hover:border-cf-accent/40 hover:shadow-md",
+        // Show hint when another card is selected
+        hasCompareSelection && !isSelectedForCompare && "hover:ring-2 hover:ring-cf-accent/20"
+      )}
+    >
+      {/* Selection indicator */}
+      {isSelectedForCompare && (
+        <div className="absolute top-2 right-2 z-20 flex items-center justify-center w-6 h-6 rounded-full bg-cf-accent text-white shadow-lg">
+          <Check className="w-4 h-4" strokeWidth={3} />
+        </div>
+      )}
+
+      {/* Selection hint when another is selected */}
+      {hasCompareSelection && !isSelectedForCompare && (
+        <div className="absolute top-2 right-2 z-20 px-2 py-1 rounded-full bg-cf-bg-secondary/90 text-[10px] text-cf-text-muted border border-cf-border/50 opacity-0 group-hover:opacity-100 transition-opacity">
+          Click to compare
+        </div>
+      )}
+
       {/* 3D Preview */}
       {hasPreview && (
         <div className="px-3 py-3">
@@ -206,7 +254,10 @@ export function StructureArtifactCard({
                 ? "bg-cf-bg-secondary"
                 : "bg-cf-bg-tertiary hover:bg-cf-bg-secondary hover:border-cf-accent/30"
             )}
-            onClick={!isLoading ? loadPdbData : undefined}
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent card click
+              if (!isLoading) loadPdbData();
+            }}
           >
             {isLoading ? (
               <>
