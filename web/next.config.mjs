@@ -1,9 +1,25 @@
 /** @type {import('next').NextConfig} */
+
+// Base path for deployment (e.g., '/chatfold' for http://ip/chatfold)
+// Set via NEXT_PUBLIC_BASE_PATH environment variable
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+
 const nextConfig = {
   reactStrictMode: false, // Temporarily disabled to debug SSE issues
   transpilePackages: ['molstar'],
+
+  // Base path for sub-path deployment
+  // Empty string for root path, '/chatfold' for sub-path
+  ...(basePath && { basePath }),
+  ...(basePath && { assetPrefix: basePath }),
+
   // Proxy API requests to Python backend in development
   async rewrites() {
+    // In production with basePath, API calls go through Ingress
+    if (basePath) {
+      return [];
+    }
+    // In development, proxy to local backend
     return [
       {
         source: '/api/v1/:path*',
