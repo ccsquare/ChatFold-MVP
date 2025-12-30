@@ -1,0 +1,174 @@
+#!/bin/bash
+
+# ChatFold Development Server Startup Script
+# Usage: ./start.sh [frontend|backend|all]
+
+set -e
+
+PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
+FRONTEND_DIR="$PROJECT_ROOT/web"
+BACKEND_DIR="$PROJECT_ROOT/backend"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+log_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}[OK]${NC} $1"
+}
+
+log_warn() {
+    echo -e "${YELLOW}[WARN]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# Check if a port is in use
+check_port() {
+    local port=$1
+    if lsof -i :$port > /dev/null 2>&1; then
+        return 0  # Port is in use
+    else
+        return 1  # Port is free
+    fi
+}
+
+# Kill process on port
+kill_port() {
+    local port=$1
+    if check_port $port; then
+        log_warn "Port $port is in use, killing existing process..."
+        lsof -ti :$port | xargs kill -9 2>/dev/null || true
+        sleep 1
+    fi
+}
+
+# Start frontend
+start_frontend() {
+    log_info "Starting frontend server..."
+    cd "$FRONTEND_DIR"
+
+    # Check if node_modules exists
+    if [ ! -d "node_modules" ]; then
+        log_info "Installing frontend dependencies..."
+        npm install
+    fi
+
+    # Kill existing process on port 3000
+    kill_port 3000
+
+    # Start Next.js dev server
+    npm run dev &
+    FRONTEND_PID=$!
+
+    # Wait for server to be ready
+    log_info "Waiting for frontend to be ready..."
+    for i in {1..30}; do
+        if curl -s http://localhost:3000 > /dev/null 2>&1; then
+            log_success "Frontend running at http://localhost:3000"
+            return 0
+        fi
+        sleep 1
+    done
+
+    log_warn "Frontend may still be starting..."
+}
+
+# Start backend
+start_backend() {
+    log_info "Starting backend server..."
+    cd "$BACKEND_DIR"
+
+    # Check if virtual environment exists
+    if [ ! -d "venv" ]; then
+        log_info "Creating Python virtual environment..."
+        python3 -m venv venv
+    fi
+
+    # Activate virtual environment
+    source venv/bin/activate
+
+    # Check if dependencies are installed
+    if ! pip show fastapi > /dev/null 2>&1; then
+        log_info "Installing backend dependencies..."
+        pip install -r requirements.txt
+    fi
+
+    # Kill existing process on port 8000
+    kill_port 8000
+
+    # Start FastAPI server
+    uvicorn app.main:app --reload --port 8000 &
+    BACKEND_PID=$!
+
+    # Wait for server to be ready
+    log_info "Waiting for backend to be ready..."
+    for i in {1..30}; do
+        if curl -s http://localhost:8000/health > /dev/null 2>&1; then
+            log_success "Backend running at http://localhost:8000"
+            log_success "API docs at http://localhost:8000/docs"
+            return 0
+        fi
+        sleep 1
+    done
+
+    log_warn "Backend may still be starting..."
+}
+
+# Cleanup function
+cleanup() {
+    log_info "Shutting down servers..."
+    kill_port 3000
+    kill_port 8000
+    log_success "Servers stopped"
+    exit 0
+}
+
+# Set up trap for cleanup
+trap cleanup SIGINT SIGTERM
+
+# Main
+main() {
+    local mode="${1:-all}"
+
+    echo ""
+    echo "=========================================="
+    echo "   ChatFold Development Server"
+    echo "=========================================="
+    echo ""
+
+    case $mode in
+        frontend|front|f)
+            start_frontend
+            ;;
+        backend|back|b)
+            start_backend
+            ;;
+        all|*)
+            start_backend
+            start_frontend
+            echo ""
+            log_success "All services started!"
+            echo ""
+            echo "  Frontend: http://localhost:3000"
+            echo "  Backend:  http://localhost:8000"
+            echo "  API Docs: http://localhost:8000/docs"
+            echo ""
+            echo "Press Ctrl+C to stop all servers"
+            ;;
+    esac
+
+    # Keep script running
+    wait
+}
+
+main "$@"
