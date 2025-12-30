@@ -1,0 +1,65 @@
+# ChatFold Backend Dockerfile
+# FastAPI + Uvicorn
+
+FROM python:3.11-slim
+
+# Build arguments for metadata
+ARG GIT_COMMIT=unknown
+ARG GIT_BRANCH=unknown
+ARG BUILD_TIME=unknown
+ARG VERSION=0.1.0
+
+# Docker labels (OCI standard)
+LABEL git.commit="${GIT_COMMIT}" \
+      git.branch="${GIT_BRANCH}" \
+      build.time="${BUILD_TIME}" \
+      version="${VERSION}" \
+      component="backend" \
+      project="chatfold"
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN groupadd --system --gid 1001 chatfold && \
+    useradd --system --uid 1001 --gid chatfold chatfold
+
+# Copy requirements and install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY . .
+
+# Write build info
+RUN echo "{\n\
+  \"git_commit\": \"${GIT_COMMIT}\",\n\
+  \"git_branch\": \"${GIT_BRANCH}\",\n\
+  \"build_time\": \"${BUILD_TIME}\",\n\
+  \"version\": \"${VERSION}\",\n\
+  \"component\": \"backend\"\n\
+}" > /app/.build-info.json
+
+# Set ownership
+RUN chown -R chatfold:chatfold /app
+
+# Switch to non-root user
+USER chatfold
+
+# Expose port
+EXPOSE 8000
+
+# Environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PORT=8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8000/api/v1/health || exit 1
+
+# Start command
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
