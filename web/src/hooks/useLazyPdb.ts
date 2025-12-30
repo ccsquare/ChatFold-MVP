@@ -1,95 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
-
-interface UseLazyPdbOptions {
-  /** Called when PDB data is successfully fetched */
-  onSuccess?: (pdbData: string) => void;
-  /** Called when fetch fails */
-  onError?: (error: Error) => void;
-}
-
-interface UseLazyPdbReturn {
-  /** Fetched PDB data (null if not loaded) */
-  pdbData: string | null;
-  /** Loading state */
-  isLoading: boolean;
-  /** Error state */
-  error: Error | null;
-  /** Fetch PDB data for a structure */
-  fetchPdb: (structureId: string, sequence?: string) => Promise<string | null>;
-  /** Reset state */
-  reset: () => void;
-}
-
-/**
- * Hook for lazy loading PDB data from the backend.
- * Used to restore structure visualization from historical conversations.
- */
-export function useLazyPdb(options: UseLazyPdbOptions = {}): UseLazyPdbReturn {
-  const [pdbData, setPdbData] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-
-  // Cache to avoid redundant requests
-  const cacheRef = useRef<Map<string, string>>(new Map());
-
-  const fetchPdb = useCallback(async (structureId: string, sequence?: string): Promise<string | null> => {
-    // Check cache first
-    const cached = cacheRef.current.get(structureId);
-    if (cached) {
-      setPdbData(cached);
-      return cached;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
-      const url = new URL(`${backendUrl}/api/v1/structures/${structureId}`);
-      if (sequence) {
-        url.searchParams.set('sequence', sequence);
-      }
-
-      const response = await fetch(url.toString());
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch PDB: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.text();
-
-      // Cache the result
-      cacheRef.current.set(structureId, data);
-      setPdbData(data);
-      options.onSuccess?.(data);
-
-      return data;
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error('Unknown error');
-      setError(error);
-      options.onError?.(error);
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [options]);
-
-  const reset = useCallback(() => {
-    setPdbData(null);
-    setIsLoading(false);
-    setError(null);
-  }, []);
-
-  return {
-    pdbData,
-    isLoading,
-    error,
-    fetchPdb,
-    reset,
-  };
-}
+import { getBackendUrl } from '@/lib/utils';
 
 /**
  * Shared PDB cache for multiple components.
@@ -127,8 +38,7 @@ class PdbCache {
 
   private async fetch(structureId: string, sequence?: string): Promise<string | null> {
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
-      const url = new URL(`${backendUrl}/api/v1/structures/${structureId}`);
+      const url = new URL(`${getBackendUrl()}/api/v1/structures/${structureId}`);
       if (sequence) {
         url.searchParams.set('sequence', sequence);
       }

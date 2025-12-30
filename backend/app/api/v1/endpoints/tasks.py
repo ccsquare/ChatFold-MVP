@@ -3,7 +3,6 @@
 import asyncio
 import random
 import re
-import time
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
@@ -16,11 +15,12 @@ from app.models.schemas import (
 )
 from app.services.mock_folding import generate_step_events
 from app.services.storage import storage
-from app.utils.id_generator import generate_id
-from app.utils.sequence_validator import (
-    DEFAULT_SEQUENCE,
-    SequenceValidationError,
+from app.utils import (
+    generate_id,
+    get_timestamp_ms,
     validate_amino_acid_sequence,
+    SequenceValidationError,
+    DEFAULT_SEQUENCE,
 )
 
 router = APIRouter(tags=["Tasks"])
@@ -37,13 +37,12 @@ async def create_task(request: CreateTaskRequest):
     except ValueError as e:
         raise HTTPException(status_code=400, detail={"error": "Validation failed", "details": [str(e)]}) from e
 
-    now = int(time.time() * 1000)
     task = Task(
         id=generate_id("task"),
         conversationId=request.conversationId or generate_id("conv"),
         status=StatusType.queued,
         sequence=sequence,
-        createdAt=now,
+        createdAt=get_timestamp_ms(),
         steps=[],
         structures=[],
     )

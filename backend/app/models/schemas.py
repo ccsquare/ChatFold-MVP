@@ -80,7 +80,6 @@ class Conversation(BaseModel):
     createdAt: int
     updatedAt: int
     messages: list[ChatMessage] = Field(default_factory=list)
-    tasks: list[Task] = Field(default_factory=list)
     assets: list[Asset] = Field(default_factory=list)
 
 

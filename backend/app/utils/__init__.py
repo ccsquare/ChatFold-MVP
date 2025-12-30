@@ -8,6 +8,7 @@ from .sequence_validator import (
     normalize_sequence,
     validate_amino_acid_sequence,
 )
+from .time_utils import get_timestamp_ms
 
 __all__ = [
     "generate_mock_pdb",
@@ -15,6 +16,7 @@ __all__ = [
     "generate_id",
     "get_logger",
     "setup_logging",
+    "get_timestamp_ms",
     "DEFAULT_SEQUENCE",
     "SequenceValidationError",
     "normalize_sequence",

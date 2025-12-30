@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useAppStore } from '@/lib/store';
 import { parseFasta } from '@/lib/mock/generators';
-import { StepEvent, MentionableFile } from '@/lib/types';
+import { MentionableFile } from '@/lib/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Sparkles } from 'lucide-react';
@@ -13,6 +13,7 @@ import { ChatInputBase, ThinkingIntensity } from './chat/ChatInputBase';
 import { EXAMPLE_SEQUENCES } from '@/lib/constants/sequences';
 import { useConversationTimeline } from '@/hooks/useConversationTimeline';
 import { TimelineRenderer } from '@/components/timeline';
+import { useFoldingTask } from '@/hooks/useFoldingTask';
 
 export function ChatPanel() {
   const {
@@ -20,7 +21,6 @@ export function ChatPanel() {
     createConversation,
     addMessage,
     setActiveTask,
-    addStepEvent,
     activeTask,
     // Project management
     projects,
@@ -32,59 +32,12 @@ export function ChatPanel() {
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [thinkingIntensity, setThinkingIntensity] = useState<ThinkingIntensity>('high');
-  const eventSourceRef = useRef<EventSource | null>(null);
+
+  // Use shared folding task hook for SSE management
+  const { startStream, cancel: cancelTask } = useFoldingTask();
 
   // Use shared timeline hook
   const { timeline, isStreaming, conversation, latestStatusMessage } = useConversationTimeline();
-
-  // Cleanup EventSource on unmount
-  useEffect(() => {
-    return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
-      }
-    };
-  }, []);
-
-  // Start SSE streaming for a task
-  // Note: SSE connects directly to Python backend to avoid Next.js proxy buffering
-  const startTaskStream = useCallback(
-    async (taskId: string, sequence: string) => {
-      // Close any existing connection before starting a new one
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-      }
-
-      // Connect directly to Python backend for SSE (bypasses Next.js proxy buffering)
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
-      const eventSource = new EventSource(
-        `${backendUrl}/api/v1/tasks/${taskId}/stream?sequence=${encodeURIComponent(sequence)}`
-      );
-      eventSourceRef.current = eventSource;
-
-      eventSource.addEventListener('step', (event) => {
-        const stepEvent: StepEvent = JSON.parse(event.data);
-        addStepEvent(taskId, stepEvent);
-      });
-
-      eventSource.addEventListener('done', () => {
-        eventSource.close();
-        eventSourceRef.current = null;
-      });
-
-      eventSource.addEventListener('canceled', () => {
-        eventSource.close();
-        eventSourceRef.current = null;
-      });
-
-      eventSource.onerror = () => {
-        eventSource.close();
-        eventSourceRef.current = null;
-      };
-    },
-    [addStepEvent]
-  );
 
   // Generate a timestamp-based filename for sequence files
   const generateSequenceFilename = () => {
@@ -181,7 +134,7 @@ export function ChatPanel() {
 
             // Set active task and start streaming
             setActiveTask({ ...task, status: 'running' });
-            startTaskStream(task.id, sequence);
+            startStream(task.id, sequence);
           } else {
             addMessage(convId, {
               role: 'assistant',
@@ -215,34 +168,14 @@ export function ChatPanel() {
       createProject,
       isSending,
       setActiveTask,
-      startTaskStream,
+      startStream,
     ]
   );
 
   // Handle stop button click
   const handleStop = useCallback(async () => {
-    // Close the EventSource connection
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
-    }
-
-    // Cancel on backend
-    if (activeTask?.id) {
-      try {
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
-        await fetch(`${backendUrl}/api/v1/tasks/${activeTask.id}/cancel`, {
-          method: 'POST',
-        });
-      } catch (error) {
-        console.error('Failed to cancel task:', error);
-      }
-    }
-
-    // Update state to canceled
-    if (activeTask) {
-      setActiveTask({ ...activeTask, status: 'canceled' });
-    }
+    // Use shared hook to cancel the task
+    await cancelTask();
     setIsSending(false);
 
     // Add cancellation message to chat
@@ -252,7 +185,7 @@ export function ChatPanel() {
         content: 'Structure prediction was canceled.',
       });
     }
-  }, [activeTask, activeConversationId, addMessage, setActiveTask]);
+  }, [cancelTask, activeConversationId, addMessage]);
 
   // Build available files for @ mentions with full path identification
   const availableFiles = useMemo(() => {

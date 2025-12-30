@@ -5,6 +5,22 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * Get the backend API URL from environment or default to localhost
+ */
+export function getBackendUrl(): string {
+  return process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+}
+
+/**
+ * Generate a unique ID with optional prefix
+ */
+export function generateId(prefix: string = ''): string {
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).slice(2, 8);
+  return prefix ? `${prefix}_${timestamp}${random}` : `${timestamp}${random}`;
+}
+
 export function formatTimestamp(ts: number): string {
   const date = new Date(ts);
   const now = new Date();

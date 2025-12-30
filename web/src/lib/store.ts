@@ -10,9 +10,10 @@ import {
   ViewerTab,
   StructureArtifact,
   Project,
-  AtomInfo,
-  LayoutMode
+  LayoutMode,
+  AtomInfo
 } from './types';
+import { generateId } from './utils';
 
 // Default sidebar width
 const DEFAULT_SIDEBAR_WIDTH = 240;
@@ -44,12 +45,6 @@ function formatConversationTimestamp(timestamp: number): string {
   const hours = String(date.getHours()).padStart(2, '0');
   const minutes = String(date.getMinutes()).padStart(2, '0');
   return `${month} ${day}, ${hours}:${minutes}`;
-}
-
-function generateId(prefix: string = ''): string {
-  const timestamp = Date.now().toString(36);
-  const random = Math.random().toString(36).slice(2, 8);
-  return prefix ? `${prefix}_${timestamp}${random}` : `${timestamp}${random}`;
 }
 
 export const useAppStore = create<AppState>()(
@@ -94,7 +89,6 @@ export const useAppStore = create<AppState>()(
       createdAt: now,
       updatedAt: now,
       messages: [],
-      tasks: [],
       assets: []
     };
 
@@ -383,6 +377,30 @@ export const useAppStore = create<AppState>()(
     set({ activeTabId: tabId });
   },
 
+  setTabSelection: (tabId, selection) => {
+    set(state => ({
+      viewerTabs: state.viewerTabs.map(tab =>
+        tab.id === tabId
+          ? { ...tab, selection }
+          : tab
+      )
+    }));
+  },
+
+  setTabAtomCount: (tabId, count) => {
+    set(state => ({
+      viewerTabs: state.viewerTabs.map(tab =>
+        tab.id === tabId
+          ? { ...tab, atomCount: count }
+          : tab
+      )
+    }));
+  },
+
+  setMolstarExpanded: (expanded) => {
+    set({ isMolstarExpanded: expanded });
+  },
+
   // Console actions
   setConsoleWidth: (width) => {
     const clampedWidth = Math.min(MAX_CONSOLE_WIDTH, Math.max(MIN_CONSOLE_WIDTH, width));
@@ -402,18 +420,6 @@ export const useAppStore = create<AppState>()(
       // Don't auto-switch layout mode - let user stay in their current mode
       // This prevents EventSource from being closed when ChatView unmounts
       consoleCollapsed: isRunning ? false : get().consoleCollapsed
-    });
-  },
-
-  updateTask: (taskId, updates) => {
-    set(state => {
-      if (state.activeTask?.id === taskId) {
-        return {
-          activeTask: { ...state.activeTask, ...updates },
-          isStreaming: updates.status === 'running'
-        };
-      }
-      return state;
     });
   },
 
@@ -511,31 +517,6 @@ export const useAppStore = create<AppState>()(
         [structureId]: thumbnail
       }
     }));
-  },
-
-  setTabSelection: (tabId, selection) => {
-    set(state => ({
-      viewerTabs: state.viewerTabs.map(tab =>
-        tab.id === tabId
-          ? { ...tab, selection }
-          : tab
-      )
-    }));
-  },
-
-  setTabAtomCount: (tabId, atomCount) => {
-    set(state => ({
-      viewerTabs: state.viewerTabs.map(tab =>
-        tab.id === tabId
-          ? { ...tab, atomCount }
-          : tab
-      )
-    }));
-  },
-
-  // Molstar expanded state
-  setMolstarExpanded: (expanded) => {
-    set({ isMolstarExpanded: expanded });
   },
 
   // Compare viewer state actions
