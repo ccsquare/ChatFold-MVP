@@ -111,6 +111,9 @@ export interface AtomInfo {
   label: string;
 }
 
+// View mode for comparison
+export type CompareViewMode = 'side-by-side' | 'overlay';
+
 export interface ViewerTab {
   id: string;
   structureId: string;
@@ -128,6 +131,9 @@ export interface ViewerTab {
     filename: string;
     pdbData: string;
   };
+  // Compare viewer state (persisted across fullscreen toggle)
+  compareViewMode?: CompareViewMode;
+  compareCameraSyncEnabled?: boolean;
 }
 
 /**
@@ -230,6 +236,8 @@ export interface AppState {
   setTabSelection: (tabId: string, selection: AtomInfo | null) => void;
   setTabAtomCount: (tabId: string, atomCount: number) => void;
   setMolstarExpanded: (expanded: boolean) => void;
+  setCompareViewMode: (tabId: string, mode: CompareViewMode) => void;
+  setCompareCameraSyncEnabled: (tabId: string, enabled: boolean) => void;
 
   // Layout mode actions
   setLayoutMode: (mode: LayoutMode) => void;

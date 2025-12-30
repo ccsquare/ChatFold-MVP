@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
-import { createPortal } from 'react-dom';
+import { useState, useCallback } from 'react';
 import { useAppStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { CanvasTabs } from './CanvasTabs';
@@ -21,12 +20,6 @@ export function Canvas() {
 
   const activeTab = viewerTabs.find(t => t.id === activeTabId);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
-
-  // Set up portal container on mount
-  useEffect(() => {
-    setPortalContainer(document.body);
-  }, []);
 
   const handleAtomClick = useCallback((atomInfo: AtomInfo) => {
     if (activeTabId) {
@@ -44,103 +37,62 @@ export function Canvas() {
     setIsExpanded(prev => !prev);
   }, []);
 
+  // Determine if current tab is a sequence file
+  const isSequenceFile = activeTab?.filename && /\.(fasta|fa|txt)$/i.test(activeTab.filename);
+
   return (
     <main className="flex-1 flex flex-col overflow-hidden" aria-label="Protein structure viewer">
-      {/* Tabs - hide when Mol* built-in expand is active */}
-      {!isMolstarExpanded && <CanvasTabs />}
+      {/* Tabs - hide when Mol* built-in expand is active or in CSS fullscreen mode */}
+      {!isMolstarExpanded && !isExpanded && <CanvasTabs />}
 
       {/* Main Canvas Area */}
       <div className="flex-1 flex overflow-hidden">
         {activeTab ? (
-          <>
-            {/* Viewer Area - render in portal when expanded */}
-            {isExpanded && portalContainer ? (
-              createPortal(
-                <section
-                  className="fixed inset-0 z-[9999] bg-cf-bg flex flex-col"
-                  aria-label="3D structure viewer (expanded)"
-                >
-                  {/* Toolbar - hide in compare mode (CompareViewer has its own toolbar) */}
-                  {!activeTab.isCompare && (
-                    <ViewerToolbar
-                      isExpanded={isExpanded}
-                      onToggleExpand={handleToggleExpand}
-                    />
-                  )}
-
-                  {/* Viewer Content */}
-                  <div className="flex-1 relative">
-                    {activeTab.isCompare ? (
-                      <CompareViewer
-                        key={`${activeTab.id}-expanded`}
-                        tab={activeTab}
-                        isExpanded={isExpanded}
-                        onToggleExpand={handleToggleExpand}
-                      />
-                    ) : activeTab.filename && /\.(fasta|fa|txt)$/i.test(activeTab.filename) ? (
-                      <SequenceViewer
-                        content={activeTab.pdbData}
-                        label={activeTab.label}
-                      />
-                    ) : (
-                      <MolstarViewer
-                        key={`${activeTab.id}-expanded`}
-                        tabId={activeTab.id}
-                        pdbData={activeTab.pdbData}
-                        structureId={activeTab.structureId}
-                        isExpanded={isExpanded}
-                        onToggleExpand={handleToggleExpand}
-                        onAtomClick={handleAtomClick}
-                        onAtomCountChange={handleAtomCountChange}
-                      />
-                    )}
-                  </div>
-                </section>,
-                portalContainer
-              )
-            ) : (
-              <section
-                className="flex-1 flex flex-col overflow-hidden relative"
-                aria-label="3D structure viewer"
-              >
-                {/* Toolbar - hide when Mol* built-in expand is active or in compare mode (CompareViewer has its own toolbar) */}
-                {!isMolstarExpanded && !activeTab.isCompare && (
-                  <ViewerToolbar
-                    isExpanded={isExpanded}
-                    onToggleExpand={handleToggleExpand}
-                  />
-                )}
-
-                {/* Viewer Content */}
-                <div className="flex-1 relative overflow-hidden">
-                  {activeTab.isCompare ? (
-                    <CompareViewer
-                      key={activeTab.id}
-                      tab={activeTab}
-                      isExpanded={isExpanded}
-                      onToggleExpand={handleToggleExpand}
-                    />
-                  ) : activeTab.filename && /\.(fasta|fa|txt)$/i.test(activeTab.filename) ? (
-                    <SequenceViewer
-                      content={activeTab.pdbData}
-                      label={activeTab.label}
-                    />
-                  ) : (
-                    <MolstarViewer
-                      key={activeTab.id}
-                      tabId={activeTab.id}
-                      pdbData={activeTab.pdbData}
-                      structureId={activeTab.structureId}
-                      isExpanded={isExpanded}
-                      onToggleExpand={handleToggleExpand}
-                      onAtomClick={handleAtomClick}
-                      onAtomCountChange={handleAtomCountChange}
-                    />
-                  )}
-                </div>
-              </section>
+          <section
+            className={cn(
+              "flex flex-col overflow-hidden relative transition-all duration-200",
+              isExpanded
+                ? "fixed inset-0 z-[9999] bg-cf-bg"
+                : "flex-1"
             )}
-          </>
+            aria-label={isExpanded ? "3D structure viewer (expanded)" : "3D structure viewer"}
+          >
+            {/* Toolbar - hide when Mol* built-in expand is active or in compare mode (CompareViewer has its own toolbar) */}
+            {!isMolstarExpanded && !activeTab.isCompare && (
+              <ViewerToolbar
+                isExpanded={isExpanded}
+                onToggleExpand={handleToggleExpand}
+              />
+            )}
+
+            {/* Viewer Content - single instance, never remounts on fullscreen toggle */}
+            <div className="flex-1 relative overflow-hidden">
+              {activeTab.isCompare ? (
+                <CompareViewer
+                  key={activeTab.id}
+                  tab={activeTab}
+                  isExpanded={isExpanded}
+                  onToggleExpand={handleToggleExpand}
+                />
+              ) : isSequenceFile ? (
+                <SequenceViewer
+                  content={activeTab.pdbData}
+                  label={activeTab.label}
+                />
+              ) : (
+                <MolstarViewer
+                  key={activeTab.id}
+                  tabId={activeTab.id}
+                  pdbData={activeTab.pdbData}
+                  structureId={activeTab.structureId}
+                  isExpanded={isExpanded}
+                  onToggleExpand={handleToggleExpand}
+                  onAtomClick={handleAtomClick}
+                  onAtomCountChange={handleAtomCountChange}
+                />
+              )}
+            </div>
+          </section>
         ) : (
           /* Empty State */
           <div className="flex-1 flex items-center justify-center" role="status" aria-label="No structure loaded">

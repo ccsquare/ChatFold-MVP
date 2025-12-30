@@ -538,6 +538,27 @@ export const useAppStore = create<AppState>()(
     set({ isMolstarExpanded: expanded });
   },
 
+  // Compare viewer state actions
+  setCompareViewMode: (tabId, mode) => {
+    set(state => ({
+      viewerTabs: state.viewerTabs.map(tab =>
+        tab.id === tabId
+          ? { ...tab, compareViewMode: mode }
+          : tab
+      )
+    }));
+  },
+
+  setCompareCameraSyncEnabled: (tabId, enabled) => {
+    set(state => ({
+      viewerTabs: state.viewerTabs.map(tab =>
+        tab.id === tabId
+          ? { ...tab, compareCameraSyncEnabled: enabled }
+          : tab
+      )
+    }));
+  },
+
   // Layout mode actions
   setLayoutMode: (mode) => {
     set({ layoutMode: mode });

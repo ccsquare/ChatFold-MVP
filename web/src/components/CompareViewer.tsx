@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useCallback, useId, useRef, useEffect } from 'react';
-import { ViewerTab } from '@/lib/types';
+import { useCallback, useId, useRef, useEffect, useState } from 'react';
+import { ViewerTab, CompareViewMode } from '@/lib/types';
+import { useAppStore } from '@/lib/store';
 import { cn, downloadFile } from '@/lib/utils';
 import { MolstarViewer } from './MolstarViewer';
 import { Button } from '@/components/ui/button';
@@ -32,9 +33,6 @@ import {
 } from 'lucide-react';
 import { resetSyncGroupCamera } from '@/hooks/useCameraSync';
 
-// View mode for comparison
-type CompareViewMode = 'side-by-side' | 'overlay';
-
 interface CompareViewerProps {
   tab: ViewerTab;
   className?: string;
@@ -52,21 +50,24 @@ export function CompareViewer({ tab, className, isExpanded = false, onToggleExpa
   const syncGroupId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // View mode: overlay (default) or side-by-side
-  const [viewMode, setViewMode] = useState<CompareViewMode>('overlay');
+  // Get persisted state from store (with defaults)
+  const setCompareViewMode = useAppStore(state => state.setCompareViewMode);
+  const setCompareCameraSyncEnabled = useAppStore(state => state.setCompareCameraSyncEnabled);
 
-  // Camera sync enabled by default (only relevant for side-by-side mode)
-  const [cameraSyncEnabled, setCameraSyncEnabled] = useState(true);
+  // Use store state with defaults
+  const viewMode: CompareViewMode = tab.compareViewMode ?? 'overlay';
+  const cameraSyncEnabled = tab.compareCameraSyncEnabled ?? true;
 
-  // Toggle view mode
+  // Toggle view mode (persisted to store)
   const handleToggleViewMode = useCallback(() => {
-    setViewMode(prev => prev === 'side-by-side' ? 'overlay' : 'side-by-side');
-  }, []);
+    const newMode = viewMode === 'side-by-side' ? 'overlay' : 'side-by-side';
+    setCompareViewMode(tab.id, newMode);
+  }, [tab.id, viewMode, setCompareViewMode]);
 
-  // Toggle camera sync
+  // Toggle camera sync (persisted to store)
   const handleToggleCameraSync = useCallback(() => {
-    setCameraSyncEnabled(prev => !prev);
-  }, []);
+    setCompareCameraSyncEnabled(tab.id, !cameraSyncEnabled);
+  }, [tab.id, cameraSyncEnabled, setCompareCameraSyncEnabled]);
 
   // Reset all cameras to default view
   const handleResetCameras = useCallback(() => {
