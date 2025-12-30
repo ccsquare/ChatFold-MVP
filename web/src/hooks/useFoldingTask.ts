@@ -3,6 +3,7 @@
 import { useCallback, useRef, useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
 import { StepEvent, Task } from '@/lib/types';
+import { getBackendUrl } from '@/lib/utils';
 
 /**
  * Shared hook for managing protein folding tasks with SSE streaming.
@@ -43,9 +44,8 @@ export function useFoldingTask() {
       }
 
       // Connect directly to Python backend for SSE (bypasses Next.js proxy buffering)
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
       const eventSource = new EventSource(
-        `${backendUrl}/api/v1/tasks/${taskId}/stream?sequence=${encodeURIComponent(sequence)}`
+        `${getBackendUrl()}/api/v1/tasks/${taskId}/stream?sequence=${encodeURIComponent(sequence)}`
       );
       eventSourceRef.current = eventSource;
 
@@ -162,8 +162,7 @@ export function useFoldingTask() {
       eventSourceRef.current = null;
 
       // 2. Call backend cancel API
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
-      const response = await fetch(`${backendUrl}/api/v1/tasks/${currentTask.id}/cancel`, {
+      const response = await fetch(`${getBackendUrl()}/api/v1/tasks/${currentTask.id}/cancel`, {
         method: 'POST',
       });
 

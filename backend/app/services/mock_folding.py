@@ -1,7 +1,6 @@
 """Mock protein folding simulation service."""
 
 import random
-import time
 from collections.abc import Generator
 
 from ..models.schemas import (
@@ -10,7 +9,7 @@ from ..models.schemas import (
     StepEvent,
     StructureArtifact,
 )
-from ..utils.pdb_generator import generate_mock_pdb
+from ..utils import generate_mock_pdb, get_timestamp_ms
 
 # Chain-of-thought templates for each candidate structure
 COT_TEMPLATES = {
@@ -126,7 +125,7 @@ def generate_step_events(task_id: str, sequence: str) -> Generator[StepEvent, No
                         label=f"candidate-{candidate_num}",
                         filename=f"candidate_{candidate_num}.pdb",
                         pdbData=pdb_data,
-                        createdAt=int(time.time() * 1000),
+                        createdAt=get_timestamp_ms(),
                         cot=cot,
                     )
                 )
@@ -149,7 +148,7 @@ def generate_step_events(task_id: str, sequence: str) -> Generator[StepEvent, No
                         label="final",
                         filename="final_structure.pdb",
                         pdbData=pdb_data,
-                        createdAt=int(time.time() * 1000),
+                        createdAt=get_timestamp_ms(),
                         cot=cot,
                     )
                 )
@@ -164,7 +163,7 @@ def generate_step_events(task_id: str, sequence: str) -> Generator[StepEvent, No
             yield StepEvent(
                 eventId=f"evt_{task_id}_{event_num:04d}",
                 taskId=task_id,
-                ts=int(time.time() * 1000),
+                ts=get_timestamp_ms(),
                 stage=stage,
                 status=status,
                 progress=overall_progress,

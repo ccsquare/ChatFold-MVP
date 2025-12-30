@@ -60,7 +60,6 @@ export interface ChatMessage {
   content: string;
   timestamp: number;
   artifacts?: StructureArtifact[];
-  foldSteps?: FoldStep[];  // For assistant messages with folding timeline
 }
 
 export interface Task {
@@ -80,7 +79,6 @@ export interface Conversation {
   createdAt: number;
   updatedAt: number;
   messages: ChatMessage[];
-  tasks: Task[];
   assets: Asset[];
 }
 
@@ -137,28 +135,6 @@ export interface ViewerTab {
   compareCameraSyncEnabled?: boolean;
 }
 
-/**
- * @deprecated Use StructureArtifact with StepEvent instead.
- * This type will be removed in a future version.
- * Folding step for timeline viewer (legacy)
- */
-export interface FoldStep {
-  id: string;
-  stepNumber: number;
-  status: 'completed' | 'active' | 'pending';
-  structureId: string;
-  label: string;
-  stage: StageType;
-  metrics: {
-    rmsd: number;
-    energy: number;
-    time: number;
-    hBonds: number;
-    hydrophobic: number;
-  };
-  pdbData?: string;
-}
-
 // Layout mode determines the main content area display
 export type LayoutMode = 'chat-focus' | 'viewer-focus';
 
@@ -195,7 +171,7 @@ export interface AppState {
   // Thumbnails cache
   thumbnails: Record<string, string>;
 
-  // Molstar expanded state (for hiding overlays when Mol* is in fullscreen)
+  // Mol* built-in expand state
   isMolstarExpanded: boolean;
 
   // Compare selection (for two-click compare from timeline)
@@ -225,18 +201,17 @@ export interface AppState {
   openCompareTab: (current: StructureArtifact, previous: StructureArtifact) => void;
   closeTab: (tabId: string) => void;
   setActiveTab: (tabId: string) => void;
+  setTabSelection: (tabId: string, selection: AtomInfo | null) => void;
+  setTabAtomCount: (tabId: string, count: number) => void;
+  setMolstarExpanded: (expanded: boolean) => void;
 
   setConsoleWidth: (width: number) => void;
   setConsoleCollapsed: (collapsed: boolean) => void;
 
   setActiveTask: (task: Task | null) => void;
-  updateTask: (taskId: string, updates: Partial<Task>) => void;
   addStepEvent: (taskId: string, event: StepEvent) => void;
 
   setThumbnail: (structureId: string, thumbnail: string) => void;
-  setTabSelection: (tabId: string, selection: AtomInfo | null) => void;
-  setTabAtomCount: (tabId: string, atomCount: number) => void;
-  setMolstarExpanded: (expanded: boolean) => void;
   setCompareViewMode: (tabId: string, mode: CompareViewMode) => void;
   setCompareCameraSyncEnabled: (tabId: string, enabled: boolean) => void;
 

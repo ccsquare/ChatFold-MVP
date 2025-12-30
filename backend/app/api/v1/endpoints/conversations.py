@@ -1,12 +1,10 @@
 """Conversations API endpoint."""
 
-import time
-
 from fastapi import APIRouter, HTTPException
 
 from app.models.schemas import Conversation, CreateConversationRequest
 from app.services.storage import storage
-from app.utils.id_generator import generate_id
+from app.utils import generate_id, get_timestamp_ms
 
 router = APIRouter(tags=["Conversations"])
 
@@ -17,14 +15,13 @@ async def create_conversation(request: CreateConversationRequest = None):
     if request is None:
         request = CreateConversationRequest()
 
-    now = int(time.time() * 1000)
+    now = get_timestamp_ms()
     conversation = Conversation(
         id=generate_id("conv"),
         title=request.title or "New Conversation",
         createdAt=now,
         updatedAt=now,
         messages=[],
-        tasks=[],
         assets=[],
     )
 
