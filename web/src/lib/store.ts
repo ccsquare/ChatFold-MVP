@@ -459,6 +459,16 @@ export const useAppStore = create<AppState>()(
       let updatedConversations = state.conversations;
       if (isDone && newStructures.length > 0) {
         const conversationId = state.activeTask.conversationId;
+        const messageTimestamp = Date.now();
+
+        // Normalize artifact timestamps to ensure consistent ordering on reload
+        // Use frontend timestamps relative to message to avoid client/server clock skew issues
+        // Each artifact gets a timestamp slightly before the message, preserving order
+        const normalizedArtifacts = newStructures.map((artifact, index) => ({
+          ...artifact,
+          createdAt: messageTimestamp - 1000 + index  // 1 second before message, with order preserved
+        }));
+
         updatedConversations = state.conversations.map(conv =>
           conv.id === conversationId
             ? {
@@ -469,11 +479,11 @@ export const useAppStore = create<AppState>()(
                     id: generateId('msg'),
                     role: 'assistant' as const,
                     content: `Folding complete! Generated ${newStructures.length} structure${newStructures.length > 1 ? 's' : ''}.`,
-                    timestamp: Date.now(),
-                    artifacts: newStructures
+                    timestamp: messageTimestamp,
+                    artifacts: normalizedArtifacts
                   }
                 ],
-                updatedAt: Date.now()
+                updatedAt: messageTimestamp
               }
             : conv
         );
