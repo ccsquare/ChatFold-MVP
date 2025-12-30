@@ -27,7 +27,7 @@ export function ResizableConsole({ children }: ResizableConsoleProps) {
   return (
     <div
       className={cn(
-        "relative flex flex-shrink-0 bg-cf-bg-tertiary border-l border-cf-border h-full",
+        "relative flex flex-shrink-0 bg-cf-bg border-l border-cf-border h-full",
         !isResizing && "transition-[width] duration-300 ease-out"
       )}
       style={{ width: consoleWidth }}
