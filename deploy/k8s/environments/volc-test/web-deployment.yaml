@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chatfold-web
+  namespace: chatfold
+  labels:
+    app: chatfold-web
+    component: web
+    environment: test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chatfold-web
+  template:
+    metadata:
+      labels:
+        app: chatfold-web
+        component: web
+        environment: test
+    spec:
+      # Security context: use chatfold user (UID: 1001, GID: 1001)
+      securityContext:
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+
+      containers:
+      - name: web
+        # Image will be updated by deploy script
+        image: spx-cn-shanghai.cr.volces.com/chatfold/web:test-latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3000
+          name: http
+          protocol: TCP
+
+        # Environment variables
+        env:
+        - name: PORT
+          value: "3000"
+        - name: NODE_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: chatfold-config
+              key: NODE_ENV
+        - name: NEXT_PUBLIC_BACKEND_URL
+          valueFrom:
+            configMapKeyRef:
+              name: chatfold-config
+              key: NEXT_PUBLIC_BACKEND_URL
+
+        # Liveness probe
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 5
+
+        # Readiness probe
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        # Resource limits (test environment)
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 1000m
+            memory: 512Mi
+
+      # Image pull secret (pre-configured in cluster)
+      imagePullSecrets:
+      - name: cr-spx-cn-shanghai

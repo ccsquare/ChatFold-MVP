@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: chatfold-config
+  namespace: chatfold
+  labels:
+    app: chatfold
+    environment: test
+data:
+  # Environment
+  ENVIRONMENT: "test"
+  NODE_ENV: "test"
+
+  # Frontend configuration
+  FRONTEND_PORT: "3000"
+
+  # Backend API URL (internal K8s service)
+  # Used by Next.js server-side API calls
+  API_BASE_URL: "http://chatfold-backend:8000"
+
+  # Public backend URL (external access)
+  # Empty string means use relative path via Ingress
+  # Browser will use current origin + /api/v1/* paths
+  NEXT_PUBLIC_BACKEND_URL: ""
+
+  # Backend configuration (for future use)
+  BACKEND_PORT: "8000"
