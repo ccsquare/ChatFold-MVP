@@ -14,6 +14,35 @@ import { Download, ExternalLink, GitCompareArrows, Loader2 } from 'lucide-react'
 import { MolstarViewer } from '@/components/MolstarViewer';
 import { pdbCache } from '@/hooks/useLazyPdb';
 
+/**
+ * Hook to check if a specific structure is currently displayed in the Canvas
+ * (either as single structure or in compare mode)
+ * Only returns true when Canvas is actually visible (viewer-focus mode)
+ */
+function useIsDisplayedInCanvas(structureId: string): boolean {
+  return useAppStore(state => {
+    const { activeTabId, viewerTabs, layoutMode } = state;
+
+    // Only show highlight when Canvas is visible (viewer-focus mode)
+    if (layoutMode !== 'viewer-focus') return false;
+
+    if (!activeTabId) return false;
+
+    const activeTab = viewerTabs.find(t => t.id === activeTabId);
+    if (!activeTab) return false;
+
+    // Check if this structure is the main one in the active tab
+    if (activeTab.structureId === structureId) return true;
+
+    // Check if this structure is the compare target
+    if (activeTab.isCompare && activeTab.compareWith?.structureId === structureId) {
+      return true;
+    }
+
+    return false;
+  });
+}
+
 interface StructureArtifactCardProps {
   artifact: StructureArtifact;
   /** Previous artifact for comparison (if available) */
@@ -28,6 +57,17 @@ interface StructureArtifactCardProps {
   syncEnabled?: boolean;
 }
 
+// Generate organic iteration labels instead of "Step N"
+const getIterationLabel = (
+  index: number | undefined,
+  isFinal: boolean
+): string => {
+  if (isFinal) return "Converged";
+  if (index === undefined || index === 0) return "Initial prediction";
+  if (index === 1) return "Refining";
+  return `Refinement ${index}`;
+};
+
 export function StructureArtifactCard({
   artifact,
   previousArtifact,
@@ -40,6 +80,9 @@ export function StructureArtifactCard({
 }: StructureArtifactCardProps) {
   const { openStructureTab, openCompareTab } = useAppStore();
   const isFinal = artifact.label?.toLowerCase() === 'final';
+
+  // Check if this structure is currently displayed in the Canvas
+  const isDisplayedInCanvas = useIsDisplayedInCanvas(artifact.structureId);
 
   // Lazy loading state
   const [loadedPdbData, setLoadedPdbData] = useState<string | null>(null);
@@ -123,105 +166,18 @@ export function StructureArtifactCard({
 
   return (
     <div className={cn(
-      "flex-1 min-w-0 rounded-lg border transition-all duration-200 overflow-hidden shadow-sm dark:shadow-none",
-      isFinal
-        ? "bg-cf-success/10 border-cf-success/40"
-        : "bg-cf-bg-tertiary border-cf-border-strong hover:border-cf-accent/40"
+      "flex-1 min-w-0 rounded-xl border transition-all duration-300 overflow-hidden bg-cf-bg-secondary/60",
+      // Active display highlight with gradient glow
+      isDisplayedInCanvas
+        ? "border-cf-accent border-2 shadow-[0_0_8px_rgba(139,92,246,0.25),0_0_20px_rgba(139,92,246,0.12),0_0_40px_rgba(99,102,241,0.06)]"
+        : isFinal
+          ? "border-cf-success/40"
+          : "border-cf-border/60 hover:border-cf-accent/30"
     )}>
-      {/* Header */}
-      <div className={cn(
-        "flex items-center justify-between gap-2 px-3 py-1.5 border-b",
-        isFinal
-          ? "border-cf-success/30 bg-cf-success/15"
-          : "border-cf-border bg-cf-bg-secondary"
-      )}>
-        <div className="flex items-center gap-2 min-w-0">
-          {isFinal ? (
-            <span className="text-[11px] font-bold text-cf-success flex items-center gap-1.5 uppercase tracking-wider">
-              Final Result
-              <span className="w-1 h-1 rounded-full bg-cf-success/60 animate-pulse" />
-            </span>
-          ) : (
-            <span className="text-xs font-semibold text-cf-text-secondary">
-              Step {stepNumber}
-            </span>
-          )}
-
-          <span className="text-[10px] text-cf-text-muted/70 truncate">
-            {artifact.filename}
-          </span>
-        </div>
-
-        {/* Actions in header */}
-        <div className="flex items-center gap-1">
-          {timestamp && (
-            <span className="text-[10px] text-cf-text-muted/80 whitespace-nowrap mr-1">
-              {formatTimestamp(timestamp)}
-            </span>
-          )}
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn(
-                  "h-6 w-6 rounded-md transition-all active:scale-95",
-                  isFinal
-                    ? "text-cf-success hover:text-cf-success hover:bg-cf-success/20"
-                    : "text-cf-text-secondary hover:text-cf-text hover:bg-cf-highlight"
-                )}
-                onClick={handleOpenStructure}
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <ExternalLink className="w-3.5 h-3.5" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Visualize</TooltipContent>
-          </Tooltip>
-
-          {canCompare && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-cf-text-secondary hover:text-cf-accent hover:bg-cf-accent/10 rounded-md transition-all active:scale-95"
-                  onClick={handleCompare}
-                  disabled={isLoading}
-                >
-                  <GitCompareArrows className="w-3.5 h-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Compare with previous</TooltipContent>
-            </Tooltip>
-          )}
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 text-cf-text-secondary hover:text-cf-text hover:bg-cf-highlight rounded-md"
-                onClick={handleDownload}
-                disabled={isLoading}
-              >
-                <Download className="w-3.5 h-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Download PDB</TooltipContent>
-          </Tooltip>
-        </div>
-      </div>
-
-      {/* Content - Show preview when data is available */}
+      {/* 3D Preview */}
       {hasPreview && (
-        <div className="p-2">
-          <div className="rounded-md overflow-hidden border border-cf-border/50 bg-white">
+        <div className="px-3 py-3">
+          <div className="rounded-lg overflow-hidden border border-cf-border/30 bg-white dark:bg-cf-bg-secondary">
             <div className="relative h-40">
               <MolstarViewer
                 tabId={`card-preview-${artifact.structureId}`}
@@ -242,10 +198,10 @@ export function StructureArtifactCard({
 
       {/* Placeholder when PDB needs lazy loading */}
       {canShowPreviewPlaceholder && (
-        <div className="p-2">
+        <div className="px-3 py-3">
           <div
             className={cn(
-              "rounded-md border border-cf-border/50 h-40 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors",
+              "rounded-lg border border-cf-border/30 h-40 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors",
               isLoading
                 ? "bg-cf-bg-secondary"
                 : "bg-cf-bg-tertiary hover:bg-cf-bg-secondary hover:border-cf-accent/30"
@@ -303,6 +259,86 @@ export function StructureArtifactCard({
           </div>
         </div>
       )}
+
+      {/* Footer Metadata Bar */}
+      <div className={cn(
+        "flex items-center justify-between gap-2 px-4 py-2 border-t",
+        isFinal
+          ? "border-cf-success/20 bg-cf-success/5"
+          : "border-cf-border/50 bg-cf-bg-secondary/30"
+      )}>
+        {/* Left: Filename */}
+        <div className="flex items-center min-w-0">
+          <span className="text-[10px] text-cf-text-muted/70 truncate">
+            {artifact.filename}
+          </span>
+        </div>
+
+        {/* Right: Time + Actions */}
+        <div className="flex items-center gap-1">
+          {timestamp && (
+            <span className="text-[10px] text-cf-text-muted/60 mr-1">
+              {formatTimestamp(timestamp)}
+            </span>
+          )}
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  "h-6 w-6 rounded-md transition-all active:scale-95",
+                  isFinal
+                    ? "text-cf-success hover:text-cf-success hover:bg-cf-success/15"
+                    : "text-cf-text-muted hover:text-cf-text hover:bg-cf-highlight"
+                )}
+                onClick={handleOpenStructure}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <ExternalLink className="w-3.5 h-3.5" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Open in viewer</TooltipContent>
+          </Tooltip>
+
+          {canCompare && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-cf-text-muted hover:text-cf-accent hover:bg-cf-accent/10 rounded-md transition-all active:scale-95"
+                  onClick={handleCompare}
+                  disabled={isLoading}
+                >
+                  <GitCompareArrows className="w-3.5 h-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Compare with previous</TooltipContent>
+            </Tooltip>
+          )}
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-cf-text-muted hover:text-cf-text hover:bg-cf-highlight rounded-md"
+                onClick={handleDownload}
+                disabled={isLoading}
+              >
+                <Download className="w-3.5 h-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Download PDB</TooltipContent>
+          </Tooltip>
+        </div>
+      </div>
     </div>
   );
 }

@@ -12,6 +12,40 @@ from ..models.schemas import (
 )
 from ..utils.pdb_generator import generate_mock_pdb
 
+# Chain-of-thought templates for each candidate structure
+COT_TEMPLATES = {
+    1: [
+        "Analyzing sequence hydrophobicity profile and predicting initial secondary structure elements.",
+        "Initial fold based on sequence homology; detected potential α-helix at positions 15-28.",
+        "Starting structure prediction using MSA-derived coevolutionary signals.",
+    ],
+    2: [
+        "Refining backbone angles based on Ramachandran plot analysis; correcting outliers in loop regions.",
+        "Detected disulfide bond potential between Cys residues; applying distance constraints.",
+        "Optimizing hydrogen bond network in β-sheet region to improve structural stability.",
+    ],
+    3: [
+        "Adjusting side-chain conformations using rotamer library; resolving steric clashes.",
+        "Identified buried polar residue; reorienting to form internal hydrogen bond.",
+        "Refining loop conformation at positions 45-52 using fragment replacement.",
+    ],
+    4: [
+        "Energy minimization reveals improved packing in hydrophobic core region.",
+        "Applying salt-bridge constraints between Lys and Glu pairs to stabilize fold.",
+        "Fine-tuning tertiary contacts based on predicted contact map from attention weights.",
+    ],
+    5: [
+        "Final backbone optimization; all φ/ψ angles within favored Ramachandran regions.",
+        "Validating hydrogen bond geometry and side-chain rotamer quality.",
+        "Converged structure with optimal pLDDT confidence scores across all domains.",
+    ],
+    "final": [
+        "Structure refinement complete. Final model shows stable fold with high confidence.",
+        "All quality metrics passed. Structure ready for downstream analysis.",
+        "Optimization converged with pLDDT > 85 across 92% of residues.",
+    ],
+}
+
 
 def generate_step_events(task_id: str, sequence: str) -> Generator[StepEvent, None, None]:
     """Generate mock folding step events.
@@ -81,6 +115,10 @@ def generate_step_events(task_id: str, sequence: str) -> Generator[StepEvent, No
                 # Generate PDB data for this candidate
                 pdb_data = generate_mock_pdb(sequence, structure_id, structure_count)
 
+                # Select a random CoT from templates for this candidate
+                cot_options = COT_TEMPLATES.get(candidate_num, COT_TEMPLATES[1])
+                cot = random.choice(cot_options)
+
                 artifacts.append(
                     StructureArtifact(
                         type="structure",
@@ -89,6 +127,7 @@ def generate_step_events(task_id: str, sequence: str) -> Generator[StepEvent, No
                         filename=f"candidate_{candidate_num}.pdb",
                         pdbData=pdb_data,
                         createdAt=int(time.time() * 1000),
+                        cot=cot,
                     )
                 )
 
@@ -100,6 +139,9 @@ def generate_step_events(task_id: str, sequence: str) -> Generator[StepEvent, No
                 # Generate PDB data for final structure
                 pdb_data = generate_mock_pdb(sequence, structure_id, structure_count)
 
+                # Select a random CoT from final templates
+                cot = random.choice(COT_TEMPLATES["final"])
+
                 artifacts.append(
                     StructureArtifact(
                         type="structure",
@@ -108,6 +150,7 @@ def generate_step_events(task_id: str, sequence: str) -> Generator[StepEvent, No
                         filename="final_structure.pdb",
                         pdbData=pdb_data,
                         createdAt=int(time.time() * 1000),
+                        cot=cot,
                     )
                 )
 
