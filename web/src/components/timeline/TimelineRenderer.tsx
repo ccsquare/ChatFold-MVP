@@ -6,6 +6,7 @@ import { StructureArtifact, ChatMessage } from '@/lib/types';
 import { cn, formatTimestamp } from '@/lib/utils';
 import { Loader2, Link2, Link2Off, RotateCcw, CheckCircle2, ChevronDown, ChevronUp, Check } from 'lucide-react';
 import { StructureArtifactCard } from '@/components/StructureArtifactCard';
+import { ThinkingSummary } from '@/components/ThinkingSummary';
 import { resetSyncGroupCamera } from '@/hooks/useCameraSync';
 import { useAppStore } from '@/lib/store';
 import {
@@ -365,7 +366,7 @@ function ArtifactGroup({
                   className="flex gap-3 group relative"
                 >
                   {/* Vertical timeline node column */}
-                  <div className="relative flex flex-col items-center pt-1">
+                  <div className="relative flex flex-col items-center pt-[5px]">
                     {/* Timeline node - clickable for compare selection */}
                     {(() => {
                       const isSelected = compareSelection?.structureId === artifact.structureId;
@@ -409,8 +410,14 @@ function ArtifactGroup({
                     )}
                   </div>
 
-                  {/* Artifact card */}
-                  <div className="flex-1 min-w-0">
+                  {/* Artifact card with optional CoT */}
+                  <div className="flex-1 min-w-0 flex flex-col gap-2">
+                    {/* CoT Thinking Summary - appears before structure */}
+                    {artifact.cot && (
+                      <ThinkingSummary text={artifact.cot} />
+                    )}
+
+                    {/* Structure Card */}
                     <StructureArtifactCard
                       artifact={artifact}
                       previousArtifact={currentIndex > 0 ? allArtifacts[currentIndex - 1]?.data : null}

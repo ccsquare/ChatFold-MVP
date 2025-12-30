@@ -33,6 +33,7 @@ class StructureArtifact(BaseModel):
     pdbData: str | None = None
     thumbnail: str | None = None
     createdAt: int | None = None  # Timestamp for timeline ordering
+    cot: str | None = None  # Chain-of-thought reasoning for this structure optimization
 
 
 class StepEvent(BaseModel):

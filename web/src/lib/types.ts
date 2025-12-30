@@ -11,6 +11,7 @@ export interface StructureArtifact {
   pdbData?: string; // PDB file content
   thumbnail?: string; // Base64 encoded thumbnail
   createdAt?: number; // Timestamp when artifact was generated (for timeline ordering)
+  cot?: string; // Chain-of-thought reasoning for this structure optimization
 }
 
 export interface StepEvent {
