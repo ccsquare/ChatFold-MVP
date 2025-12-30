@@ -15,9 +15,9 @@ export function useFoldingTask() {
     addStepEvent,
     activeTask,
     isStreaming,
-    activeProjectId,
-    createProject,
-    addProjectInput,
+    activeFolderId,
+    createFolder,
+    addFolderInput,
   } = useAppStore();
 
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -87,17 +87,17 @@ export function useFoldingTask() {
         filename?: string;
         fastaContent?: string;
       }
-    ): Promise<{ task: Task; projectId: string } | null> => {
+    ): Promise<{ task: Task; folderId: string } | null> => {
       try {
-        // Create or get active project
-        let projId = activeProjectId;
-        if (!projId) {
-          projId = createProject();
+        // Create or get active folder
+        let folderId = activeFolderId;
+        if (!folderId) {
+          folderId = createFolder();
         }
 
-        // Add input file to project if provided
+        // Add input file to folder if provided
         if (options?.filename && options?.fastaContent) {
-          addProjectInput(projId, {
+          addFolderInput(folderId, {
             name: options.filename,
             type: 'fasta',
             content: options.fastaContent,
@@ -127,13 +127,13 @@ export function useFoldingTask() {
         setActiveTask({ ...task, status: 'running' });
         startStream(task.id, sequence);
 
-        return { task, projectId: projId };
+        return { task, folderId };
       } catch (error) {
         console.error('Failed to submit folding task:', error);
         return null;
       }
     },
-    [activeProjectId, createProject, addProjectInput, setActiveTask, startStream]
+    [activeFolderId, createFolder, addFolderInput, setActiveTask, startStream]
   );
 
   /**

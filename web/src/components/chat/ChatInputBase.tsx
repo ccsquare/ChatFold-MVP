@@ -26,7 +26,8 @@ export interface ChatInputBaseProps {
   value: string;
   onChange: (value: string) => void;
   onSend: (value: string, mentionedFiles?: MentionableFile[]) => void;
-  onFileUpload?: (file: File) => void;
+  // File upload callback - returns the uploaded file as MentionableFile to auto-add to mentions
+  onFileUpload?: (file: File) => Promise<MentionableFile | null>;
 
   // File mention system
   availableFiles?: MentionableFile[];
@@ -107,11 +108,30 @@ export function ChatInputBase({
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Validate file type
+      const allowedExtensions = ['.txt', '.fasta', '.fa', '.pdb'];
+      const fileName = file.name.toLowerCase();
+      const isValidType = allowedExtensions.some(ext => fileName.endsWith(ext));
+
+      if (!isValidType) {
+        alert('只支持上传 .txt, .fasta, .fa, .pdb 文件');
+        e.target.value = '';
+        return;
+      }
+
       if (onFileUpload) {
-        onFileUpload(file);
+        // Call the upload handler and auto-add to mentions if successful
+        const mentionableFile = await onFileUpload(file);
+        if (mentionableFile) {
+          // Auto-add the uploaded file to mentioned files
+          if (!mentionedFiles.some(f => f.id === mentionableFile.id)) {
+            setMentionedFiles(prev => [...prev, mentionableFile]);
+          }
+        }
+        inputRef.current?.focus();
       } else {
         // Default behavior: read file content into input
         const reader = new FileReader();

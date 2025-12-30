@@ -9,11 +9,21 @@ import {
   StepEvent,
   ViewerTab,
   StructureArtifact,
-  Project,
+  Folder,
   LayoutMode,
-  AtomInfo
+  AtomInfo,
+  User
 } from './types';
 import { generateId } from './utils';
+
+// Default user for MVP - single user mode, auth to be implemented later
+const DEFAULT_USER: User = {
+  id: 'user_default',
+  name: 'user',
+  email: 'user@simplex.com',
+  plan: 'free',
+  createdAt: Date.now()
+};
 
 // Default sidebar width
 const DEFAULT_SIDEBAR_WIDTH = 240;
@@ -25,8 +35,8 @@ const DEFAULT_CONSOLE_WIDTH = 410;
 const MIN_CONSOLE_WIDTH = 280;
 const MAX_CONSOLE_WIDTH = 600;
 
-// Format timestamp for project naming
-function formatProjectTimestamp(timestamp: number): string {
+// Format timestamp for folder naming
+function formatFolderTimestamp(timestamp: number): string {
   const date = new Date(timestamp);
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -50,13 +60,16 @@ function formatConversationTimestamp(timestamp: number): string {
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
+  // Current user (MVP: single default user)
+  currentUser: DEFAULT_USER,
+
   // Initial state
   conversations: [],
   activeConversationId: null,
 
-  // Projects
-  projects: [],
-  activeProjectId: null,
+  // Folders
+  folders: [],
+  activeFolderId: null,
 
   // Layout mode
   layoutMode: 'chat-focus' as LayoutMode,
@@ -80,11 +93,12 @@ export const useAppStore = create<AppState>()(
   compareSelection: null,
 
   // Conversation actions
-  createConversation: () => {
+  createConversation: (folderId?: string) => {
     const id = generateId('conv');
     const now = Date.now();
     const conversation: Conversation = {
       id,
+      folderId,  // 1:1 association with Folder
       title: formatConversationTimestamp(now),
       createdAt: now,
       updatedAt: now,
@@ -92,23 +106,41 @@ export const useAppStore = create<AppState>()(
       assets: []
     };
 
-    set(state => ({
-      conversations: [conversation, ...state.conversations],
-      activeConversationId: id,
-      activeTask: null, // Clear active task when creating new conversation
-      activeProjectId: null, // Clear active project for new conversation
-      isStreaming: false
-    }));
+    set(state => {
+      // Update the associated folder with conversationId if folderId is provided
+      const updatedFolders = folderId
+        ? state.folders.map(folder =>
+            folder.id === folderId
+              ? { ...folder, conversationId: id }
+              : folder
+          )
+        : state.folders;
+
+      return {
+        conversations: [conversation, ...state.conversations],
+        activeConversationId: id,
+        activeTask: null, // Clear active task when creating new conversation
+        activeFolderId: folderId || null, // Set active folder if provided
+        isStreaming: false,
+        folders: updatedFolders
+      };
+    });
 
     return id;
   },
 
   setActiveConversation: (id) => {
-    set({
-      activeConversationId: id,
-      activeTask: null, // Clear active task when switching conversation
-      activeProjectId: null, // Clear active project when switching conversation
-      isStreaming: false
+    set(state => {
+      // Find the conversation and its associated folder
+      const conversation = state.conversations.find(conv => conv.id === id);
+      const folderId = conversation?.folderId || null;
+
+      return {
+        activeConversationId: id,
+        activeTask: null, // Clear active task when switching conversation
+        activeFolderId: folderId, // Auto-activate associated folder
+        isStreaming: false
+      };
     });
   },
 
@@ -166,53 +198,54 @@ export const useAppStore = create<AppState>()(
     });
   },
 
-  // Project actions
-  createProject: (name?: string) => {
-    const id = generateId('proj');
+  // Folder actions
+  createFolder: (name?: string, conversationId?: string) => {
+    const id = generateId('folder');
     const now = Date.now();
-    const project: Project = {
+    const folder: Folder = {
       id,
-      name: name || formatProjectTimestamp(now),
+      name: name || formatFolderTimestamp(now),
       createdAt: now,
       updatedAt: now,
       isExpanded: true,
       inputs: [],
-      outputs: []
+      outputs: [],
+      conversationId  // 1:1 association with Conversation
     };
 
     set(state => ({
-      projects: [project, ...state.projects],
-      activeProjectId: id
+      folders: [folder, ...state.folders],
+      activeFolderId: id
     }));
 
     return id;
   },
 
-  setActiveProject: (id) => {
-    set({ activeProjectId: id });
+  setActiveFolder: (id) => {
+    set({ activeFolderId: id });
   },
 
-  renameProject: (id, name) => {
+  renameFolder: (id, name) => {
     set(state => ({
-      projects: state.projects.map(proj =>
-        proj.id === id
-          ? { ...proj, name, updatedAt: Date.now() }
-          : proj
+      folders: state.folders.map(folder =>
+        folder.id === id
+          ? { ...folder, name, updatedAt: Date.now() }
+          : folder
       )
     }));
   },
 
-  toggleProjectExpanded: (id) => {
+  toggleFolderExpanded: (id) => {
     set(state => ({
-      projects: state.projects.map(proj =>
-        proj.id === id
-          ? { ...proj, isExpanded: !proj.isExpanded }
-          : proj
+      folders: state.folders.map(folder =>
+        folder.id === id
+          ? { ...folder, isExpanded: !folder.isExpanded }
+          : folder
       )
     }));
   },
 
-  addProjectInput: (projectId, assetData) => {
+  addFolderInput: (folderId, assetData) => {
     const asset: Asset = {
       id: generateId('asset'),
       uploadedAt: Date.now(),
@@ -220,44 +253,44 @@ export const useAppStore = create<AppState>()(
     };
 
     set(state => ({
-      projects: state.projects.map(proj =>
-        proj.id === projectId
+      folders: state.folders.map(folder =>
+        folder.id === folderId
           ? {
-            ...proj,
-            inputs: [...proj.inputs, asset],
+            ...folder,
+            inputs: [...folder.inputs, asset],
             updatedAt: Date.now()
           }
-          : proj
+          : folder
       )
     }));
   },
 
-  addProjectOutput: (projectId, artifact) => {
+  addFolderOutput: (folderId, artifact) => {
     set(state => ({
-      projects: state.projects.map(proj =>
-        proj.id === projectId
+      folders: state.folders.map(folder =>
+        folder.id === folderId
           ? {
-            ...proj,
-            outputs: [...proj.outputs, artifact],
+            ...folder,
+            outputs: [...folder.outputs, artifact],
             updatedAt: Date.now()
           }
-          : proj
+          : folder
       )
     }));
   },
 
-  deleteProject: (id) => {
+  deleteFolder: (id) => {
     set(state => {
-      const newProjects = state.projects.filter(proj => proj.id !== id);
-      let newActiveProjectId = state.activeProjectId;
+      const newFolders = state.folders.filter(folder => folder.id !== id);
+      let newActiveFolderId = state.activeFolderId;
 
-      if (state.activeProjectId === id) {
-        newActiveProjectId = newProjects.length > 0 ? newProjects[0].id : null;
+      if (state.activeFolderId === id) {
+        newActiveFolderId = newFolders.length > 0 ? newFolders[0].id : null;
       }
 
       return {
-        projects: newProjects,
-        activeProjectId: newActiveProjectId
+        folders: newFolders,
+        activeFolderId: newActiveFolderId
       };
     });
   },
@@ -436,24 +469,24 @@ export const useAppStore = create<AppState>()(
 
       const isDone = event.stage === 'DONE';
 
-      // Update project outputs immediately when new artifacts arrive
+      // Update folder outputs immediately when new artifacts arrive
       // This allows real-time display in the sidebar file system
-      let updatedProjects = state.projects;
-      if (event.artifacts && event.artifacts.length > 0 && state.activeProjectId) {
-        updatedProjects = state.projects.map(proj => {
-          if (proj.id !== state.activeProjectId) {
-            return proj;
+      let updatedFolders = state.folders;
+      if (event.artifacts && event.artifacts.length > 0 && state.activeFolderId) {
+        updatedFolders = state.folders.map(folder => {
+          if (folder.id !== state.activeFolderId) {
+            return folder;
           }
           // Get existing output IDs to avoid duplicates
-          const existingIds = new Set(proj.outputs.map(o => o.structureId));
+          const existingIds = new Set(folder.outputs.map(o => o.structureId));
           // Filter out artifacts that already exist
           const newArtifacts = event.artifacts!.filter(a => !existingIds.has(a.structureId));
           if (newArtifacts.length === 0) {
-            return proj;
+            return folder;
           }
           return {
-            ...proj,
-            outputs: [...proj.outputs, ...newArtifacts],
+            ...folder,
+            outputs: [...folder.outputs, ...newArtifacts],
             taskId: taskId,
             updatedAt: Date.now()
           };
@@ -503,7 +536,7 @@ export const useAppStore = create<AppState>()(
           status: isDone ? 'complete' : 'running'
         },
         isStreaming: !isDone,
-        projects: updatedProjects,
+        folders: updatedFolders,
         conversations: updatedConversations
       };
     });
@@ -611,14 +644,14 @@ export const useAppStore = create<AppState>()(
             }))
           }));
 
-        // Clean projects: remove pdbData from outputs
-        const cleanProjects = state.projects.map(proj => ({
-          ...proj,
-          outputs: proj.outputs.map(stripPdbData)
+        // Clean folders: remove pdbData from outputs
+        const cleanFolders = state.folders.map(folder => ({
+          ...folder,
+          outputs: folder.outputs.map(stripPdbData)
         }));
 
         return {
-          // Persist layout settings, projects, and conversations
+          // Persist layout settings, folders, and conversations
           // Note: active task, streaming state, layoutMode, and pdbData are not persisted
           // layoutMode is intentionally not persisted - always start in chat-focus mode on refresh
           conversations: cleanConversations,
@@ -627,8 +660,8 @@ export const useAppStore = create<AppState>()(
           sidebarCollapsed: state.sidebarCollapsed,
           consoleWidth: state.consoleWidth,
           consoleCollapsed: state.consoleCollapsed,
-          projects: cleanProjects,
-          activeProjectId: state.activeProjectId
+          folders: cleanFolders,
+          activeFolderId: state.activeFolderId
         };
       }
     }

@@ -7,8 +7,8 @@ describe('AppStore', () => {
     useAppStore.setState({
       conversations: [],
       activeConversationId: null,
-      projects: [],
-      activeProjectId: null,
+      folders: [],
+      activeFolderId: null,
       sidebarWidth: 240,
       sidebarCollapsed: false,
       viewerTabs: [],
