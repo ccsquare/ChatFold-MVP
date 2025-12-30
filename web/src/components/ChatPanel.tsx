@@ -20,10 +20,11 @@ export function ChatPanel() {
     createConversation,
     addMessage,
     setActiveTask,
-    // Project management
-    activeProjectId,
-    createProject,
-    addProjectInput,
+    // Folder management
+    folders,
+    activeFolderId,
+    createFolder,
+    addFolderInput,
   } = useAppStore();
 
   const [input, setInput] = useState('');
@@ -40,9 +41,25 @@ export function ChatPanel() {
     async (content: string, mentionedFiles?: MentionableFile[]) => {
       if (!content.trim() || isSending) return;
 
-      let convId = activeConversationId;
-      if (!convId) {
-        convId = createConversation();
+      // Get fresh values from store to avoid stale closure issues
+      const storeState = useAppStore.getState();
+      const currentConvId = storeState.activeConversationId;
+      const currentFolderId = storeState.activeFolderId;
+      const currentConversation = storeState.conversations.find(c => c.id === currentConvId);
+      const currentIsStreaming = storeState.isStreaming;
+
+      // Single-round chat mode: if there's already content in the current conversation (previous round completed),
+      // create a new Folder and Conversation for this new round
+      const hasMessages = currentConversation && currentConversation.messages.length > 0;
+      const hasCompletedRound = hasMessages && !currentIsStreaming;
+
+      let convId = currentConvId;
+      let folderId = currentFolderId;
+
+      if (hasCompletedRound || !convId) {
+        // Create new Folder and Conversation for new round with 1:1 association
+        folderId = createFolder();
+        convId = createConversation(folderId);
       }
 
       // Build message content with mentioned files info
@@ -56,6 +73,7 @@ export function ChatPanel() {
       setIsSending(true);
 
       // Add user message
+      console.log('[ChatPanel] Adding message to conversation:', convId);
       addMessage(convId, {
         role: 'user',
         content: userMessage,
@@ -74,17 +92,16 @@ export function ChatPanel() {
               : '';
 
           if (sequence.length >= 10) {
-            // Create or get active project for this sequence
-            let projId = activeProjectId;
-            if (!projId) {
-              projId = createProject();
+            // Use the folder created above (or create if not yet)
+            if (!folderId) {
+              folderId = createFolder();
             }
 
-            // Create a text file for the sequence and add to project
+            // Create a text file for the sequence and add to folder
             const filename = generateSequenceFilename();
             const fastaContent = fastaMatch ? userMessage : `>user_input_sequence\n${sequence}`;
 
-            addProjectInput(projId, {
+            addFolderInput(folderId, {
               name: filename,
               type: 'fasta',
               content: fastaContent,
@@ -149,12 +166,12 @@ export function ChatPanel() {
       }
     },
     [
-      activeConversationId,
-      activeProjectId,
+      // Note: activeConversationId, activeFolderId, isStreaming are now read fresh from store
+      // to avoid stale closure issues in single-round mode detection
       addMessage,
-      addProjectInput,
+      addFolderInput,
       createConversation,
-      createProject,
+      createFolder,
       isSending,
       setActiveTask,
       startStream,
@@ -181,6 +198,63 @@ export function ChatPanel() {
     setInput(sequence);
   }, []);
 
+  // Handle file upload - save to active Folder's Inputs and return MentionableFile for auto-mention
+  const handleFileUpload = useCallback(async (file: File): Promise<MentionableFile | null> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const content = event.target?.result as string;
+        if (!content) {
+          resolve(null);
+          return;
+        }
+
+        // Ensure we have an active folder
+        let fId = activeFolderId;
+        if (!fId) {
+          fId = createFolder();
+        }
+
+        // Determine file type from extension
+        const fileName = file.name.toLowerCase();
+        let fileType: 'fasta' | 'pdb' | 'text' = 'text';
+        if (fileName.endsWith('.fasta') || fileName.endsWith('.fa')) {
+          fileType = 'fasta';
+        } else if (fileName.endsWith('.pdb')) {
+          fileType = 'pdb';
+        }
+
+        // Add file to folder inputs
+        addFolderInput(fId, {
+          name: file.name,
+          type: fileType,
+          content: content,
+        });
+
+        // Get the folder to construct the MentionableFile path
+        const folder = folders.find(f => f.id === fId);
+        const folderName = folder?.name || fId;
+
+        // Return MentionableFile for auto-mention
+        const mentionableFile: MentionableFile = {
+          id: `${fId}/${file.name}`,
+          name: file.name,
+          path: `${folderName}/${file.name}`,
+          type: fileType,
+          source: 'project',
+        };
+
+        resolve(mentionableFile);
+      };
+
+      reader.onerror = () => {
+        resolve(null);
+      };
+
+      reader.readAsText(file);
+    });
+  }, [activeFolderId, createFolder, addFolderInput, folders]);
+
   return (
     <TooltipProvider delayDuration={300}>
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
@@ -206,6 +280,7 @@ export function ChatPanel() {
             onChange={setInput}
             onSend={handleSend}
             onStop={handleStop}
+            onFileUpload={handleFileUpload}
             availableFiles={availableFiles}
             placeholder="输入序列或问题... (输入 @ 引用文件)"
             isSending={isSending || isStreaming}

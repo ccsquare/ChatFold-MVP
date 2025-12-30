@@ -1,5 +1,16 @@
 // Core domain types for ChatFold protein folding workbench
 
+// User model - MVP uses single default user, auth to be implemented later
+export type UserPlan = 'free' | 'pro';
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  plan: UserPlan;
+  createdAt: number;
+}
+
 export type StageType = 'QUEUED' | 'MSA' | 'MODEL' | 'RELAX' | 'QA' | 'DONE' | 'ERROR';
 export type StatusType = 'queued' | 'running' | 'partial' | 'complete' | 'failed' | 'canceled';
 
@@ -42,8 +53,8 @@ export interface MentionableFile {
   source?: 'project' | 'conversation' | 'task';  // Optional context
 }
 
-// Project represents a folder containing input sequences and output structures
-export interface Project {
+// Folder contains input sequences and output structures
+export interface Folder {
   id: string;
   name: string;           // Default: timestamp, can be renamed
   createdAt: number;
@@ -52,6 +63,7 @@ export interface Project {
   inputs: Asset[];        // Input sequence files (uploaded or created from chat)
   outputs: StructureArtifact[]; // Generated structure files
   taskId?: string;        // Associated task ID if any
+  conversationId?: string; // 1:1 association with Conversation
 }
 
 export interface ChatMessage {
@@ -75,6 +87,7 @@ export interface Task {
 
 export interface Conversation {
   id: string;
+  folderId?: string;      // 1:1 association with Folder
   title: string;
   createdAt: number;
   updatedAt: number;
@@ -140,13 +153,16 @@ export type LayoutMode = 'chat-focus' | 'viewer-focus';
 
 // Store state types
 export interface AppState {
+  // Current user (MVP: single default user, auth to be implemented)
+  currentUser: User;
+
   // Conversations
   conversations: Conversation[];
   activeConversationId: string | null;
 
-  // Projects (folder-based file management)
-  projects: Project[];
-  activeProjectId: string | null;
+  // Folders (file management)
+  folders: Folder[];
+  activeFolderId: string | null;
 
   // Layout mode (chat-focus: full-width chat, viewer-focus: Canvas + Console)
   layoutMode: LayoutMode;
@@ -178,20 +194,20 @@ export interface AppState {
   compareSelection: StructureArtifact | null;
 
   // Actions
-  createConversation: () => string;
+  createConversation: (folderId?: string) => string;
   setActiveConversation: (id: string | null) => void;
   addMessage: (conversationId: string, message: Omit<ChatMessage, 'id' | 'timestamp'>) => void;
   addAsset: (conversationId: string, asset: Omit<Asset, 'id' | 'uploadedAt'>) => void;
   deleteConversation: (conversationId: string) => void;
 
-  // Project actions
-  createProject: (name?: string) => string;
-  setActiveProject: (id: string | null) => void;
-  renameProject: (id: string, name: string) => void;
-  toggleProjectExpanded: (id: string) => void;
-  addProjectInput: (projectId: string, asset: Omit<Asset, 'id' | 'uploadedAt'>) => void;
-  addProjectOutput: (projectId: string, artifact: StructureArtifact) => void;
-  deleteProject: (id: string) => void;
+  // Folder actions
+  createFolder: (name?: string, conversationId?: string) => string;
+  setActiveFolder: (id: string | null) => void;
+  renameFolder: (id: string, name: string) => void;
+  toggleFolderExpanded: (id: string) => void;
+  addFolderInput: (folderId: string, asset: Omit<Asset, 'id' | 'uploadedAt'>) => void;
+  addFolderOutput: (folderId: string, artifact: StructureArtifact) => void;
+  deleteFolder: (id: string) => void;
 
   // Sidebar actions
   setSidebarWidth: (width: number) => void;

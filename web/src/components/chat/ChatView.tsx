@@ -54,11 +54,29 @@ export function ChatView() {
   }, [timeline.length]);
 
   const handleSendMessage = useCallback(async (content: string, mentionedFiles?: MentionableFile[]) => {
-    let convId = activeConversationId;
-    if (!convId) {
-      convId = createConversation();
-    }
     if (!content.trim() || isSending) return;
+
+    // Get fresh values from store to avoid stale closure issues
+    const storeState = useAppStore.getState();
+    const currentConvId = storeState.activeConversationId;
+    const currentConversation = storeState.conversations.find(c => c.id === currentConvId);
+    const currentIsStreaming = storeState.isStreaming;
+    const { createFolder } = storeState;
+
+    // Single-round chat mode: if there's already content in the current conversation (previous round completed),
+    // create a new Folder and Conversation for this new round
+    const hasMessages = currentConversation && currentConversation.messages.length > 0;
+    const hasCompletedRound = hasMessages && !currentIsStreaming;
+
+    let convId = currentConvId;
+
+    if (hasCompletedRound || !convId) {
+      // Create new Folder and Conversation for new round with 1:1 association
+      const folderId = createFolder();
+      convId = createConversation(folderId);
+    }
+
+    if (!convId) return;
 
     // Build message content with mentioned files info
     let messageContent = content.trim();
@@ -127,7 +145,7 @@ export function ChatView() {
     } finally {
       setIsSending(false);
     }
-  }, [activeConversationId, addMessage, createConversation, isSending, submit]);
+  }, [addMessage, createConversation, isSending, submit]);
 
   // Handle clicking an example sequence
   const handleExampleClick = useCallback((sequence: string) => {

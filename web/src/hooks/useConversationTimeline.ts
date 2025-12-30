@@ -34,8 +34,8 @@ export function useConversationTimeline(options: TimelineOptions = {}) {
     activeConversationId,
     activeTask,
     isStreaming,
-    projects,
-    activeProjectId,
+    folders,
+    activeFolderId,
   } = useAppStore();
 
   const {
@@ -92,13 +92,13 @@ export function useConversationTimeline(options: TimelineOptions = {}) {
       });
     }
 
-    // 4. Priority 3: Add artifacts from project outputs (fallback for page refresh)
-    const project = projects.find(p => p.id === activeProjectId);
-    if (project?.outputs) {
-      project.outputs.forEach(artifact => {
+    // 4. Priority 3: Add artifacts from folder outputs (fallback for page refresh)
+    const folder = folders.find(f => f.id === activeFolderId);
+    if (folder?.outputs) {
+      folder.outputs.forEach(artifact => {
         if (!seenStructureIds.has(artifact.structureId)) {
           seenStructureIds.add(artifact.structureId);
-          items.push({ type: 'artifact', data: artifact, timestamp: project.updatedAt });
+          items.push({ type: 'artifact', data: artifact, timestamp: folder.updatedAt });
         }
       });
     }
@@ -111,7 +111,7 @@ export function useConversationTimeline(options: TimelineOptions = {}) {
     });
 
     return items;
-  }, [conversation, activeTask, conversationId, projects, activeProjectId, includeStreaming]);
+  }, [conversation, activeTask, conversationId, folders, activeFolderId, includeStreaming]);
 
   // Extract just messages for convenience
   const messages = useMemo(() =>
