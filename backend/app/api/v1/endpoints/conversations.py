@@ -11,13 +11,21 @@ router = APIRouter(tags=["Conversations"])
 
 @router.post("")
 async def create_conversation(request: CreateConversationRequest = None):
-    """Create a new conversation."""
+    """Create a new conversation.
+
+    Args:
+        request: Optional request with title and folderId
+
+    Returns:
+        The created conversation with its ID
+    """
     if request is None:
         request = CreateConversationRequest()
 
     now = get_timestamp_ms()
     conversation = Conversation(
         id=generate_id("conv"),
+        folderId=request.folderId,  # 1:1 association with Folder
         title=request.title or "New Conversation",
         createdAt=now,
         updatedAt=now,
