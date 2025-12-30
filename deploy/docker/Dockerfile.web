@@ -1,0 +1,129 @@
+# ChatFold Frontend Dockerfile
+# Multi-stage build: Dependencies -> Build -> Run
+
+# ============================================
+# Stage 1: Dependencies
+# ============================================
+FROM node:20-alpine AS deps
+WORKDIR /app
+
+# Install libc6-compat for better compatibility
+RUN apk add --no-cache libc6-compat
+
+# Copy dependency files
+COPY package.json package-lock.json ./
+
+# Install production dependencies only
+RUN npm ci --omit=dev && \
+    npm cache clean --force
+
+# ============================================
+# Stage 2: Builder
+# ============================================
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Install build tools
+RUN apk add --no-cache git curl libc6-compat
+
+# Copy dependency files and install all dependencies
+COPY package.json package-lock.json ./
+RUN npm ci && npm cache clean --force
+
+# Copy source code
+COPY . .
+
+# ============================================
+# Environment Variables Strategy
+# ============================================
+#
+# NEXT_PUBLIC_BASE_PATH: Sub-path for deployment
+# - Set to '/chatfold' for http://ip/chatfold access
+# - Empty string for root path access (http://ip/)
+#
+# NEXT_PUBLIC_BACKEND_URL: Backend API URL for SSE streaming
+# - Set to empty string for relative path access via Ingress
+# - Browser will use current origin + /api/v1/* paths
+#
+ENV NEXT_PUBLIC_BASE_PATH="/chatfold"
+ENV NEXT_PUBLIC_BACKEND_URL=""
+
+# Build the application
+RUN echo "Building with NEXT_PUBLIC_BASE_PATH: ${NEXT_PUBLIC_BASE_PATH}"
+RUN echo "Building with NEXT_PUBLIC_BACKEND_URL: ${NEXT_PUBLIC_BACKEND_URL}"
+RUN npm run build
+
+# ============================================
+# Stage 3: Runner
+# ============================================
+FROM node:20-alpine AS runner
+
+# Build arguments for metadata
+ARG GIT_COMMIT=unknown
+ARG GIT_BRANCH=unknown
+ARG BUILD_TIME=unknown
+ARG VERSION=0.1.0
+
+# Docker labels (OCI standard)
+LABEL git.commit="${GIT_COMMIT}" \
+      git.branch="${GIT_BRANCH}" \
+      build.time="${BUILD_TIME}" \
+      version="${VERSION}" \
+      component="web" \
+      project="chatfold"
+
+# Build argument for Node environment
+ARG NODE_ENV=production
+
+WORKDIR /app
+
+# Validate NODE_ENV
+RUN if [ "$NODE_ENV" != "production" ] && [ "$NODE_ENV" != "development" ] && [ "$NODE_ENV" != "test" ]; then \
+    echo "Error: NODE_ENV must be 'production', 'development', or 'test'"; \
+    exit 1; \
+    fi
+RUN echo "Running with NODE_ENV: ${NODE_ENV}"
+
+ENV NODE_ENV=${NODE_ENV}
+
+# Create non-root user
+RUN addgroup --system --gid 1001 chatfold && \
+    adduser --system --uid 1001 chatfold
+
+# Copy necessary files from builder
+COPY --from=builder --chown=chatfold:chatfold /app/package.json ./
+COPY --from=builder --chown=chatfold:chatfold /app/package-lock.json* ./
+COPY --from=builder --chown=chatfold:chatfold /app/next.config.mjs ./
+COPY --from=builder --chown=chatfold:chatfold /app/.next ./.next
+COPY --from=builder --chown=chatfold:chatfold /app/node_modules ./node_modules
+COPY --from=builder --chown=chatfold:chatfold /app/public ./public
+
+# Write build info to file
+RUN echo "{\n\
+  \"git_commit\": \"${GIT_COMMIT}\",\n\
+  \"git_branch\": \"${GIT_BRANCH}\",\n\
+  \"build_time\": \"${BUILD_TIME}\",\n\
+  \"version\": \"${VERSION}\",\n\
+  \"component\": \"web\"\n\
+}" > /app/.build-info.json
+
+# Set ownership
+RUN chown -R chatfold:chatfold /app
+
+# Switch to non-root user
+USER chatfold
+
+# Expose port
+EXPOSE 3000
+
+# Environment variables
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+# Health check (use /chatfold path for sub-path deployment)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD node -e "require('http').get('http://localhost:3000/chatfold', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+
+# Start command
+CMD ["npm", "start"]
