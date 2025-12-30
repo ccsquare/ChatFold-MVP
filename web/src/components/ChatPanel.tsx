@@ -1,17 +1,16 @@
 'use client';
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useAppStore } from '@/lib/store';
 import { parseFasta } from '@/lib/mock/generators';
 import { MentionableFile } from '@/lib/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { Sparkles } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { HelixIcon } from '@/components/icons/ProteinIcon';
+import { generateSequenceFilename } from '@/lib/utils';
 import { ChatInputBase, ThinkingIntensity } from './chat/ChatInputBase';
-import { EXAMPLE_SEQUENCES } from '@/lib/constants/sequences';
+import { ChatEmptyState } from './chat/ChatEmptyState';
 import { useConversationTimeline } from '@/hooks/useConversationTimeline';
+import { useAvailableFiles } from '@/hooks/useAvailableFiles';
 import { TimelineRenderer } from '@/components/timeline';
 import { useFoldingTask } from '@/hooks/useFoldingTask';
 
@@ -21,9 +20,7 @@ export function ChatPanel() {
     createConversation,
     addMessage,
     setActiveTask,
-    activeTask,
     // Project management
-    projects,
     activeProjectId,
     createProject,
     addProjectInput,
@@ -33,18 +30,10 @@ export function ChatPanel() {
   const [isSending, setIsSending] = useState(false);
   const [thinkingIntensity, setThinkingIntensity] = useState<ThinkingIntensity>('high');
 
-  // Use shared folding task hook for SSE management
+  // Use shared hooks
   const { startStream, cancel: cancelTask } = useFoldingTask();
-
-  // Use shared timeline hook
-  const { timeline, isStreaming, conversation, latestStatusMessage } = useConversationTimeline();
-
-  // Generate a timestamp-based filename for sequence files
-  const generateSequenceFilename = () => {
-    const now = new Date();
-    const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
-    return `sequence_${timestamp}.fasta`;
-  };
+  const { timeline, isStreaming, latestStatusMessage } = useConversationTimeline();
+  const availableFiles = useAvailableFiles();
 
   // Handle send from ChatInputBase
   const handleSend = useCallback(
@@ -187,72 +176,6 @@ export function ChatPanel() {
     }
   }, [cancelTask, activeConversationId, addMessage]);
 
-  // Build available files for @ mentions with full path identification
-  const availableFiles = useMemo(() => {
-    const files: MentionableFile[] = [];
-
-    // Add files from all projects (with project path for disambiguation)
-    projects.forEach((project) => {
-      // Add input files (sequences)
-      project.inputs.forEach((input) => {
-        files.push({
-          id: `${project.id}/${input.name}`,
-          name: input.name,
-          path: `${project.name}/${input.name}`,
-          type: input.type,
-          source: 'project',
-        });
-      });
-
-      // Add output files (structures)
-      project.outputs.forEach((output) => {
-        files.push({
-          id: `${project.id}/outputs/${output.filename}`,
-          name: output.filename,
-          path: `${project.name}/outputs/${output.filename}`,
-          type: 'structure',
-          source: 'project',
-        });
-      });
-    });
-
-    // Add files from activeTask
-    if (activeTask?.steps) {
-      activeTask.steps.forEach((step) => {
-        step.artifacts?.forEach((artifact) => {
-          const id = `task/${activeTask.id}/${artifact.filename}`;
-          if (!files.some((f) => f.id === id)) {
-            files.push({
-              id,
-              name: artifact.filename,
-              path: `task/${activeTask.id}/${artifact.filename}`,
-              type: 'structure',
-              source: 'task',
-            });
-          }
-        });
-      });
-    }
-
-    // Add assets from active conversation
-    if (conversation?.assets) {
-      conversation.assets.forEach((asset) => {
-        const id = `conversation/${conversation.id}/${asset.name}`;
-        if (!files.some((f) => f.id === id)) {
-          files.push({
-            id,
-            name: asset.name,
-            path: `conversation/${conversation.id}/${asset.name}`,
-            type: asset.type,
-            source: 'conversation',
-          });
-        }
-      });
-    }
-
-    return files;
-  }, [projects, activeTask, conversation]);
-
   // Handler to insert example sequence
   const handleExampleClick = useCallback((sequence: string) => {
     setInput(sequence);
@@ -272,74 +195,7 @@ export function ChatPanel() {
               className="pb-2"
             />
           ) : (
-            /* Empty state */
-            <div className="flex-1 flex flex-col items-center justify-center min-h-[200px]">
-              <div className="text-center mb-6">
-                <div className="w-16 h-16 mx-auto mb-4 opacity-40">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/window.svg" alt="" className="w-full h-full" />
-                </div>
-                <p className="text-cf-text-secondary text-sm mb-1">How can I help you?</p>
-                <p className="text-cf-text-muted text-xs">
-                  Paste a protein sequence to predict its structure
-                </p>
-              </div>
-
-              {/* Example sequences - Modern chip cards */}
-              <div className="w-full max-w-lg px-2">
-                {/* Section header */}
-                <div className="flex items-center justify-center gap-2 mb-4">
-                  <Sparkles className="w-3.5 h-3.5 text-cf-accent/60" />
-                  <span className="text-xs font-medium text-cf-text-muted uppercase tracking-wide">
-                    试试示例序列
-                  </span>
-                </div>
-
-                {/* Cards grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {EXAMPLE_SEQUENCES.map((example, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleExampleClick(example.sequence)}
-                      style={{ animationDelay: `${index * 50}ms` }}
-                      className={cn(
-                        // Animation on mount
-                        'animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards',
-                        // Base card styling
-                        'group relative flex flex-col items-start gap-1.5 p-3 text-left',
-                        'rounded-xl border border-cf-border/60',
-                        'bg-cf-bg-tertiary/40',
-                        // Hover state - theme-aware with stronger contrast
-                        'hover:bg-[var(--cf-card-hover-bg)] hover:border-cf-accent/60',
-                        'hover:shadow-[var(--cf-card-shadow-hover)]',
-                        'hover:-translate-y-0.5',
-                        // Active/pressed state
-                        'active:scale-[0.98] active:shadow-none active:translate-y-0',
-                        // Focus state for keyboard navigation
-                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-accent',
-                        'focus-visible:ring-offset-2 focus-visible:ring-offset-cf-bg',
-                        // Smooth transitions
-                        'transition-all duration-200 ease-out',
-                        'cursor-pointer'
-                      )}
-                    >
-                      {/* Decorative icon */}
-                      <div className="absolute top-2.5 right-2.5">
-                        <HelixIcon className="w-4 h-4 text-cf-text-muted opacity-30 group-hover:text-cf-accent group-hover:opacity-100 group-hover:scale-110 transition-all duration-200" />
-                      </div>
-
-                      {/* Content */}
-                      <span className="text-sm font-medium text-cf-text group-hover:text-cf-text pr-6 transition-colors duration-200">
-                        {example.name}
-                      </span>
-                      <span className="text-xs text-cf-text-muted line-clamp-1">
-                        {example.description}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
+            <ChatEmptyState onExampleClick={handleExampleClick} variant="compact" />
           )}
         </ScrollArea>
 
