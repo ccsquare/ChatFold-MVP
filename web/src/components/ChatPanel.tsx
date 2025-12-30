@@ -277,7 +277,7 @@ export function ChatPanel() {
               <div className="text-center mb-6">
                 <div className="w-16 h-16 mx-auto mb-4 opacity-40">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/window.svg" alt="" className="w-full h-full" />
+                  <img src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/window.svg`} alt="" className="w-full h-full" />
                 </div>
                 <p className="text-cf-text-secondary text-sm mb-1">How can I help you?</p>
                 <p className="text-cf-text-muted text-xs">
