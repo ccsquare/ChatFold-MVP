@@ -277,7 +277,7 @@ function ArtifactGroup({
               "text-sm font-medium",
               isComplete ? "text-cf-text" : "text-cf-text-secondary"
             )}>
-              {isComplete ? 'Folding Completed.' : (statusMessage || 'Folding in Progress...')}
+              {statusMessage || (isComplete ? 'Folding Completed.' : 'Folding in Progress...')}
             </span>
           </div>
 
