@@ -26,11 +26,22 @@ class StatusType(str, Enum):
 
 
 class StructureArtifact(BaseModel):
+    """Generated structure file model.
+
+    Path is relative to the outputs root directory:
+    - local-dev: {project}/chatfold-workspace/outputs/
+    - production: /app/outputs/
+
+    Example paths:
+    - structures/{task_id}/candidate_1.pdb
+    - structures/{task_id}/final.pdb
+    """
     type: Literal["structure"] = "structure"
     structureId: str
     label: str  # 'candidate-1', 'candidate-2', ..., 'final'
     filename: str
-    pdbData: str | None = None
+    path: str | None = None  # Relative path from outputs root, e.g., "structures/{task_id}/candidate_1.pdb"
+    pdbData: str | None = None  # Inline PDB content (for SSE streaming, optional)
     thumbnail: str | None = None
     createdAt: int | None = None  # Timestamp for timeline ordering
     cot: str | None = None  # Chain-of-thought reasoning for this structure optimization
@@ -48,10 +59,21 @@ class StepEvent(BaseModel):
 
 
 class Asset(BaseModel):
+    """File asset model for user uploads and generated files.
+
+    Path is relative to the outputs root directory:
+    - local-dev: {project}/chatfold-workspace/outputs/
+    - production: /app/outputs/
+
+    Example paths:
+    - uploads/{folder_id}/{asset_id}.fasta
+    - uploads/{folder_id}/{asset_id}.pdb
+    """
     id: str
     name: str
     type: Literal["fasta", "pdb", "text"]
-    content: str
+    path: str  # Relative path from outputs root, e.g., "uploads/{folder_id}/{asset_id}.fasta"
+    size: int | None = None  # File size in bytes
     uploadedAt: int
 
 

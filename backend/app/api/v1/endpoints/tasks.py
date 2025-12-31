@@ -1,6 +1,7 @@
 """Tasks API endpoint with SSE streaming."""
 
 import asyncio
+import os
 import random
 import re
 
@@ -14,6 +15,7 @@ from app.models.schemas import (
     Task,
 )
 from app.services.mock_folding import generate_step_events
+from app.services.nanocc_folding import generate_nanocc_step_events
 from app.services.storage import storage
 from app.utils import (
     generate_id,
@@ -22,6 +24,9 @@ from app.utils import (
     SequenceValidationError,
     DEFAULT_SEQUENCE,
 )
+
+# NanoCC feature flag - can be disabled via environment variable
+USE_NANOCC = os.getenv("USE_NANOCC", "true").lower() in ("true", "1", "yes")
 
 router = APIRouter(tags=["Tasks"])
 
@@ -103,8 +108,18 @@ async def cancel_task(task_id: str):
 
 
 @router.get("/{task_id}/stream")
-async def stream_task(task_id: str, sequence: str | None = Query(None)):
-    """Stream task progress events via Server-Sent Events (SSE)."""
+async def stream_task(
+    task_id: str,
+    sequence: str | None = Query(None),
+    use_nanocc: bool | None = Query(None, alias="nanocc"),
+):
+    """Stream task progress events via Server-Sent Events (SSE).
+
+    Args:
+        task_id: The task identifier
+        sequence: Optional amino acid sequence (if not pre-registered)
+        use_nanocc: Override NanoCC usage (default: USE_NANOCC env var)
+    """
     # Validate taskId format
     if not TASK_ID_PATTERN.match(task_id):
         raise HTTPException(status_code=400, detail="Invalid task ID")
@@ -121,24 +136,40 @@ async def stream_task(task_id: str, sequence: str | None = Query(None)):
         # Use default test sequence
         final_sequence = DEFAULT_SEQUENCE
 
+    # Determine whether to use NanoCC
+    enable_nanocc = use_nanocc if use_nanocc is not None else USE_NANOCC
+
     async def event_stream():
         """Generate SSE events for the folding task."""
-        for event in generate_step_events(task_id, final_sequence):
-            # Check if task was canceled before each event
-            if storage.is_task_canceled(task_id):
-                yield f'event: canceled\ndata: {{"taskId": "{task_id}", "message": "Task canceled by user"}}\n\n'
-                return
-
-            # Format as SSE
-            event_data = event.model_dump_json()
-            yield f"event: step\ndata: {event_data}\n\n"
-
-            # Simulate processing time, split into smaller chunks for faster cancellation detection
-            for _ in range(5):
+        if enable_nanocc:
+            # Use NanoCC-powered async generator
+            async for event in generate_nanocc_step_events(task_id, final_sequence, use_nanocc=True):
+                # Check if task was canceled before each event
                 if storage.is_task_canceled(task_id):
                     yield f'event: canceled\ndata: {{"taskId": "{task_id}", "message": "Task canceled by user"}}\n\n'
                     return
-                await asyncio.sleep(0.1 + random.random() * 0.14)
+
+                # Format as SSE
+                event_data = event.model_dump_json()
+                yield f"event: step\ndata: {event_data}\n\n"
+        else:
+            # Use synchronous mock generator (legacy mode)
+            for event in generate_step_events(task_id, final_sequence):
+                # Check if task was canceled before each event
+                if storage.is_task_canceled(task_id):
+                    yield f'event: canceled\ndata: {{"taskId": "{task_id}", "message": "Task canceled by user"}}\n\n'
+                    return
+
+                # Format as SSE
+                event_data = event.model_dump_json()
+                yield f"event: step\ndata: {event_data}\n\n"
+
+                # Simulate processing time, split into smaller chunks for faster cancellation detection
+                for _ in range(5):
+                    if storage.is_task_canceled(task_id):
+                        yield f'event: canceled\ndata: {{"taskId": "{task_id}", "message": "Task canceled by user"}}\n\n'
+                        return
+                    await asyncio.sleep(0.1 + random.random() * 0.14)
 
         # Send done event only if not canceled
         if not storage.is_task_canceled(task_id):

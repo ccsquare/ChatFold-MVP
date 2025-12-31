@@ -65,9 +65,14 @@ class Settings(BaseSettings):
     redis_socket_connect_timeout: int = 5
 
     # ==================== NanoCC 配置 ====================
-    # 蛋白质折叠服务 API
+    # 蛋白质折叠编排服务 API (Protein Folding Orchestration)
     nanocc_url: str = ""
     nanocc_api_key: str = ""
+
+    # ==================== Folding GPU 配置 ====================
+    # 蛋白质折叠 GPU 推理服务 (Direct GPU Inference)
+    folding_gpu_url: str = ""
+    folding_gpu_api_key: str = ""
 
     # ==================== 文件路径配置 ====================
     # 工作空间名称（local-dev 模式下使用）
