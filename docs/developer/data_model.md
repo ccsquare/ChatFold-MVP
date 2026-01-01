@@ -188,7 +188,6 @@ chatfold-workspace/outputs/
 ## 相关文档
 
 - [architecture.md](./architecture.md) - 系统架构
-- [llmcontext/development/16.database@datamodel.md](../../llmcontext/development/16.database@datamodel.20251230.md) - 完整数据库设计
 
 ---
 
