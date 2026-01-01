@@ -65,6 +65,9 @@ function FolderItem({
   const [renameValue, setRenameValue] = useState(folder.name);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Non-active folders are always collapsed to reduce visual clutter
+  const shouldExpand = isActive && folder.isExpanded;
+
   const handleStartRename = useCallback(() => {
     setRenameValue(folder.name);
     setIsRenaming(true);
@@ -128,7 +131,7 @@ function FolderItem({
                 onToggle();
               }}
             >
-              {folder.isExpanded ? (
+              {shouldExpand ? (
                 <ChevronDown className="w-3.5 h-3.5 text-cf-text-secondary group-hover/toggle:text-cf-text transition-colors" />
               ) : (
                 <ChevronRight className="w-3.5 h-3.5 text-cf-text-secondary group-hover/toggle:text-cf-text transition-colors" />
@@ -136,7 +139,7 @@ function FolderItem({
             </button>
 
             {/* Folder Icon */}
-            {folder.isExpanded ? (
+            {shouldExpand ? (
               <FolderOpen className="w-4 h-4 text-cf-warning/70 flex-shrink-0" />
             ) : (
               <FolderClosed className="w-4 h-4 text-cf-warning/70 flex-shrink-0" />
@@ -174,7 +177,7 @@ function FolderItem({
       </ContextMenu>
 
       {/* Expanded Content */}
-      {folder.isExpanded && (
+      {shouldExpand && (
         <ul className="ml-4 border-l border-cf-border/50">
           {/* Input Files */}
           {folder.inputs.length > 0 && (
