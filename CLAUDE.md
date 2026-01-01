@@ -1,80 +1,200 @@
 # CLAUDE.md - ChatFold Project Guidance
 
-This file provides guidance to Claude Code when working with this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Product Overview
+> **完整文档体系**: 参考 [docs/README.md](./docs/README.md) 查看完整文档导航
+> **快速入门**: 新成员请先阅读 [getting_started.md](./docs/developer/getting_started.md)（10分钟上手）
+> **交互文档**: llmcontext/ 目录是个人过程文档，不会提交到远端，后续文档不应引用该目录
 
-ChatFold is a ChatGPT-style protein folding workbench with real-time streaming progress and 3D structure visualization.
+## 1. 产品概览
 
-### Input
+ChatFold 是一个 ChatGPT 风格的蛋白质折叠工作台，提供实时流式进度展示和 3D 结构可视化。
 
-- FASTA format protein sequences (10-5000 amino acids)
-- PDB structure files (drag & drop upload)
-- Natural language chat instructions
+### 核心功能
 
-### Output
+**输入**:
 
-- 3D protein structure visualization (Mol*)
-- Real-time folding progress (SSE streaming)
-- Structure quality metrics (pLDDT, PAE)
-- Downloadable PDB structure files
+- FASTA 格式蛋白质序列 (10-5000 氨基酸)
+- PDB 结构文件（拖拽上传）
+- 自然语言对话指令
 
-## Project Structure
+**输出**:
 
-```
+- 3D 蛋白质结构可视化 (Mol*)
+- 实时折叠进度 (SSE streaming)
+- 结构质量指标 (pLDDT, PAE)
+- 可下载的 PDB 结构文件
+- 多候选结构对比
+
+## 2. 项目结构
+
+```text
 ChatFold-MVP/
-├── web/                 # Next.js 14 frontend
-│   ├── src/
-│   │   ├── app/         # App Router pages
-│   │   ├── components/  # React components
-│   │   ├── hooks/       # Custom hooks
-│   │   └── lib/         # Utils and Zustand store
-│   └── tests/fixtures/  # Test data (FASTA, PDB)
-│
-├── backend/             # FastAPI backend
-│   └── app/
-│       ├── api/v1/      # API endpoints
-│       ├── services/    # Business logic
-│       └── models/      # Pydantic schemas
-│
-└── docs/                # Documentation
+├── backend/              # FastAPI 后端服务
+│   └── app/              # 应用代码 (api/, db/, models/, services/)
+├── web/                  # Next.js 前端应用
+│   └── src/              # 源码 (app/, components/, hooks/, lib/)
+├── scripts/              # 开发和 CI 脚本
+├── chatfold-workspace/   # 本地工作空间 (outputs/)
+└── docs/                 # 项目文档
 ```
 
-## Tech Stack
+## 3. 技术栈
 
-**Frontend**: Next.js 14, React 18, TypeScript, TailwindCSS, Zustand, Mol* 4.5.0, shadcn/ui
+### 后端核心
 
-**Backend**: Python 3.10+, FastAPI, Pydantic, Uvicorn
+- **框架**: Python 3.10+ / FastAPI
+- **数据验证**: Pydantic 2.0+
+- **数据库**: MySQL 8.0+（持久化）
+- **缓存**: Redis 5.0+（状态/事件队列）
+- **包管理**: uv
 
-## Quick Commands
+### 前端
+
+- **框架**: Next.js 14 / React 18 / TypeScript
+- **样式**: TailwindCSS
+- **状态管理**: Zustand
+- **3D 可视化**: Mol* 4.5.0
+- **UI 组件**: shadcn/ui
+- **端口**: 3000
+
+### 外部服务
+
+- **Folding GPU**: 蛋白质折叠 GPU 推理服务
+  - ColabFold (AlphaFold2)
+  - Boltz
+  - Protenix ESM
+  - IgFold
+
+### 开发工具
+
+- **代码检查**: ruff (check + format)
+- **测试**: pytest
+
+## 4. 快速开发命令
+
+### 基础设施
 
 ```bash
-# Frontend (port 3000)
-cd web && npm install && npm run dev
+# 启动 MySQL 和 Redis 容器
+./scripts/local-dev/start.sh
 
-# Backend (port 8000)
-cd backend && pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+# 停止基础设施
+./scripts/local-dev/stop.sh
+
+# 查看容器状态
+docker ps | grep chatfold
 ```
 
-## Key Components
+### 后端开发
 
-- **LayoutShell.tsx**: Three-column layout (sidebar | canvas | console)
-- **MolstarViewer.tsx**: 3D structure viewer with dynamic loading
-- **store.ts**: Zustand global state with persistence
-- **useFoldingTask.ts**: SSE streaming hook
+```bash
+cd backend
 
-## API Endpoints (v1)
+# 安装依赖
+uv sync
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/v1/health` | GET | Health check |
-| `/api/v1/conversations` | POST/GET | Conversation CRUD |
-| `/api/v1/tasks` | POST/GET | Task management |
-| `/api/v1/tasks/{id}/stream` | GET | SSE folding progress |
-| `/api/v1/structures/{id}` | GET | Download PDB file |
+# 启动开发服务器（端口 8000）
+uv run uvicorn app.main:app --reload --port 8000
 
-## SSE Event Structure
+# 运行测试
+uv run pytest
+
+# 代码检查
+uv run ruff check .
+uv run ruff format .
+```
+
+### 前端开发
+
+```bash
+cd web
+
+# 安装依赖
+npm install
+
+# 启动开发服务器（端口 3000）
+npm run dev
+
+# 构建生产版本
+npm run build
+
+# 代码检查
+npm run lint
+```
+
+## 5. 系统架构
+
+```
+  用户浏览器
+  ┌────────────────────────────────────────────────────────┐
+  │     Sidebar      │      Canvas       │   Chat Panel    │
+  │     文件管理      │     Mol* 3D       │    对话交互      │
+  └────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+                    ┌─────────────────────┐
+                    │   Next.js 前端       │
+                    │    (Port 3000)      │
+                    └─────────────────────┘
+                              │ REST API / SSE
+                              ▼
+                    ┌─────────────────────┐
+                    │   FastAPI 后端       │
+                    │    (Port 8000)      │
+                    └─────────────────────┘
+                              │
+          ┌───────────────────┼───────────────────┐
+          ▼                   ▼                   ▼
+    ┌───────────┐       ┌───────────┐       ┌───────────┐
+    │   MySQL   │       │   Redis   │       │ Folding   │
+    │  持久化    │       │  状态缓存  │       │ GPU 服务   │
+    └───────────┘       └───────────┘       └───────────┘
+```
+
+### 关键组件
+
+- **LayoutShell.tsx**: 三栏布局 (sidebar | canvas | chat)
+- **MolstarViewer.tsx**: 3D 结构查看器，动态加载
+- **ChatPanel.tsx**: 对话交互面板
+- **useFoldingTask.ts**: SSE 流式任务 Hook
+- **store.ts**: Zustand 全局状态管理
+- **redis_cache.py**: Redis 缓存工具（任务状态、SSE 事件）
+
+## 6. 数据模型
+
+```
+User → Project → Folder ◄──► Conversation → Message → Task → Structure
+                   │
+                   └── Asset
+```
+
+| 概念 | 说明 |
+|------|------|
+| **User** | 用户账户 |
+| **Project** | 项目，用户的顶层组织单位 |
+| **Folder** | 工作目录，包含输入文件和输出结构 |
+| **Conversation** | 对话会话，与 Folder 1:1 关联 |
+| **Message** | 单条消息 (user/assistant/system) |
+| **Task** | 折叠任务，产出 Structure |
+| **Structure** | 生成的 PDB 结构文件 |
+| **Asset** | 用户上传的文件 |
+
+**详细说明**: [docs/developer/data_model.md](./docs/developer/data_model.md)
+
+## 7. API 端点
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/v1/health` | GET | 健康检查 |
+| `/api/v1/users` | POST/GET | 用户 CRUD |
+| `/api/v1/folders` | POST/GET | 文件夹 CRUD |
+| `/api/v1/conversations` | POST/GET | 对话 CRUD |
+| `/api/v1/tasks` | POST/GET | 任务管理 |
+| `/api/v1/tasks/{id}/stream` | GET | SSE 折叠进度流 |
+| `/api/v1/structures/{id}` | GET | 下载 PDB 文件 |
+
+### SSE 事件结构
 
 ```typescript
 {
@@ -88,25 +208,87 @@ uvicorn app.main:app --reload --port 8000
 }
 ```
 
-## Commit Message Format
+## 8. 开发规范
 
-```
-type: subject (max 50 chars, no punctuation)
+### Git Commit Message 规范
+
+**格式**: 多行格式（首行 + 详细说明）
+
+```text
+type: subject
 
 Changes:
-- Specific change 1
-- Specific change 2
+- 具体修改点1
+- 具体修改点2
 
 Benefits:
-- Improvement 1
-- Improvement 2
+- 改进带来的好处1
+- 改进带来的好处2
 ```
 
-Types: feat, fix, docs, style, refactor, perf, test, build, chore
+**类型 (type)**:
 
-**Requirements**: English only, no "Generated by" or "Co-authored-by" fields.
+- `feat`: 新功能
+- `fix`: 修复 bug
+- `docs`: 文档更新
+- `style`: 代码格式调整
+- `refactor`: 重构
+- `perf`: 性能优化
+- `test`: 测试相关
+- `build`: 构建相关
+- `chore`: 其他杂项
 
+**要求**:
 
-## Test Tips
+- 全部使用英文
+- 第一行不超过 50 个字符，无标点符号
+- 第二行空行
+- 第三行开始：Changes 和 Benefits 部分
+- 不使用 "Generated by" 和 "Co-authored-by" 字段
 
-Please refer to `start.sh` to start the frontend and backend of ChatFold. If major changes are applied to the codebase, please restart the frontend and backend to visualize the latest update.
+**完整规范**: [docs/workflow/contributing.md](./docs/workflow/contributing.md)
+
+### 代码质量要求
+
+- **类型注解**: Python 代码必须包含类型提示 (type hints)
+- **异步编程**: 网络请求和 I/O 操作使用 `async/await`
+- **错误处理**: 使用 try-except 捕获和记录异常
+- **日志记录**: 使用 `logging` 模块，避免使用 `print()`
+
+### 文档命名规范
+
+**项目文档**: `lowercase_with_underscores.md`
+
+示例: `getting_started.md`, `local_setup.md`, `data_model.md`
+
+例外: `README.md` 允许大写
+
+## 9. 文档导航
+
+### 新成员入门
+
+1. **快速开始** (10 分钟)
+   - [getting_started.md](./docs/developer/getting_started.md) - 快速上手指南
+
+2. **了解项目**
+   - [architecture.md](./docs/developer/architecture.md) - 系统架构设计
+   - [data_model.md](./docs/developer/data_model.md) - 数据模型设计
+
+3. **环境搭建**
+   - [local_setup.md](./docs/developer/local_setup.md) - 本地开发环境
+
+4. **开始开发**
+   - [contributing.md](./docs/workflow/contributing.md) - 贡献指南和 Commit 规范
+   - [pr.md](./docs/workflow/pr.md) - Pull Request 提交规范
+
+## 10. 常用链接
+
+- **API 文档**: <http://localhost:8000/docs> (本地开发)
+- **前端界面**: <http://localhost:3000> (本地开发)
+- **完整文档**: [docs/README.md](./docs/README.md)
+
+---
+
+**版本**: 1.0
+**最后更新**: 2025-01-01
+**维护者**: ChatFold 开发团队
