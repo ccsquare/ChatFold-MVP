@@ -128,6 +128,10 @@ function FolderItem({
               className="p-0.5 hover:bg-cf-highlight-strong rounded group/toggle"
               onClick={(e) => {
                 e.stopPropagation();
+                // If folder is not active, activate it first so it can expand
+                if (!isActive) {
+                  onSelect();
+                }
                 onToggle();
               }}
             >
