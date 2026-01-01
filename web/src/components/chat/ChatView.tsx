@@ -27,7 +27,11 @@ export function ChatView() {
     addMessage,
     createConversation,
     switchToViewerMode,
-    viewerTabs
+    viewerTabs,
+    folders,
+    activeFolderId,
+    createFolder,
+    addFolderInput,
   } = useAppStore();
 
   // Use shared hooks
@@ -152,6 +156,63 @@ export function ChatView() {
     setInputValue(sequence);
   }, []);
 
+  // Handle file upload - save to active Folder's Inputs and return MentionableFile for auto-mention
+  const handleFileUpload = useCallback(async (file: File): Promise<MentionableFile | null> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const content = event.target?.result as string;
+        if (!content) {
+          resolve(null);
+          return;
+        }
+
+        // Ensure we have an active folder
+        let fId = activeFolderId;
+        if (!fId) {
+          fId = createFolder();
+        }
+
+        // Determine file type from extension
+        const fileName = file.name.toLowerCase();
+        let fileType: 'fasta' | 'pdb' | 'text' = 'text';
+        if (fileName.endsWith('.fasta') || fileName.endsWith('.fa')) {
+          fileType = 'fasta';
+        } else if (fileName.endsWith('.pdb')) {
+          fileType = 'pdb';
+        }
+
+        // Add file to folder inputs
+        addFolderInput(fId, {
+          name: file.name,
+          type: fileType,
+          content: content,
+        });
+
+        // Get the folder to construct the MentionableFile path
+        const folder = folders.find(f => f.id === fId);
+        const folderName = folder?.name || fId;
+
+        // Return MentionableFile for auto-mention
+        const mentionableFile: MentionableFile = {
+          id: `${fId}/${file.name}`,
+          name: file.name,
+          path: `${folderName}/${file.name}`,
+          type: fileType,
+          source: 'project',
+        };
+
+        resolve(mentionableFile);
+      };
+
+      reader.onerror = () => {
+        resolve(null);
+      };
+
+      reader.readAsText(file);
+    });
+  }, [activeFolderId, createFolder, addFolderInput, folders]);
+
   // Check if we have structures to view
   const hasStructures = viewerTabs.length > 0;
 
@@ -205,6 +266,7 @@ export function ChatView() {
               value={inputValue}
               onChange={setInputValue}
               onSend={handleSendMessage}
+              onFileUpload={handleFileUpload}
               availableFiles={availableFiles}
               placeholder={isEmpty ? "输入序列或问题..." : "输入序列或问题... (输入 @ 引用文件)"}
               showDisclaimer
