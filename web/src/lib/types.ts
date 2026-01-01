@@ -11,6 +11,16 @@ export interface User {
   createdAt: number;
 }
 
+// Project model - MVP uses single default project, multi-project to be implemented later
+export interface Project {
+  id: string;
+  userId: string;           // Owner user ID
+  name: string;
+  description?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export type StageType = 'QUEUED' | 'MSA' | 'MODEL' | 'RELAX' | 'QA' | 'DONE' | 'ERROR';
 export type StatusType = 'queued' | 'running' | 'partial' | 'complete' | 'failed' | 'canceled';
 
@@ -56,6 +66,7 @@ export interface MentionableFile {
 // Folder contains input sequences and output structures
 export interface Folder {
   id: string;
+  projectId?: string;     // Parent project (MVP: project_default)
   name: string;           // Default: timestamp, can be renamed
   createdAt: number;
   updatedAt: number;
@@ -155,6 +166,9 @@ export type LayoutMode = 'chat-focus' | 'viewer-focus';
 export interface AppState {
   // Current user (MVP: single default user, auth to be implemented)
   currentUser: User;
+
+  // Current project (MVP: single default project)
+  currentProject: Project;
 
   // Conversations
   conversations: Conversation[];

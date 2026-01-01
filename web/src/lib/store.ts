@@ -12,7 +12,8 @@ import {
   Folder,
   LayoutMode,
   AtomInfo,
-  User
+  User,
+  Project
 } from './types';
 import { generateId } from './utils';
 
@@ -23,6 +24,16 @@ const DEFAULT_USER: User = {
   email: 'user@simplex.com',
   plan: 'free',
   createdAt: Date.now()
+};
+
+// Default project for MVP - single project mode, multi-project to be implemented later
+const DEFAULT_PROJECT: Project = {
+  id: 'project_default',
+  userId: 'user_default',
+  name: 'Default Project',
+  description: 'Default project for organizing folders',
+  createdAt: Date.now(),
+  updatedAt: Date.now()
 };
 
 // Default sidebar width
@@ -62,6 +73,9 @@ export const useAppStore = create<AppState>()(
     (set, get) => ({
   // Current user (MVP: single default user)
   currentUser: DEFAULT_USER,
+
+  // Current project (MVP: single default project)
+  currentProject: DEFAULT_PROJECT,
 
   // Initial state
   conversations: [],
@@ -202,8 +216,10 @@ export const useAppStore = create<AppState>()(
   createFolder: (name?: string, conversationId?: string) => {
     const id = generateId('folder');
     const now = Date.now();
+    const projectId = get().currentProject.id;  // Use current project
     const folder: Folder = {
       id,
+      projectId,  // Parent project (MVP: project_default)
       name: name || formatFolderTimestamp(now),
       createdAt: now,
       updatedAt: now,
