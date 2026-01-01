@@ -109,7 +109,7 @@ class Conversation(BaseModel):
 class Folder(BaseModel):
     """Folder contains input sequences and output structures."""
     id: str
-    userId: str | None = None  # For future multi-user support
+    projectId: str | None = None  # Parent project (MVP: project_default)
     name: str
     createdAt: int
     updatedAt: int
@@ -132,6 +132,20 @@ class User(BaseModel):
     email: str
     plan: UserPlan = UserPlan.free
     createdAt: int | None = None
+
+
+class Project(BaseModel):
+    """Project model for organizing folders.
+
+    MVP uses a single default project (project_default).
+    Future: support multiple projects per user for better organization.
+    """
+    id: str
+    userId: str  # Owner user ID
+    name: str
+    description: str | None = None
+    createdAt: int
+    updatedAt: int
 
 
 # Request/Response models
