@@ -6,7 +6,7 @@ export { CanvasTabs } from './CanvasTabs';
 export { ConsoleDrawer } from './ConsoleDrawer';
 
 // Viewer components
-export { MolstarViewer } from './MolstarViewer';
+export { MolstarViewer } from './molstar';
 export { ViewerToolbar } from './ViewerToolbar';
 export { InspectorPanel } from './InspectorPanel';
 

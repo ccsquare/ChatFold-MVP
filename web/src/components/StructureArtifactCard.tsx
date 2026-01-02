@@ -11,7 +11,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Download, ExternalLink, GitCompareArrows, Loader2, Check } from 'lucide-react';
-import { MolstarViewer } from '@/components/MolstarViewer';
+import { MolstarViewer } from '@/components/molstar';
 import { pdbCache } from '@/hooks/useLazyPdb';
 
 /**

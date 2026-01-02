@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react';
 import { useAppStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { CanvasTabs } from './CanvasTabs';
-import { MolstarViewer } from './MolstarViewer';
+import { MolstarViewer } from './molstar';
 import { CompareViewer } from './CompareViewer';
 import { SequenceViewer } from './SequenceViewer';
 import { AtomInfo } from '@/lib/types';
