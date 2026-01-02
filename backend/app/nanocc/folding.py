@@ -12,14 +12,14 @@ import os
 from collections.abc import AsyncGenerator
 from pathlib import Path
 
-from ..models.schemas import (
+from app.models.schemas import (
     StageType,
     StatusType,
     StepEvent,
     StructureArtifact,
 )
-from ..utils import get_timestamp_ms
-from .mock_nanocc import MockNanoCCClient
+from app.utils import get_timestamp_ms
+from .mock import MockNanoCCClient
 
 # Configuration
 USE_MOCK_NANOCC = os.getenv("USE_MOCK_NANOCC", "true").lower() in ("true", "1", "yes")
@@ -193,10 +193,9 @@ async def generate_mock_cot_events(
     await mock_client.delete_session(session["session_id"])
 
 
-async def generate_nanocc_step_events(
+async def generate_cot_events(
     task_id: str,
     sequence: str,
-    use_nanocc: bool = True,
 ) -> AsyncGenerator[StepEvent, None]:
     """Generate folding step events with NanoCC/Mock integration.
 
@@ -207,7 +206,6 @@ async def generate_nanocc_step_events(
     Args:
         task_id: The task identifier
         sequence: The amino acid sequence
-        use_nanocc: Whether to use NanoCC/Mock for AI analysis
 
     Yields:
         StepEvent objects with progress updates and structure artifacts
@@ -221,3 +219,7 @@ async def generate_nanocc_step_events(
         # For now, fall back to mock
         async for event in generate_mock_cot_events(task_id, sequence):
             yield event
+
+
+# Alias for backward compatibility
+generate_nanocc_step_events = generate_cot_events
