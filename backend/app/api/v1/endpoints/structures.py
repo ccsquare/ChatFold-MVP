@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import Response
 
 from app.models.schemas import CachePDBRequest
-from app.services.storage import storage
+from app.services.runtime_storage import storage
 from app.utils.pdb_generator import generate_mock_pdb
 from app.utils.sequence_validator import DEFAULT_SEQUENCE
 
