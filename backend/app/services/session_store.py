@@ -1,12 +1,23 @@
-"""Thread-safe in-memory storage service for conversations, tasks, and structures."""
+"""Session store for runtime/transient data.
+
+Manages in-memory storage for:
+- Conversations and their messages
+- Folding tasks and their status
+- Task-sequence mappings for SSE streams
+- Structure cache (PDB data)
+- Task cancellation state
+
+Note: Data is lost on server restart. For persistent storage,
+see components/workspace/storage.py for workspace organization data.
+"""
 
 import threading
 
 from ..models.schemas import Conversation, Task
 
 
-class InMemoryStorage:
-    """Thread-safe in-memory storage for all application data.
+class SessionStore:
+    """Thread-safe in-memory session storage.
 
     Uses a reentrant lock (RLock) to ensure thread safety for all operations.
     """
@@ -95,4 +106,4 @@ class InMemoryStorage:
 
 
 # Singleton instance
-storage = InMemoryStorage()
+storage = SessionStore()
