@@ -2,18 +2,18 @@
 
 import { useCallback, useRef, useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
-import { StepEvent, Task } from '@/lib/types';
+import { StepEvent, Job } from '@/lib/types';
 import { getBackendUrl } from '@/lib/utils';
 
 /**
- * Shared hook for managing protein folding tasks with SSE streaming.
+ * Shared hook for managing protein folding jobs with SSE streaming.
  * Used by both ChatView and ChatPanel for unified API access.
  */
-export function useFoldingTask() {
+export function useFoldingJob() {
   const {
-    setActiveTask,
+    setActiveJob,
     addStepEvent,
-    activeTask,
+    activeJob,
     isStreaming,
     activeFolderId,
     createFolder,
@@ -33,11 +33,11 @@ export function useFoldingTask() {
   }, []);
 
   /**
-   * Start SSE streaming for a task
+   * Start SSE streaming for a job
    * Note: SSE connects directly to Python backend to avoid Next.js proxy buffering
    */
   const startStream = useCallback(
-    (taskId: string, sequence: string) => {
+    (jobId: string, sequence: string) => {
       // Close any existing connection
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
@@ -45,13 +45,13 @@ export function useFoldingTask() {
 
       // Connect directly to Python backend for SSE (bypasses Next.js proxy buffering)
       const eventSource = new EventSource(
-        `${getBackendUrl()}/api/v1/tasks/${taskId}/stream?sequence=${encodeURIComponent(sequence)}`
+        `${getBackendUrl()}/api/v1/jobs/${jobId}/stream?sequence=${encodeURIComponent(sequence)}`
       );
       eventSourceRef.current = eventSource;
 
       eventSource.addEventListener('step', (event) => {
         const stepEvent: StepEvent = JSON.parse(event.data);
-        addStepEvent(taskId, stepEvent);
+        addStepEvent(jobId, stepEvent);
       });
 
       eventSource.addEventListener('done', () => {
@@ -74,10 +74,10 @@ export function useFoldingTask() {
 
   /**
    * Submit a sequence for folding
-   * @param conversationId - The conversation ID to associate with the task
+   * @param conversationId - The conversation ID to associate with the job
    * @param sequence - The protein sequence to fold
    * @param options - Additional options
-   * @returns The created task or null if failed
+   * @returns The created job or null if failed
    */
   const submit = useCallback(
     async (
@@ -87,7 +87,7 @@ export function useFoldingTask() {
         filename?: string;
         fastaContent?: string;
       }
-    ): Promise<{ task: Task; folderId: string } | null> => {
+    ): Promise<{ job: Job; folderId: string } | null> => {
       try {
         // Create or get active folder
         let folderId = activeFolderId;
@@ -104,8 +104,8 @@ export function useFoldingTask() {
           });
         }
 
-        // Create task via API
-        const response = await fetch('/api/v1/tasks', {
+        // Create job via API
+        const response = await fetch('/api/v1/jobs', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -117,23 +117,23 @@ export function useFoldingTask() {
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(
-            errorData.details?.join(', ') || errorData.error || 'Failed to create task'
+            errorData.details?.join(', ') || errorData.error || 'Failed to create job'
           );
         }
 
-        const { task } = await response.json();
+        const { job } = await response.json();
 
-        // Set active task and start streaming
-        setActiveTask({ ...task, status: 'running' });
-        startStream(task.id, sequence);
+        // Set active job and start streaming
+        setActiveJob({ ...job, status: 'running' });
+        startStream(job.id, sequence);
 
-        return { task, folderId };
+        return { job, folderId };
       } catch (error) {
-        console.error('Failed to submit folding task:', error);
+        console.error('Failed to submit folding job:', error);
         return null;
       }
     },
-    [activeFolderId, createFolder, addFolderInput, setActiveTask, startStream]
+    [activeFolderId, createFolder, addFolderInput, setActiveJob, startStream]
   );
 
   /**
@@ -147,12 +147,12 @@ export function useFoldingTask() {
   }, []);
 
   /**
-   * Cancel the current streaming task
+   * Cancel the current streaming job
    * @returns true if cancellation was initiated successfully
    */
   const cancel = useCallback(async (): Promise<boolean> => {
-    const currentTask = activeTask;
-    if (!currentTask || !eventSourceRef.current) {
+    const currentJob = activeJob;
+    if (!currentJob || !eventSourceRef.current) {
       return false;
     }
 
@@ -162,40 +162,40 @@ export function useFoldingTask() {
       eventSourceRef.current = null;
 
       // 2. Call backend cancel API
-      const response = await fetch(`${getBackendUrl()}/api/v1/tasks/${currentTask.id}/cancel`, {
+      const response = await fetch(`${getBackendUrl()}/api/v1/jobs/${currentJob.id}/cancel`, {
         method: 'POST',
       });
 
       if (!response.ok) {
-        console.error('Failed to cancel task on backend');
+        console.error('Failed to cancel job on backend');
       }
 
       // 3. Update local state regardless of backend response
-      setActiveTask({
-        ...currentTask,
+      setActiveJob({
+        ...currentJob,
         status: 'canceled',
       });
 
       return true;
     } catch (error) {
-      console.error('Error canceling task:', error);
+      console.error('Error canceling job:', error);
       // Still update local state for optimistic UI
-      setActiveTask({
-        ...currentTask,
+      setActiveJob({
+        ...currentJob,
         status: 'canceled',
       });
       return false;
     }
-  }, [activeTask, setActiveTask]);
+  }, [activeJob, setActiveJob]);
 
   return {
     submit,
     cancel,
     cleanup,
     startStream,
-    task: activeTask,
-    steps: activeTask?.steps || [],
-    artifacts: activeTask?.structures || [],
+    job: activeJob,
+    steps: activeJob?.steps || [],
+    artifacts: activeJob?.structures || [],
     isStreaming,
   };
 }

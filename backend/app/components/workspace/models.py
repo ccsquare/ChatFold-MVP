@@ -55,8 +55,8 @@ class StructureArtifact(BaseModel):
     - production: /app/outputs/
 
     Example paths:
-    - structures/{task_id}/candidate_1.pdb
-    - structures/{task_id}/final.pdb
+    - structures/{job_id}/candidate_1.pdb
+    - structures/{job_id}/final.pdb
     """
     type: Literal["structure"] = "structure"
     structureId: str
@@ -82,7 +82,7 @@ class Folder(BaseModel):
     isExpanded: bool = True
     inputs: list[Asset] = Field(default_factory=list)
     outputs: list[StructureArtifact] = Field(default_factory=list)
-    taskId: str | None = None
+    jobId: str | None = None
     conversationId: str | None = None  # 1:1 association with Conversation
 
 

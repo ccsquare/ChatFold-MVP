@@ -12,14 +12,14 @@ import { ChatEmptyState } from './chat/ChatEmptyState';
 import { useConversationTimeline } from '@/hooks/useConversationTimeline';
 import { useAvailableFiles } from '@/hooks/useAvailableFiles';
 import { TimelineRenderer } from '@/components/timeline';
-import { useFoldingTask } from '@/hooks/useFoldingTask';
+import { useFoldingJob } from '@/hooks/useFoldingJob';
 
 export function ChatPanel() {
   const {
     activeConversationId,
     createConversation,
     addMessage,
-    setActiveTask,
+    setActiveJob,
     // Folder management
     folders,
     activeFolderId,
@@ -32,7 +32,7 @@ export function ChatPanel() {
   const [thinkingIntensity, setThinkingIntensity] = useState<ThinkingIntensity>('high');
 
   // Use shared hooks
-  const { startStream, cancel: cancelTask } = useFoldingTask();
+  const { startStream, cancel: cancelJob } = useFoldingJob();
   const { timeline, isStreaming, latestStatusMessage } = useConversationTimeline();
   const availableFiles = useAvailableFiles();
 
@@ -107,8 +107,8 @@ export function ChatPanel() {
               content: fastaContent,
             });
 
-            // Create task
-            const taskResponse = await fetch('/api/v1/tasks', {
+            // Create job
+            const jobResponse = await fetch('/api/v1/jobs', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -117,10 +117,10 @@ export function ChatPanel() {
               }),
             });
 
-            const responseData = await taskResponse.json();
+            const responseData = await jobResponse.json();
 
             // Check if the API returned an error
-            if (!taskResponse.ok) {
+            if (!jobResponse.ok) {
               const errorMessage =
                 responseData.details?.join(', ') || responseData.error || 'Invalid sequence';
               addMessage(convId, {
@@ -130,7 +130,7 @@ export function ChatPanel() {
               return;
             }
 
-            const { task } = responseData;
+            const { job } = responseData;
 
             // Add assistant message
             addMessage(convId, {
@@ -138,9 +138,9 @@ export function ChatPanel() {
               content: `Starting structure prediction for your ${sequence.length} residue sequence. The sequence has been saved as "${filename}" in your project. I'll keep you updated on the progress.`,
             });
 
-            // Set active task and start streaming
-            setActiveTask({ ...task, status: 'running' });
-            startStream(task.id, sequence);
+            // Set active job and start streaming
+            setActiveJob({ ...job, status: 'running' });
+            startStream(job.id, sequence);
           } else {
             addMessage(convId, {
               role: 'assistant',
@@ -173,15 +173,15 @@ export function ChatPanel() {
       createConversation,
       createFolder,
       isSending,
-      setActiveTask,
+      setActiveJob,
       startStream,
     ]
   );
 
   // Handle stop button click
   const handleStop = useCallback(async () => {
-    // Use shared hook to cancel the task
-    await cancelTask();
+    // Use shared hook to cancel the job
+    await cancelJob();
     setIsSending(false);
 
     // Add cancellation message to chat
@@ -191,7 +191,7 @@ export function ChatPanel() {
         content: 'Structure prediction was canceled.',
       });
     }
-  }, [cancelTask, activeConversationId, addMessage]);
+  }, [cancelJob, activeConversationId, addMessage]);
 
   // Handler to insert example sequence
   const handleExampleClick = useCallback((sequence: string) => {

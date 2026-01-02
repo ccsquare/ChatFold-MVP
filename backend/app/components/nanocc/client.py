@@ -115,19 +115,19 @@ class NanoCCClient:
 nanocc_client = NanoCCClient()
 
 
-def build_folding_prompt(sequence: str, task_id: str) -> str:
+def build_folding_prompt(sequence: str, job_id: str) -> str:
     """Build a prompt for NanoCC to analyze and fold a protein sequence.
 
     Args:
         sequence: The amino acid sequence to analyze
-        task_id: The task ID for tracking
+        job_id: The job ID for tracking
 
     Returns:
         A formatted prompt string for NanoCC
     """
     return f"""You are a protein structure prediction assistant. Analyze the following protein sequence and provide insights about its structure prediction.
 
-**Sequence** (Task ID: {task_id}):
+**Sequence** (Job ID: {job_id}):
 ```
 {sequence}
 ```

@@ -9,7 +9,7 @@ def generate_id(prefix: str = "") -> str:
     """Generate a unique ID with optional prefix.
 
     Format: {prefix}_{timestamp_base36}{random_6chars}
-    Example: task_m1a2b3c4d5e6
+    Example: job_m1a2b3c4d5e6
     """
     timestamp = int(time.time() * 1000)
     timestamp_b36 = _to_base36(timestamp)

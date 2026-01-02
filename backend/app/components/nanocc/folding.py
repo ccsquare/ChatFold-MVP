@@ -12,13 +12,9 @@ import os
 from collections.abc import AsyncGenerator
 from pathlib import Path
 
-from app.models.schemas import (
-    StageType,
-    StatusType,
-    StepEvent,
-    StructureArtifact,
-)
+from app.components.workspace.models import StructureArtifact
 from app.utils import get_timestamp_ms
+from .models import JobEvent, StageType, StatusType
 from .mock import MockNanoCCClient
 
 # Configuration
@@ -46,15 +42,15 @@ def _read_pdb_file(pdb_path: str) -> str | None:
 
 
 async def generate_mock_cot_events(
-    task_id: str,
+    job_id: str,
     sequence: str,
     delay_min: float = MOCK_DELAY_MIN,
     delay_max: float = MOCK_DELAY_MAX,
-) -> AsyncGenerator[StepEvent, None]:
-    """Generate folding step events from Mock NanoCC CoT messages.
+) -> AsyncGenerator[JobEvent, None]:
+    """Generate folding job events from Mock NanoCC CoT messages.
 
     This function streams Chain-of-Thought messages from the mock JSONL file,
-    converting them to StepEvent objects with proper stage tracking.
+    converting them to JobEvent objects with proper stage tracking.
 
     Logic:
     - Each JSONL line has STATE, MESSAGE, and optionally pdb_file/label
@@ -62,13 +58,13 @@ async def generate_mock_cot_events(
     - If pdb_file exists, create a StructureArtifact for Position 2
 
     Args:
-        task_id: The task identifier
+        job_id: The job identifier
         sequence: The amino acid sequence (for reference)
         delay_min: Minimum delay in seconds between messages
         delay_max: Maximum delay in seconds between messages
 
     Yields:
-        StepEvent objects with CoT messages and structure artifacts
+        JobEvent objects with CoT messages and structure artifacts
     """
     event_num = 0
     structure_count = 0
@@ -81,14 +77,14 @@ async def generate_mock_cot_events(
 
     # Stage 1: QUEUED
     event_num += 1
-    yield StepEvent(
-        eventId=f"evt_{task_id}_{event_num:04d}",
-        taskId=task_id,
+    yield JobEvent(
+        eventId=f"evt_{job_id}_{event_num:04d}",
+        jobId=job_id,
         ts=get_timestamp_ms(),
         stage=StageType.QUEUED,
         status=StatusType.running,
         progress=0,
-        message="Task queued for processing",
+        message="Job queued for processing",
         artifacts=None,
     )
 
@@ -129,9 +125,9 @@ async def generate_mock_cot_events(
             artifacts = None
 
             event_num += 1
-            yield StepEvent(
-                eventId=f"evt_{task_id}_{event_num:04d}",
-                taskId=task_id,
+            yield JobEvent(
+                eventId=f"evt_{job_id}_{event_num:04d}",
+                jobId=job_id,
                 ts=get_timestamp_ms(),
                 stage=stage,
                 status=status,
@@ -149,7 +145,7 @@ async def generate_mock_cot_events(
 
             if pdb_path:
                 structure_count += 1
-                structure_id = f"str_{task_id}_{structure_count}"
+                structure_id = f"str_{job_id}_{structure_count}"
 
                 # Read PDB content from file
                 pdb_data = _read_pdb_file(pdb_path)
@@ -164,9 +160,9 @@ async def generate_mock_cot_events(
 
                     # Position 2: Structure artifact as candidate
                     # Use MESSAGE content as cot for display
-                    yield StepEvent(
-                        eventId=f"evt_{task_id}_{event_num:04d}",
-                        taskId=task_id,
+                    yield JobEvent(
+                        eventId=f"evt_{job_id}_{event_num:04d}",
+                        jobId=job_id,
                         ts=get_timestamp_ms(),
                         stage=StageType.MODEL,
                         status=StatusType.running,
@@ -194,32 +190,32 @@ async def generate_mock_cot_events(
 
 
 async def generate_cot_events(
-    task_id: str,
+    job_id: str,
     sequence: str,
-) -> AsyncGenerator[StepEvent, None]:
-    """Generate folding step events with NanoCC/Mock integration.
+) -> AsyncGenerator[JobEvent, None]:
+    """Generate folding job events with NanoCC/Mock integration.
 
     This is the main entry point that routes to either:
     - Mock NanoCC (reads from JSONL file with random delays)
     - Real NanoCC (future implementation)
 
     Args:
-        task_id: The task identifier
+        job_id: The job identifier
         sequence: The amino acid sequence
 
     Yields:
-        StepEvent objects with progress updates and structure artifacts
+        JobEvent objects with progress updates and structure artifacts
     """
     if USE_MOCK_NANOCC:
         # Use mock CoT messages from JSONL file
-        async for event in generate_mock_cot_events(task_id, sequence):
+        async for event in generate_mock_cot_events(job_id, sequence):
             yield event
     else:
         # Future: Real NanoCC integration
         # For now, fall back to mock
-        async for event in generate_mock_cot_events(task_id, sequence):
+        async for event in generate_mock_cot_events(job_id, sequence):
             yield event
 
 
 # Alias for backward compatibility
-generate_nanocc_step_events = generate_cot_events
+generate_nanocc_job_events = generate_cot_events

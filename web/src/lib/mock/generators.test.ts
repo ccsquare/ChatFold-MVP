@@ -105,7 +105,7 @@ describe('generateMockPDB', () => {
 
 describe('generateStepEvents', () => {
   it('should generate events for all stages', () => {
-    const events = Array.from(generateStepEvents('task_1', 'MVLSPADKT'));
+    const events = Array.from(generateStepEvents('job_1', 'MVLSPADKT'));
 
     const stages = new Set(events.map(e => e.stage));
     expect(stages).toContain('QUEUED');
@@ -117,7 +117,7 @@ describe('generateStepEvents', () => {
   });
 
   it('should generate unique event IDs', () => {
-    const events = Array.from(generateStepEvents('task_1', 'MVLSPADKT'));
+    const events = Array.from(generateStepEvents('job_1', 'MVLSPADKT'));
 
     const ids = events.map(e => e.eventId);
     const uniqueIds = new Set(ids);
@@ -125,17 +125,17 @@ describe('generateStepEvents', () => {
     expect(uniqueIds.size).toBe(ids.length);
   });
 
-  it('should include task ID in all events', () => {
-    const taskId = 'task_test123';
-    const events = Array.from(generateStepEvents(taskId, 'MVLSPADKT'));
+  it('should include job ID in all events', () => {
+    const jobId = 'job_test123';
+    const events = Array.from(generateStepEvents(jobId, 'MVLSPADKT'));
 
     events.forEach(event => {
-      expect(event.taskId).toBe(taskId);
+      expect(event.jobId).toBe(jobId);
     });
   });
 
   it('should generate structure artifacts at MODEL and DONE stages', () => {
-    const events = Array.from(generateStepEvents('task_1', 'MVLSPADKT'));
+    const events = Array.from(generateStepEvents('job_1', 'MVLSPADKT'));
 
     const artifactEvents = events.filter(e => e.artifacts && e.artifacts.length > 0);
     expect(artifactEvents.length).toBeGreaterThan(0);
@@ -148,14 +148,14 @@ describe('generateStepEvents', () => {
   });
 
   it('should reach 100% progress at DONE stage', () => {
-    const events = Array.from(generateStepEvents('task_1', 'MVLSPADKT'));
+    const events = Array.from(generateStepEvents('job_1', 'MVLSPADKT'));
 
     const doneEvent = events.find(e => e.stage === 'DONE');
     expect(doneEvent?.progress).toBe(100);
   });
 
   it('should progress monotonically', () => {
-    const events = Array.from(generateStepEvents('task_1', 'MVLSPADKT'));
+    const events = Array.from(generateStepEvents('job_1', 'MVLSPADKT'));
 
     let lastProgress = 0;
     events.forEach(event => {
@@ -177,8 +177,8 @@ describe('generateId', () => {
   });
 
   it('should include prefix when provided', () => {
-    const id = generateId('task');
-    expect(id).toMatch(/^task_/);
+    const id = generateId('job');
+    expect(id).toMatch(/^job_/);
   });
 
   it('should work without prefix', () => {

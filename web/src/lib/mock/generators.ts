@@ -96,12 +96,12 @@ export function parseFasta(content: string): { header: string; sequence: string 
   return { header, sequence };
 }
 
-// Generate step events for a folding task
-export function* generateStepEvents(taskId: string, sequence: string): Generator<StepEvent> {
+// Generate step events for a folding job
+export function* generateStepEvents(jobId: string, sequence: string): Generator<StepEvent> {
   const stages: { stage: StageType; messages: string[] }[] = [
     {
       stage: 'QUEUED',
-      messages: ['Task queued for processing']
+      messages: ['Job queued for processing']
     },
     {
       stage: 'MSA',
@@ -163,7 +163,7 @@ export function* generateStepEvents(taskId: string, sequence: string): Generator
       // Messages: 0=init, 1=inference, 2-6=generating candidates
       if (stage === 'MODEL' && i >= 2) {
         const candidateNum = i - 1; // 1, 2, 3, 4, 5
-        const structureId = `str_${taskId}_${candidateNum}`;
+        const structureId = `str_${jobId}_${candidateNum}`;
 
         artifacts.push({
           type: 'structure',
@@ -176,7 +176,7 @@ export function* generateStepEvents(taskId: string, sequence: string): Generator
 
       // Generate final structure at DONE stage
       if (stage === 'DONE') {
-        const structureId = `str_${taskId}_final`;
+        const structureId = `str_${jobId}_final`;
 
         artifacts.push({
           type: 'structure',
@@ -198,8 +198,8 @@ export function* generateStepEvents(taskId: string, sequence: string): Generator
       }
 
       yield {
-        eventId: `evt_${taskId}_${eventNum.toString().padStart(4, '0')}`,
-        taskId,
+        eventId: `evt_${jobId}_${eventNum.toString().padStart(4, '0')}`,
+        jobId,
         ts: Date.now(),
         stage,
         status,

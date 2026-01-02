@@ -14,7 +14,7 @@ import {
   TooltipTrigger,
   TooltipProvider,
 } from '@/components/ui/tooltip';
-import { useFoldingTask } from '@/hooks/useFoldingTask';
+import { useFoldingJob } from '@/hooks/useFoldingJob';
 import { useConversationTimeline } from '@/hooks/useConversationTimeline';
 import { useAvailableFiles } from '@/hooks/useAvailableFiles';
 import { parseFasta } from '@/lib/mock/generators';
@@ -35,7 +35,7 @@ export function ChatView() {
   } = useAppStore();
 
   // Use shared hooks
-  const { submit } = useFoldingTask();
+  const { submit } = useFoldingJob();
   const { timeline, isStreaming, latestStatusMessage } = useConversationTimeline();
   const availableFiles = useAvailableFiles();
 

@@ -29,7 +29,7 @@ async def get_structure(structure_id: str, sequence: str | None = Query(None)):
 
     # Generate if we have a sequence
     if sequence:
-        # Extract variant from structure_id (e.g., "str_task_123_5" -> 5)
+        # Extract variant from structure_id (e.g., "str_job_123_5" -> 5)
         parts = structure_id.split("_")
         variant = 0
         if parts:
