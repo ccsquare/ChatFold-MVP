@@ -4,7 +4,7 @@ import { useCallback, useId, useRef, useEffect, useState } from 'react';
 import { ViewerTab, CompareViewMode } from '@/lib/types';
 import { useAppStore } from '@/lib/store';
 import { cn, downloadFile } from '@/lib/utils';
-import { MolstarViewer } from './MolstarViewer';
+import { MolstarViewer } from './molstar';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
