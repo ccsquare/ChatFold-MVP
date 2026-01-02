@@ -36,7 +36,7 @@ export function ChatView() {
 
   // Use shared hooks
   const { submit } = useFoldingJob();
-  const { timeline, isStreaming, latestStatusMessage } = useConversationTimeline();
+  const { timeline, isStreaming, latestStatusMessage, timelineByEventType } = useConversationTimeline();
   const availableFiles = useAvailableFiles();
 
   const [inputValue, setInputValue] = useState('');
@@ -115,13 +115,8 @@ export function ChatView() {
             ? messageContent
             : `>user_input_sequence\n${sequence}`;
 
-          // Add assistant message about starting
-          addMessage(convId, {
-            role: 'assistant',
-            content: `Starting structure prediction for your ${sequence.length} residue sequence. The sequence has been saved as "${filename}" in your project. I'll keep you updated on the progress.`
-          });
-
           // Submit using the shared hook (which handles API + SSE)
+          // Note: No initial assistant message - PROLOGUE events will be shown instead
           const result = await submit(convId, sequence, {
             filename,
             fastaContent
@@ -253,6 +248,7 @@ export function ChatView() {
                 variant="wide"
                 isStreaming={isStreaming}
                 statusMessage={latestStatusMessage}
+                timelineByEventType={timelineByEventType}
               />
               <div ref={messagesEndRef} />
             </div>

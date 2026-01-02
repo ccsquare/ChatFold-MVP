@@ -315,9 +315,11 @@ export function CompareViewer({ tab, className, isExpanded = false, onToggleExpa
           previousPdbData={previous.pdbData}
           previousLabel={previous.label}
           previousStructureId={previous.structureId}
+          previousFilename={previous.filename}
           currentPdbData={current.pdbData}
           currentLabel={current.label}
           currentStructureId={current.structureId}
+          currentFilename={current.filename}
         />
       )}
     </div>
@@ -350,6 +352,15 @@ function StructurePanel({
   tabId: string;
   isCurrent?: boolean;
 }) {
+  // Detect format from filename extension
+  const getFormat = (): 'pdb' | 'mmcif' | 'cif' => {
+    const lowerFilename = filename.toLowerCase();
+    if (lowerFilename.endsWith('.cif') || lowerFilename.endsWith('.mmcif')) {
+      return 'mmcif';
+    }
+    return 'pdb';
+  };
+
   return (
     <>
       {/* Panel header */}
@@ -378,6 +389,7 @@ function StructurePanel({
           tabId={tabId}
           pdbData={pdbData}
           structureId={structureId}
+          format={getFormat()}
           showControls={true}
           minimalUI={false}
           syncGroupId={syncGroupId}
@@ -397,9 +409,11 @@ interface SuperposedViewerProps {
   previousPdbData: string;
   previousLabel: string;
   previousStructureId: string;
+  previousFilename: string;
   currentPdbData: string;
   currentLabel: string;
   currentStructureId: string;
+  currentFilename: string;
 }
 
 // Colors for the two structures (hex values for Mol*)
@@ -411,10 +425,20 @@ function SuperposedViewer({
   previousPdbData,
   previousLabel,
   previousStructureId,
+  previousFilename,
   currentPdbData,
   currentLabel,
   currentStructureId,
+  currentFilename,
 }: SuperposedViewerProps) {
+  // Detect format from filename extension
+  const getFormat = (filename: string): 'pdb' | 'mmcif' | 'cif' => {
+    const lowerFilename = filename.toLowerCase();
+    if (lowerFilename.endsWith('.cif') || lowerFilename.endsWith('.mmcif')) {
+      return 'mmcif';
+    }
+    return 'pdb';
+  };
   const containerRef = useRef<HTMLDivElement>(null);
   const pluginRef = useRef<any>(null);
   const isMountedRef = useRef(true);
@@ -551,9 +575,9 @@ function SuperposedViewer({
         await new Promise(resolve => setTimeout(resolve, 200));
 
         // Load both structures
-        const loadStructure = async (pdbData: string, label: string) => {
+        const loadStructure = async (pdbData: string, label: string, format: 'pdb' | 'mmcif' | 'cif') => {
           const dataObj = await plugin.builders.data.rawData({ data: pdbData, label });
-          const trajectory = await plugin.builders.structure.parseTrajectory(dataObj, 'pdb');
+          const trajectory = await plugin.builders.structure.parseTrajectory(dataObj, format);
           const model = await plugin.builders.structure.createModel(trajectory);
           // Create structure without automatic representation
           const structure = await plugin.builders.structure.createStructure(model);
@@ -561,9 +585,9 @@ function SuperposedViewer({
         };
 
         // Load previous structure (reference)
-        const prevStructure = await loadStructure(previousPdbData, previousLabel);
+        const prevStructure = await loadStructure(previousPdbData, previousLabel, getFormat(previousFilename));
         // Load current structure (mobile - will be transformed)
-        const currStructure = await loadStructure(currentPdbData, currentLabel);
+        const currStructure = await loadStructure(currentPdbData, currentLabel, getFormat(currentFilename));
 
         // Get structure data for superposition
         const prevStructData = prevStructure.cell?.obj?.data;

@@ -3,9 +3,15 @@
 This module integrates NanoCC AI (or Mock NanoCC) to provide intelligent
 protein structure analysis with streaming Chain-of-Thought messages.
 
-UI Integration:
-- Position 1 (Sidebar status): Shows MESSAGE field, updated with each new message (overwrite mode)
-- Position 2 (Structure list): Shows candidate structures when pdb_file is present
+UI Integration (by EventType):
+- PROLOGUE/ANNOTATION: Display in area 2 (opening section with key verification points)
+- THINKING_TEXT: Display in area 3 (scrolling text, 2 visible lines, double-click to expand)
+- THINKING_PDB: Display in area 3+4 as thinking block with structure card
+- CONCLUSION: Display as final completion message
+
+Thinking Block Grouping:
+- THINKING events are grouped into blocks ending with THINKING_PDB
+- Each block shows the latest message in area 4 (1 line, double-click to expand)
 """
 
 import os
@@ -14,7 +20,7 @@ from pathlib import Path
 
 from app.components.workspace.models import StructureArtifact
 from app.utils import get_timestamp_ms
-from .job import JobEvent, StageType, StatusType
+from .job import JobEvent, EventType, StageType, StatusType
 from .mock import MockNanoCCClient
 
 # Configuration
@@ -41,6 +47,29 @@ def _read_pdb_file(pdb_path: str) -> str | None:
     return None
 
 
+def _map_jsonl_type_to_event_type(jsonl_type: str, has_pdb: bool) -> EventType:
+    """Map JSONL TYPE field to EventType enum.
+
+    Args:
+        jsonl_type: TYPE field from JSONL (PROLOGUE, ANNOTATION, THINKING, CONCLUSION)
+        has_pdb: Whether the message has a pdb_file field
+
+    Returns:
+        Corresponding EventType
+    """
+    if jsonl_type == "PROLOGUE":
+        return EventType.PROLOGUE
+    elif jsonl_type == "ANNOTATION":
+        return EventType.ANNOTATION
+    elif jsonl_type == "THINKING":
+        return EventType.THINKING_PDB if has_pdb else EventType.THINKING_TEXT
+    elif jsonl_type == "CONCLUSION":
+        return EventType.CONCLUSION
+    else:
+        # Default to THINKING_TEXT for unknown types
+        return EventType.THINKING_TEXT
+
+
 async def generate_mock_cot_events(
     job_id: str,
     sequence: str,
@@ -50,12 +79,18 @@ async def generate_mock_cot_events(
     """Generate folding job events from Mock NanoCC CoT messages.
 
     This function streams Chain-of-Thought messages from the mock JSONL file,
-    converting them to JobEvent objects with proper stage tracking.
+    converting them to JobEvent objects with proper EventType and block grouping.
 
-    Logic:
-    - Each JSONL line has STATE, MESSAGE, and optionally pdb_file/label
-    - MESSAGE is displayed at Position 1 (overwrite mode)
-    - If pdb_file exists, create a StructureArtifact for Position 2
+    EventType Mapping:
+    - PROLOGUE -> EventType.PROLOGUE (display in area 2)
+    - ANNOTATION -> EventType.ANNOTATION (display in area 2)
+    - THINKING (no pdb) -> EventType.THINKING_TEXT (display in area 3)
+    - THINKING (with pdb) -> EventType.THINKING_PDB (display in area 3+4 as block)
+    - CONCLUSION -> EventType.CONCLUSION (completion message)
+
+    Block Grouping:
+    - THINKING events are grouped into blocks
+    - Each THINKING_PDB ends a block and increments blockIndex
 
     Args:
         job_id: The job identifier
@@ -64,10 +99,11 @@ async def generate_mock_cot_events(
         delay_max: Maximum delay in seconds between messages
 
     Yields:
-        JobEvent objects with CoT messages and structure artifacts
+        JobEvent objects with CoT messages, EventType, and structure artifacts
     """
     event_num = 0
     structure_count = 0
+    block_index = 0  # Current thinking block index
 
     # Initialize mock client
     mock_client = MockNanoCCClient(
@@ -81,10 +117,12 @@ async def generate_mock_cot_events(
         eventId=f"evt_{job_id}_{event_num:04d}",
         jobId=job_id,
         ts=get_timestamp_ms(),
+        eventType=EventType.THINKING_TEXT,  # QUEUED is a special case
         stage=StageType.QUEUED,
         status=StatusType.running,
         progress=0,
         message="Job queued for processing",
+        blockIndex=None,
         artifacts=None,
     )
 
@@ -95,10 +133,6 @@ async def generate_mock_cot_events(
     total_messages = len(mock_client._load_messages())
     current_msg_idx = 0
 
-    # Pending structure data (from tool_result event)
-    pending_pdb_path: str | None = None
-    pending_label: str | None = None
-
     # Stream mock CoT messages
     async for event in mock_client.send_message(session["session_id"], f"Analyze sequence: {sequence[:50]}..."):
         event_type = event.get("event_type")
@@ -108,6 +142,7 @@ async def generate_mock_cot_events(
             current_msg_idx += 1
             content = data.get("content", "")
             state = data.get("state", "MODEL")
+            jsonl_type = data.get("type", "THINKING")  # TYPE field from JSONL
 
             # Map state to stage
             if state == "DONE":
@@ -120,28 +155,33 @@ async def generate_mock_cot_events(
                 # Calculate progress: 10% to 95% based on message index
                 progress = min(95, 10 + int((current_msg_idx / total_messages) * 85))
 
-            # Check if we have a pending structure from the previous iteration
-            # This handles the case where tool_result comes after text
-            artifacts = None
+            # Determine EventType (no pdb_file in text event)
+            nanocc_event_type = _map_jsonl_type_to_event_type(jsonl_type, has_pdb=False)
+
+            # Determine blockIndex for THINKING types
+            current_block_index = None
+            if nanocc_event_type in (EventType.THINKING_TEXT, EventType.THINKING_PDB):
+                current_block_index = block_index
 
             event_num += 1
             yield JobEvent(
                 eventId=f"evt_{job_id}_{event_num:04d}",
                 jobId=job_id,
                 ts=get_timestamp_ms(),
+                eventType=nanocc_event_type,
                 stage=stage,
                 status=status,
                 progress=progress,
-                message=content.strip(),  # Position 1: MESSAGE field (overwrite mode)
-                artifacts=artifacts,
+                message=content.strip(),
+                blockIndex=current_block_index,
+                artifacts=None,
             )
 
         elif event_type == "tool_result":
-            # Structure artifact from PDB file
-            # This comes immediately after the text event for the same message
+            # Structure artifact from PDB file (THINKING_PDB)
             pdb_path = data.get("pdb_file")
             label = data.get("label", "structure")
-            message_content = data.get("message", "")  # Get MESSAGE for Position 2
+            message_content = data.get("message", "")
 
             if pdb_path:
                 structure_count += 1
@@ -158,16 +198,17 @@ async def generate_mock_cot_events(
                     event_num += 1
                     progress = min(95, 10 + int((current_msg_idx / total_messages) * 85))
 
-                    # Position 2: Structure artifact as candidate
-                    # Use MESSAGE content as cot for display
+                    # THINKING_PDB: ends current block
                     yield JobEvent(
                         eventId=f"evt_{job_id}_{event_num:04d}",
                         jobId=job_id,
                         ts=get_timestamp_ms(),
+                        eventType=EventType.THINKING_PDB,
                         stage=StageType.MODEL,
                         status=StatusType.running,
                         progress=progress,
                         message=message_content.strip() if message_content else f"Generated structure: {label}",
+                        blockIndex=block_index,
                         artifacts=[
                             StructureArtifact(
                                 type="structure",
@@ -180,6 +221,9 @@ async def generate_mock_cot_events(
                             )
                         ],
                     )
+
+                    # Increment block index after THINKING_PDB
+                    block_index += 1
 
         elif event_type == "done":
             # Final done event

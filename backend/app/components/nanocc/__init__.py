@@ -4,7 +4,7 @@ This module provides integration with NanoCC AI service for protein folding
 analysis with Chain-of-Thought (CoT) streaming.
 
 Components:
-- models.py: NanoCCJob, JobEvent, and related data models
+- job.py: NanoCCJob, JobEvent, EventType and related data models
 - client.py: NanoCC API client for real service communication
 - folding.py: Folding service that orchestrates mock/real NanoCC
 - mock.py: Mock NanoCC service (reads from JSONL files)
@@ -21,6 +21,7 @@ from .job import (
     NanoCCJob,
     JobEvent,
     JobType,
+    EventType,
     StageType,
     StatusType,
     CreateJobRequest,
@@ -34,6 +35,7 @@ __all__ = [
     "NanoCCJob",
     "JobEvent",
     "JobType",
+    "EventType",
     "StageType",
     "StatusType",
     "CreateJobRequest",

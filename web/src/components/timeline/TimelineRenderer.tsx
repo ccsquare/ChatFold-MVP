@@ -1,12 +1,11 @@
 'use client';
 
 import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react';
-import { TimelineItem } from '@/hooks/useConversationTimeline';
+import { TimelineItem, TimelineByEventType, ThinkingBlock } from '@/hooks/useConversationTimeline';
 import { StructureArtifact, ChatMessage } from '@/lib/types';
 import { cn, formatTimestamp } from '@/lib/utils';
-import { Loader2, Link2, Link2Off, RotateCcw, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, Link2, Link2Off, RotateCcw, ChevronUp, ChevronDown, CheckCircle2, Sparkles } from 'lucide-react';
 import { StructureArtifactCard } from '@/components/StructureArtifactCard';
-import { ThinkingSummary } from '@/components/ThinkingSummary';
 import { resetSyncGroupCamera } from '@/hooks/useCameraSync';
 import { useAppStore } from '@/lib/store';
 import {
@@ -35,6 +34,8 @@ interface TimelineRendererProps {
   statusMessage?: string | null;
   /** Additional CSS classes */
   className?: string;
+  /** NEW: Steps grouped by EventType for area-based rendering */
+  timelineByEventType?: TimelineByEventType;
 }
 
 /**
@@ -53,6 +54,7 @@ export function TimelineRenderer({
   isStreaming = false,
   statusMessage,
   className,
+  timelineByEventType,
 }: TimelineRendererProps) {
   const endRef = useRef<HTMLDivElement>(null);
   const isCompact = variant === 'compact';
@@ -84,13 +86,14 @@ export function TimelineRenderer({
           currentArtifactGroup = [];
         }
         result.push({ type: 'message', data: item.data });
-      } else {
+      } else if (item.type === 'artifact') {
         currentArtifactGroup.push({
           data: item.data,
           timestamp: item.timestamp,
           index: globalArtifactIndex++,
         });
       }
+      // Skip 'step' type items - they are handled by EventTypeRenderer
     });
 
     // Flush remaining artifacts
@@ -105,38 +108,84 @@ export function TimelineRenderer({
     return null;
   }
 
+  // Build prologue content from timelineByEventType
+  const prologueContent = useMemo(() => {
+    if (!timelineByEventType) return null;
+    const items = [...timelineByEventType.prologue, ...timelineByEventType.annotations];
+    if (items.length === 0) return null;
+    return items.map(e => e.message).join('\n\n');
+  }, [timelineByEventType]);
+
+  // Build CONCLUSION content for display after artifact group
+  const conclusionContent = useMemo(() => {
+    if (!timelineByEventType?.conclusion) return null;
+    return timelineByEventType.conclusion.message;
+  }, [timelineByEventType]);
+
+  // Get thinking blocks for per-artifact thinking display
+  const thinkingBlocks = useMemo(() => {
+    if (!timelineByEventType?.thinkingBlocks) return [];
+    return timelineByEventType.thinkingBlocks;
+  }, [timelineByEventType]);
+
+  // Get current streaming thinking text (latest THINKING_TEXT from latest block)
+  // This is for the typewriter display in the header during streaming
+  const currentThinkingText = useMemo(() => {
+    if (!isStreaming || !timelineByEventType?.thinkingText) return null;
+    const thinkingTexts = timelineByEventType.thinkingText;
+    if (thinkingTexts.length === 0) return null;
+    // Get the last thinking text message
+    return thinkingTexts[thinkingTexts.length - 1]?.message || null;
+  }, [isStreaming, timelineByEventType]);
+
+  // Check if we have user message (to show prologue after it)
+  const hasUserMessage = groups.some(g => g.type === 'message' && g.data.role === 'user');
+
   return (
     <div className={cn("flex flex-col", className)}>
       {groups.map((group, groupIndex) => {
         if (group.type === 'message') {
+          const isUserMessage = group.data.role === 'user';
           return (
-            <MessageBubble
-              key={group.data.id}
-              message={group.data}
-              isCompact={isCompact}
-            />
-          );
-        } else {
-          // Artifact group with timeline nodes
-          return (
-            <ArtifactGroup
-              key={`artifact-group-${groupIndex}`}
-              groupIndex={groupIndex}
-              artifacts={group.artifacts}
-              allArtifacts={allArtifacts}
-              isCompact={isCompact}
-              isStreaming={isStreaming}
-              statusMessage={statusMessage}
-            />
+            <React.Fragment key={group.data.id}>
+              <MessageBubble
+                message={group.data}
+                isCompact={isCompact}
+              />
+              {/* Show PROLOGUE as message bubble after user message */}
+              {isUserMessage && prologueContent && (
+                <PrologueBubble text={prologueContent} isCompact={isCompact} />
+              )}
+            </React.Fragment>
           );
         }
+        if (group.type === 'artifact-group') {
+          return (
+            <React.Fragment key={`artifact-group-${groupIndex}`}>
+              <ArtifactGroup
+                groupIndex={groupIndex}
+                artifacts={group.artifacts}
+                allArtifacts={allArtifacts}
+                isCompact={isCompact}
+                isStreaming={isStreaming}
+                thinkingBlocks={thinkingBlocks}
+                currentThinkingText={currentThinkingText}
+              />
+              {/* Show CONCLUSION as message bubble after artifact group when complete */}
+              {!isStreaming && conclusionContent && (
+                <ConclusionBubble text={conclusionContent} isCompact={isCompact} />
+              )}
+            </React.Fragment>
+          );
+        }
+        return null;
       })}
 
-      {/* Streaming indicator at bottom */}
-      {isStreaming && (
+      {/* Streaming indicator at bottom - only show when no artifacts yet */}
+      {isStreaming && groups.every(g => g.type !== 'artifact-group') && (
         <div className="flex items-center gap-2 py-2 text-cf-text-secondary">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          <span className="text-xs">Thinking...</span>
+          <Sparkles className="w-4 h-4 text-cf-accent" />
+          <span className="text-sm truncate">{currentThinkingText || 'Thinking...'}</span>
         </div>
       )}
 
@@ -186,6 +235,108 @@ function MessageBubble({
 }
 
 /**
+ * PROLOGUE/ANNOTATION bubble component - message bubble style (left-aligned, gray bg)
+ * Shows the verification points and annotations from the backend
+ */
+function PrologueBubble({
+  text,
+  isCompact,
+}: {
+  text: string;
+  isCompact: boolean;
+}) {
+  return (
+    <div className="flex pb-3 justify-start">
+      <div
+        className={cn(
+          "rounded-lg px-3 py-2 overflow-hidden shadow-sm",
+          isCompact ? "max-w-[85%]" : "max-w-[70%]",
+          "bg-cf-bg border border-cf-border text-cf-text"
+        )}
+      >
+        <p className="text-sm whitespace-pre-wrap break-all [overflow-wrap:anywhere]">
+          {text}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * CONCLUSION bubble component - message bubble style (left-aligned, gray bg)
+ * Shows the final conclusion from the AI after folding is complete
+ */
+function ConclusionBubble({
+  text,
+  isCompact,
+}: {
+  text: string;
+  isCompact: boolean;
+}) {
+  return (
+    <div className="flex pb-3 justify-start">
+      <div
+        className={cn(
+          "rounded-lg px-3 py-2 overflow-hidden shadow-sm",
+          isCompact ? "max-w-[85%]" : "max-w-[70%]",
+          "bg-cf-bg border border-cf-border text-cf-text"
+        )}
+      >
+        <p className="text-sm whitespace-pre-wrap break-all [overflow-wrap:anywhere]">
+          {text}
+        </p>
+        <p className="text-[10px] mt-1 text-cf-text-muted">
+          {formatTimestamp(Date.now())}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Thinking bubble component - shown before each structure artifact
+ * Single line with sparkle icon, truncated with "...", expandable via chevron
+ * Matches design: [✨ Thinking text here...                    ∨]
+ */
+function ThinkingBubble({ text }: { text: string }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer transition-all",
+        "border-cf-border/60 bg-white dark:bg-cf-bg-secondary",
+        "hover:border-cf-accent/40 hover:shadow-sm"
+      )}
+      onClick={() => setIsExpanded(!isExpanded)}
+    >
+      {/* Sparkle icon */}
+      <Sparkles className="w-4 h-4 text-cf-accent flex-shrink-0" />
+
+      {/* Text content - single line truncated or expanded */}
+      <p
+        className={cn(
+          "flex-1 text-sm text-cf-text-secondary",
+          isExpanded
+            ? "whitespace-pre-wrap break-words"
+            : "truncate"
+        )}
+      >
+        {text}
+      </p>
+
+      {/* Expand/collapse chevron */}
+      <ChevronDown
+        className={cn(
+          "w-4 h-4 text-cf-text-muted flex-shrink-0 transition-transform",
+          isExpanded && "rotate-180"
+        )}
+      />
+    </div>
+  );
+}
+
+/**
  * Artifact group with timeline visualization wrapped in a container
  */
 function ArtifactGroup({
@@ -194,14 +345,17 @@ function ArtifactGroup({
   allArtifacts,
   isCompact,
   isStreaming,
-  statusMessage,
+  thinkingBlocks,
+  currentThinkingText,
 }: {
   groupIndex: number;
   artifacts: Array<{ data: StructureArtifact; timestamp: number; index: number }>;
   allArtifacts: Array<{ type: 'artifact'; data: StructureArtifact; timestamp: number }>;
   isCompact: boolean;
   isStreaming: boolean;
-  statusMessage?: string | null;
+  thinkingBlocks?: ThinkingBlock[];
+  /** Current streaming thinking text for typewriter display */
+  currentThinkingText?: string | null;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const isComplete = !isStreaming || artifacts[artifacts.length - 1]?.index < allArtifacts.length - 1;
@@ -250,6 +404,33 @@ function ArtifactGroup({
     }
   }, [artifacts.length, isExpanded]);
 
+  // Helper function to get thinking text for a specific block index
+  const getThinkingTextForBlock = useCallback((blockIndex: number): string | null => {
+    if (!thinkingBlocks) return null;
+    const block = thinkingBlocks.find(b => b.blockIndex === blockIndex);
+    if (!block || !block.events || block.events.length === 0) return null;
+    // Combine all THINKING_TEXT events in this block
+    const thinkingTexts = block.events
+      .filter(e => e.eventType === 'THINKING_TEXT')
+      .map(e => e.message);
+    return thinkingTexts.length > 0 ? thinkingTexts.join('\n') : null;
+  }, [thinkingBlocks]);
+
+  // Get ALL thinking text combined for the header summary display
+  const allThinkingText = useMemo(() => {
+    if (!thinkingBlocks || thinkingBlocks.length === 0) return null;
+    const allTexts: string[] = [];
+    thinkingBlocks.forEach(block => {
+      block.events
+        .filter(e => e.eventType === 'THINKING_TEXT')
+        .forEach(e => allTexts.push(e.message));
+    });
+    return allTexts.length > 0 ? allTexts.join('\n') : null;
+  }, [thinkingBlocks]);
+
+  // Header expand state for thinking summary
+  const [headerExpanded, setHeaderExpanded] = useState(false);
+
   return (
     <div className="pb-4">
       {/* Container wrapper with border */}
@@ -259,30 +440,43 @@ function ArtifactGroup({
           ? "border-l-cf-success"
           : "border-l-cf-accent"
       )}>
-        {/* Header - consolidated single row */}
-        <div className={cn(
-          "flex items-center justify-between px-4 py-2.5 border-b",
-          isComplete
-            ? "border-cf-success/20 bg-cf-success/5"
-            : "border-cf-accent/20 bg-cf-accent/5"
-        )}>
-          {/* Left: Status */}
-          <div className="flex items-center gap-2">
+        {/* Header - thinking summary with 2-line display, expandable */}
+        <div
+          className={cn(
+            "flex items-start gap-2 px-4 py-2.5 border-b cursor-pointer",
+            isComplete
+              ? "border-cf-success/20 bg-cf-success/5"
+              : "border-cf-accent/20 bg-cf-accent/5"
+          )}
+          onClick={() => setHeaderExpanded(!headerExpanded)}
+        >
+          {/* Left: Status indicator */}
+          <div className="flex-shrink-0 pt-0.5">
             {isComplete ? (
               <CheckCircle2 className="w-4 h-4 text-cf-success" />
             ) : (
-              <Loader2 className="w-4 h-4 text-cf-accent animate-spin" />
+              <Sparkles className="w-4 h-4 text-cf-accent" />
             )}
-            <span className={cn(
-              "text-sm font-medium",
-              isComplete ? "text-cf-text" : "text-cf-text-secondary"
-            )}>
-              {statusMessage || (isComplete ? 'Folding Completed.' : 'Folding in Progress...')}
-            </span>
+          </div>
+
+          {/* Middle: Thinking text - 2 lines by default, expandable */}
+          <div className="flex-1 min-w-0">
+            {(allThinkingText || currentThinkingText) && (
+              <p
+                className={cn(
+                  "text-sm text-cf-text-secondary",
+                  headerExpanded
+                    ? "whitespace-pre-wrap break-words"
+                    : "line-clamp-2"
+                )}
+              >
+                {allThinkingText || currentThinkingText}
+              </p>
+            )}
           </div>
 
           {/* Right: Controls */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-shrink-0">
             {/* Camera controls - only for multiple structures */}
             {hasMultipleArtifacts && (
               <>
@@ -291,7 +485,7 @@ function ArtifactGroup({
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={handleResetAllCameras}
+                      onClick={(e) => { e.stopPropagation(); handleResetAllCameras(); }}
                       className="h-6 w-6 text-cf-text-secondary hover:text-cf-text hover:bg-cf-highlight"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
@@ -305,7 +499,7 @@ function ArtifactGroup({
                     <Button
                       variant={cameraSyncEnabled ? "ghost-icon-active" : "ghost-icon"}
                       size="icon"
-                      onClick={handleToggleCameraSync}
+                      onClick={(e) => { e.stopPropagation(); handleToggleCameraSync(); }}
                       className={cn(
                         "h-6 w-6",
                         cameraSyncEnabled && "bg-cf-accent/10 hover:bg-cf-accent/15"
@@ -328,15 +522,13 @@ function ArtifactGroup({
               </>
             )}
 
-            {/* Expand/Collapse */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="h-6 w-6 text-cf-text-secondary hover:text-cf-text hover:bg-cf-highlight"
-            >
-              {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-            </Button>
+            {/* Header expand/collapse chevron for thinking text */}
+            <ChevronDown
+              className={cn(
+                "w-4 h-4 text-cf-text-muted transition-transform",
+                headerExpanded && "rotate-180"
+              )}
+            />
           </div>
         </div>
 
@@ -352,17 +544,17 @@ function ArtifactGroup({
             {artifacts.map((artifactItem) => {
               const artifact = artifactItem.data;
               const currentIndex = artifactItem.index;
+              const thinkingText = getThinkingTextForBlock(currentIndex);
 
               return (
                 <div
                   key={artifact.structureId}
                   className="flex flex-col gap-2"
                 >
-                  {/* CoT Thinking Summary - appears before structure */}
-                  {artifact.cot && (
-                    <ThinkingSummary text={artifact.cot} />
+                  {/* Thinking bubble before each structure - max 2 lines by default */}
+                  {thinkingText && (
+                    <ThinkingBubble text={thinkingText} />
                   )}
-
                   {/* Structure Card - now directly clickable for compare selection */}
                   <StructureArtifactCard
                     artifact={artifact}
@@ -382,3 +574,4 @@ function ArtifactGroup({
     </div>
   );
 }
+

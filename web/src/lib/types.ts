@@ -24,6 +24,14 @@ export interface Project {
 export type StageType = 'QUEUED' | 'MSA' | 'MODEL' | 'RELAX' | 'QA' | 'DONE' | 'ERROR';
 export type StatusType = 'queued' | 'running' | 'partial' | 'complete' | 'failed' | 'canceled';
 
+// EventType defines how SSE messages map to UI areas
+export type EventType =
+  | 'PROLOGUE'       // Area 2: Opening message with key verification points
+  | 'ANNOTATION'     // Area 2: Additional notes/annotations
+  | 'THINKING_TEXT'  // Area 3: Pure text thinking (scrolling, 2 lines visible)
+  | 'THINKING_PDB'   // Area 4: Thinking with structure output (ends a block)
+  | 'CONCLUSION';    // Area 5: Final conclusion message
+
 export interface StructureArtifact {
   type: 'structure';
   structureId: string;
@@ -39,10 +47,12 @@ export interface StepEvent {
   eventId: string;
   jobId: string;
   ts: number;
+  eventType: EventType;        // How this event maps to UI areas
   stage: StageType;
   status: StatusType;
   progress: number; // 0-100
   message: string;
+  blockIndex?: number | null;  // Thinking block index (for THINKING_TEXT/THINKING_PDB grouping)
   artifacts?: StructureArtifact[];
 }
 

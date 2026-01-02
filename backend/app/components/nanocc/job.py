@@ -42,18 +42,43 @@ class JobType(str, Enum):
     # Future: docking, optimization, etc.
 
 
+class EventType(str, Enum):
+    """Type of SSE event from NanoCC.
+
+    Defines how messages should be displayed in the frontend:
+    - PROLOGUE: Opening message listing key verification points (displayed in area 2)
+    - ANNOTATION: Additional notes/annotations (displayed in area 2)
+    - THINKING_TEXT: Pure text thinking process (displayed in area 3, scrolling)
+    - THINKING_PDB: Thinking with structure output (displayed in area 3+4 as thinking block)
+    - CONCLUSION: Final conclusion message (displayed as completion message)
+    """
+    PROLOGUE = "PROLOGUE"
+    ANNOTATION = "ANNOTATION"
+    THINKING_TEXT = "THINKING_TEXT"
+    THINKING_PDB = "THINKING_PDB"
+    CONCLUSION = "CONCLUSION"
+
+
 class JobEvent(BaseModel):
     """Progress event during job execution.
 
     Streamed via SSE to report job progress.
+
+    Frontend display rules by eventType:
+    - PROLOGUE/ANNOTATION: Display in area 2 (opening section)
+    - THINKING_TEXT: Display in area 3 (scrolling, 2 visible lines, double-click to expand)
+    - THINKING_PDB: Display in area 3+4 as thinking block with structure card
+    - CONCLUSION: Display as final completion message
     """
     eventId: str
     jobId: str
     ts: int  # Unix timestamp in milliseconds
+    eventType: EventType = EventType.THINKING_TEXT  # Default to THINKING_TEXT for backward compatibility
     stage: StageType
     status: StatusType
     progress: int = Field(..., ge=0, le=100)
     message: str
+    blockIndex: int | None = None  # Thinking block index (for THINKING_TEXT/THINKING_PDB grouping)
     artifacts: list[StructureArtifact] | None = None
 
 
