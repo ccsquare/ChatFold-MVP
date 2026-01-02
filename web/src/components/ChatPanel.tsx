@@ -33,7 +33,7 @@ export function ChatPanel() {
 
   // Use shared hooks
   const { startStream, cancel: cancelJob } = useFoldingJob();
-  const { timeline, isStreaming, latestStatusMessage, timelineByEventType } = useConversationTimeline();
+  const { timeline, isStreaming, timelineByEventType } = useConversationTimeline();
   const availableFiles = useAvailableFiles();
 
   // Handle send from ChatInputBase
@@ -265,7 +265,6 @@ export function ChatPanel() {
               timeline={timeline}
               variant="compact"
               isStreaming={isStreaming}
-              statusMessage={latestStatusMessage}
               timelineByEventType={timelineByEventType}
               className="pb-2"
             />
