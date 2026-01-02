@@ -15,8 +15,8 @@ from app.models.schemas import (
     Task,
 )
 from app.services.mock_folding import generate_step_events
-from app.services.nanocc_folding import generate_nanocc_step_events
 from app.services.storage import storage
+from app.nanocc import generate_cot_events
 from app.utils import (
     generate_id,
     get_timestamp_ms,
@@ -143,7 +143,7 @@ async def stream_task(
         """Generate SSE events for the folding task."""
         if enable_nanocc:
             # Use NanoCC-powered async generator
-            async for event in generate_nanocc_step_events(task_id, final_sequence, use_nanocc=True):
+            async for event in generate_cot_events(task_id, final_sequence):
                 # Check if task was canceled before each event
                 if storage.is_task_canceled(task_id):
                     yield f'event: canceled\ndata: {{"taskId": "{task_id}", "message": "Task canceled by user"}}\n\n'
