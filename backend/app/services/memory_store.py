@@ -1,4 +1,4 @@
-"""Session store for runtime/transient data.
+"""In-memory store for application data.
 
 Manages in-memory storage for:
 - Conversations and their messages
@@ -7,8 +7,8 @@ Manages in-memory storage for:
 - Structure cache (PDB data)
 - Task cancellation state
 
-Note: Data is lost on server restart. For persistent storage,
-see components/workspace/storage.py for workspace organization data.
+Note: Data is lost on server restart. Future versions may replace
+this with a persistent database backend.
 """
 
 import threading
@@ -16,10 +16,11 @@ import threading
 from ..models.schemas import Conversation, Task
 
 
-class SessionStore:
-    """Thread-safe in-memory session storage.
+class MemoryStore:
+    """Thread-safe in-memory data store.
 
     Uses a reentrant lock (RLock) to ensure thread safety for all operations.
+    Can be replaced with a database-backed implementation in production.
     """
 
     def __init__(self):
@@ -106,4 +107,4 @@ class SessionStore:
 
 
 # Singleton instance
-storage = SessionStore()
+storage = MemoryStore()

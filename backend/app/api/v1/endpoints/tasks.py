@@ -14,7 +14,7 @@ from app.models.schemas import (
     StatusType,
     Task,
 )
-from app.services.session_store import storage
+from app.services.memory_store import storage
 from app.components.nanocc import generate_cot_events, generate_step_events
 from app.utils import (
     generate_id,
