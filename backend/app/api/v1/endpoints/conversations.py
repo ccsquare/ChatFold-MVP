@@ -3,7 +3,7 @@
 from fastapi import APIRouter, HTTPException
 
 from app.models.schemas import Conversation, CreateConversationRequest
-from app.services.session_store import storage
+from app.services.memory_store import storage
 from app.utils import generate_id, get_timestamp_ms
 
 router = APIRouter(tags=["Conversations"])
