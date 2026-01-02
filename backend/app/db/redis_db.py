@@ -9,7 +9,7 @@ ChatFold Redis 各数据库的用途定义，避免不同功能之间的键冲�
     redis_client = redis.Redis(
         host=settings.redis_host,
         port=settings.redis_port,
-        db=RedisDB.TASK_STATE.value
+        db=RedisDB.JOB_STATE.value
     )
 """
 
@@ -29,10 +29,10 @@ class RedisDB(IntEnum):
     """
 
     # === 核心业务数据库 (0-3) ===
-    TASK_STATE = 0          # 任务实时状态存储（多实例部署必需）
+    JOB_STATE = 0           # NanoCCJob 实时状态存储（多实例部署必需）
     SESSION_STORE = 1       # 用户会话存储（未来）
     RATE_LIMITER = 2        # API 限流计数器（未来）
-    SSE_EVENTS = 3          # SSE 事件队列（任务进度推送）
+    SSE_EVENTS = 3          # SSE 事件队列（JobEvent 进度推送）
 
     # === 缓存数据库 (4-7) ===
     FILE_CACHE = 4          # 小文件内容缓存
@@ -48,10 +48,10 @@ class RedisDB(IntEnum):
     def get_description(cls, db: "RedisDB") -> str:
         """获取数据库用途描述"""
         descriptions = {
-            cls.TASK_STATE: "任务实时状态存储（K8s 多实例共享）",
+            cls.JOB_STATE: "NanoCCJob 实时状态存储（K8s 多实例共享）",
             cls.SESSION_STORE: "用户会话存储",
             cls.RATE_LIMITER: "API 限流计数器",
-            cls.SSE_EVENTS: "SSE 事件队列（任务进度推送）",
+            cls.SSE_EVENTS: "SSE 事件队列（JobEvent 进度推送）",
             cls.FILE_CACHE: "小文件内容缓存",
             cls.STRUCTURE_CACHE: "结构文件缓存",
             cls.TEMP_DATA: "临时数据存储",

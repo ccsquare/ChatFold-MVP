@@ -5,14 +5,14 @@ Unit tests for Redis cache module
 
 Tests cover:
 - RedisCache basic operations (string, hash, list)
-- Task state cache operations
+- Job state cache operations
 - SSE events cache operations
 - Singleton instance management
 """
 
 import pytest
 from app.db.redis_db import RedisDB
-from app.db.redis_cache import RedisCache, get_task_state_cache, get_sse_events_cache
+from app.db.redis_cache import RedisCache, get_job_state_cache, get_sse_events_cache
 
 
 class TestRedisDB:
@@ -20,7 +20,7 @@ class TestRedisDB:
 
     def test_redis_db_values(self):
         """Test that RedisDB enum has correct values"""
-        assert RedisDB.TASK_STATE == 0
+        assert RedisDB.JOB_STATE == 0
         assert RedisDB.SESSION_STORE == 1
         assert RedisDB.RATE_LIMITER == 2
         assert RedisDB.SSE_EVENTS == 3
@@ -38,7 +38,7 @@ class TestRedisDB:
     def test_get_description(self):
         """Test RedisDB.get_description method"""
         # Descriptions are in Chinese
-        assert "状态" in RedisDB.get_description(RedisDB.TASK_STATE)
+        assert "状态" in RedisDB.get_description(RedisDB.JOB_STATE)
         assert "测试" in RedisDB.get_description(RedisDB.TEST)
 
 
@@ -209,62 +209,62 @@ class TestRedisCacheConnection:
         test_cache.delete(key)
 
 
-class TestTaskStateCache:
-    """Test task state cache operations"""
+class TestJobStateCache:
+    """Test job state cache operations"""
 
     @pytest.fixture
-    def task_cache(self) -> RedisCache:
-        """Get task state cache instance"""
-        return get_task_state_cache()
+    def job_cache(self) -> RedisCache:
+        """Get job state cache instance"""
+        return get_job_state_cache()
 
     def test_singleton_instance(self):
-        """Test that get_task_state_cache returns singleton"""
-        cache1 = get_task_state_cache()
-        cache2 = get_task_state_cache()
+        """Test that get_job_state_cache returns singleton"""
+        cache1 = get_job_state_cache()
+        cache2 = get_job_state_cache()
         assert cache1 is cache2
 
-    def test_task_state_storage(
+    def test_job_state_storage(
         self,
-        task_cache: RedisCache,
-        test_task_id: str,
-        sample_task_state: dict,
+        job_cache: RedisCache,
+        test_job_id: str,
+        sample_job_state: dict,
     ):
-        """Test storing and retrieving task state"""
-        key = f"task:{test_task_id}:state"
+        """Test storing and retrieving job state"""
+        key = f"job:{test_job_id}:state"
 
-        # Store task state as hash
-        task_cache.hset(key, sample_task_state)
+        # Store job state as hash
+        job_cache.hset(key, sample_job_state)
 
         # Retrieve and verify
-        result = task_cache.hgetall(key)
-        assert result["status"] == sample_task_state["status"]
-        assert result["stage"] == sample_task_state["stage"]
-        assert result["progress"] == sample_task_state["progress"]
-        assert result["message"] == sample_task_state["message"]
+        result = job_cache.hgetall(key)
+        assert result["status"] == sample_job_state["status"]
+        assert result["stage"] == sample_job_state["stage"]
+        assert result["progress"] == sample_job_state["progress"]
+        assert result["message"] == sample_job_state["message"]
 
         # Cleanup
-        task_cache.delete(key)
+        job_cache.delete(key)
 
-    def test_task_state_update(
+    def test_job_state_update(
         self,
-        task_cache: RedisCache,
-        test_task_id: str,
+        job_cache: RedisCache,
+        test_job_id: str,
     ):
-        """Test updating individual task state fields"""
-        key = f"task:{test_task_id}:state"
+        """Test updating individual job state fields"""
+        key = f"job:{test_job_id}:state"
 
         # Initial state
-        task_cache.hset(key, {"status": "queued", "progress": 0})
+        job_cache.hset(key, {"status": "queued", "progress": 0})
 
         # Update
-        task_cache.hset(key, {"status": "running", "progress": 50})
+        job_cache.hset(key, {"status": "running", "progress": 50})
 
         # Verify
-        assert task_cache.hget(key, "status") == "running"
-        assert task_cache.hget(key, "progress") == 50
+        assert job_cache.hget(key, "status") == "running"
+        assert job_cache.hget(key, "progress") == 50
 
         # Cleanup
-        task_cache.delete(key)
+        job_cache.delete(key)
 
 
 class TestSSEEventsCache:
@@ -282,18 +282,18 @@ class TestSSEEventsCache:
         assert cache1 is cache2
 
     def test_different_instances(self):
-        """Test that task and SSE caches are different instances"""
-        task_cache = get_task_state_cache()
+        """Test that job and SSE caches are different instances"""
+        job_cache = get_job_state_cache()
         events_cache = get_sse_events_cache()
-        assert task_cache is not events_cache
+        assert job_cache is not events_cache
 
     def test_sse_events_queue(
         self,
         events_cache: RedisCache,
-        test_task_id: str,
+        test_job_id: str,
     ):
         """Test SSE events queue operations"""
-        key = f"task:{test_task_id}:events"
+        key = f"job:{test_job_id}:events"
 
         events = [
             {"eventId": "evt_1", "stage": "MSA", "progress": 20},
@@ -316,10 +316,10 @@ class TestSSEEventsCache:
     def test_sse_events_partial_read(
         self,
         events_cache: RedisCache,
-        test_task_id: str,
+        test_job_id: str,
     ):
         """Test reading partial events from queue"""
-        key = f"task:{test_task_id}:events"
+        key = f"job:{test_job_id}:events"
 
         events = [
             {"eventId": "evt_1", "stage": "MSA"},
@@ -388,7 +388,7 @@ class TestRedisCacheEdgeCases:
         """Test storing and retrieving complex nested data"""
         key = "test:complex"
         value = {
-            "task_id": "task_123",
+            "job_id": "job_123",
             "structures": [
                 {"id": 1, "plddt": 85.5, "label": "Candidate 1"},
                 {"id": 2, "plddt": 90.2, "label": "Final"},

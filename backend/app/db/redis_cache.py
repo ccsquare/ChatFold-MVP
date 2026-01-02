@@ -15,20 +15,20 @@ Usage:
     from app.db.redis_db import RedisDB
 
     # Create cache instance for specific database
-    cache = RedisCache(db=RedisDB.TASK_STATE)
+    cache = RedisCache(db=RedisDB.JOB_STATE)
 
     # Basic operations
-    cache.set("task:123:state", {"status": "running"}, expire_seconds=3600)
-    data = cache.get("task:123:state")
-    cache.delete("task:123:state")
+    cache.set("job:123:state", {"status": "running"}, expire_seconds=3600)
+    data = cache.get("job:123:state")
+    cache.delete("job:123:state")
 
-    # Hash operations (for task state)
-    cache.hset("task:123:state", {"status": "running", "progress": 50})
-    state = cache.hgetall("task:123:state")
+    # Hash operations (for job state)
+    cache.hset("job:123:state", {"status": "running", "progress": 50})
+    state = cache.hgetall("job:123:state")
 
     # List operations (for SSE events)
-    cache.lpush("task:123:events", {"eventId": "evt_1", "stage": "MSA"})
-    events = cache.lrange("task:123:events", 0, -1)
+    cache.lpush("job:123:events", {"eventId": "evt_1", "stage": "MSA"})
+    events = cache.lrange("job:123:events", 0, -1)
 """
 
 import json
@@ -55,7 +55,7 @@ class RedisCache:
     - TTL support: Auto-expiry with Redis SETEX
     - JSON serialization: Handles complex data structures
     - Connection pooling: Efficient Redis connections
-    - Hash/List support: For task state and SSE events
+    - Hash/List support: For job state and SSE events
     """
 
     def __init__(self, db: RedisDB):
@@ -191,7 +191,7 @@ class RedisCache:
             logger.error(f"Redis expire error for key {key}: {e}")
             return False
 
-    # ==================== Hash Operations (for Task State) ====================
+    # ==================== Hash Operations (for Job State) ====================
 
     def hset(self, key: str, mapping: dict[str, Any]) -> bool:
         """
@@ -371,16 +371,16 @@ class RedisCache:
 # ==================== Singleton Instances ====================
 # Pre-configured cache instances for common use cases
 
-_task_state_cache: Optional[RedisCache] = None
+_job_state_cache: Optional[RedisCache] = None
 _sse_events_cache: Optional[RedisCache] = None
 
 
-def get_task_state_cache() -> RedisCache:
-    """Get singleton cache instance for task state"""
-    global _task_state_cache
-    if _task_state_cache is None:
-        _task_state_cache = RedisCache(db=RedisDB.TASK_STATE)
-    return _task_state_cache
+def get_job_state_cache() -> RedisCache:
+    """Get singleton cache instance for job state"""
+    global _job_state_cache
+    if _job_state_cache is None:
+        _job_state_cache = RedisCache(db=RedisDB.JOB_STATE)
+    return _job_state_cache
 
 
 def get_sse_events_cache() -> RedisCache:

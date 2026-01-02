@@ -281,7 +281,7 @@ export function Sidebar() {
     setActiveConversation,
     deleteConversation,
     addAsset,
-    activeTask,
+    activeJob,
     folders,
     activeFolderId,
     createFolder,

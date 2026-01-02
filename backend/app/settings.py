@@ -142,7 +142,7 @@ class Settings(BaseSettings):
         Examples:
             get_output_path() -> {outputs_root}
             get_output_path("structures") -> {outputs_root}/structures
-            get_output_path("structures", "task_123.pdb") -> {outputs_root}/structures/task_123.pdb
+            get_output_path("structures", "job_123.pdb") -> {outputs_root}/structures/job_123.pdb
         """
         outputs_root = self.get_outputs_root()
         return outputs_root / Path(*paths) if paths else outputs_root
@@ -173,22 +173,22 @@ class Settings(BaseSettings):
 
         Examples:
             get_structures_path() -> {outputs_root}/structures
-            get_structures_path("task_123.pdb") -> {outputs_root}/structures/task_123.pdb
+            get_structures_path("job_123.pdb") -> {outputs_root}/structures/job_123.pdb
         """
         if paths:
             return self.get_output_path("structures", *paths)
         return self.get_output_path("structures")
 
-    def get_tasks_path(self, *paths: str) -> Path:
+    def get_jobs_path(self, *paths: str) -> Path:
         """获取任务中间文件路径
 
         Examples:
-            get_tasks_path() -> {outputs_root}/tasks
-            get_tasks_path("task_123") -> {outputs_root}/tasks/task_123
+            get_jobs_path() -> {outputs_root}/jobs
+            get_jobs_path("job_123") -> {outputs_root}/jobs/job_123
         """
         if paths:
-            return self.get_output_path("tasks", *paths)
-        return self.get_output_path("tasks")
+            return self.get_output_path("jobs", *paths)
+        return self.get_output_path("jobs")
 
     def get_uploads_path(self, *paths: str) -> Path:
         """获取用户上传文件路径

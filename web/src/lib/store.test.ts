@@ -15,7 +15,7 @@ describe('AppStore', () => {
       activeTabId: null,
       consoleWidth: 410,
       consoleCollapsed: false,
-      activeTask: null,
+      activeJob: null,
       isStreaming: false,
       thumbnails: {},
     });
@@ -165,10 +165,10 @@ describe('AppStore', () => {
     });
   });
 
-  describe('tasks', () => {
-    it('should set active task', () => {
-      const task = {
-        id: 'task_1',
+  describe('jobs', () => {
+    it('should set active job', () => {
+      const job = {
+        id: 'job_1',
         conversationId: 'conv_1',
         status: 'running' as const,
         sequence: 'MVLSPADKT',
@@ -177,15 +177,15 @@ describe('AppStore', () => {
         structures: []
       };
 
-      useAppStore.getState().setActiveTask(task);
+      useAppStore.getState().setActiveJob(job);
 
-      expect(useAppStore.getState().activeTask).toEqual(task);
+      expect(useAppStore.getState().activeJob).toEqual(job);
       expect(useAppStore.getState().isStreaming).toBe(true);
     });
 
-    it('should add step events to task', () => {
-      const task = {
-        id: 'task_1',
+    it('should add step events to job', () => {
+      const job = {
+        id: 'job_1',
         conversationId: 'conv_1',
         status: 'running' as const,
         sequence: 'MVLSPADKT',
@@ -194,10 +194,10 @@ describe('AppStore', () => {
         structures: []
       };
 
-      useAppStore.getState().setActiveTask(task);
-      useAppStore.getState().addStepEvent('task_1', {
+      useAppStore.getState().setActiveJob(job);
+      useAppStore.getState().addStepEvent('job_1', {
         eventId: 'evt_1',
-        taskId: 'task_1',
+        jobId: 'job_1',
         ts: Date.now(),
         stage: 'MSA',
         status: 'running',
@@ -205,12 +205,12 @@ describe('AppStore', () => {
         message: 'Running MSA...'
       });
 
-      expect(useAppStore.getState().activeTask?.steps).toHaveLength(1);
+      expect(useAppStore.getState().activeJob?.steps).toHaveLength(1);
     });
 
     it('should add structure artifacts from step events', () => {
-      const task = {
-        id: 'task_1',
+      const job = {
+        id: 'job_1',
         conversationId: 'conv_1',
         status: 'running' as const,
         sequence: 'MVLSPADKT',
@@ -219,10 +219,10 @@ describe('AppStore', () => {
         structures: []
       };
 
-      useAppStore.getState().setActiveTask(task);
-      useAppStore.getState().addStepEvent('task_1', {
+      useAppStore.getState().setActiveJob(job);
+      useAppStore.getState().addStepEvent('job_1', {
         eventId: 'evt_1',
-        taskId: 'task_1',
+        jobId: 'job_1',
         ts: Date.now(),
         stage: 'MODEL',
         status: 'running',
@@ -237,12 +237,12 @@ describe('AppStore', () => {
         }]
       });
 
-      expect(useAppStore.getState().activeTask?.structures).toHaveLength(1);
+      expect(useAppStore.getState().activeJob?.structures).toHaveLength(1);
     });
 
-    it('should stop streaming when task is done', () => {
-      const task = {
-        id: 'task_1',
+    it('should stop streaming when job is done', () => {
+      const job = {
+        id: 'job_1',
         conversationId: 'conv_1',
         status: 'running' as const,
         sequence: 'MVLSPADKT',
@@ -251,10 +251,10 @@ describe('AppStore', () => {
         structures: []
       };
 
-      useAppStore.getState().setActiveTask(task);
-      useAppStore.getState().addStepEvent('task_1', {
+      useAppStore.getState().setActiveJob(job);
+      useAppStore.getState().addStepEvent('job_1', {
         eventId: 'evt_done',
-        taskId: 'task_1',
+        jobId: 'job_1',
         ts: Date.now(),
         stage: 'DONE',
         status: 'complete',
@@ -263,7 +263,7 @@ describe('AppStore', () => {
       });
 
       expect(useAppStore.getState().isStreaming).toBe(false);
-      expect(useAppStore.getState().activeTask?.status).toBe('complete');
+      expect(useAppStore.getState().activeJob?.status).toBe('complete');
     });
   });
 

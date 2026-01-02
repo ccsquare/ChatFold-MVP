@@ -37,7 +37,7 @@ export interface StructureArtifact {
 
 export interface StepEvent {
   eventId: string;
-  taskId: string;
+  jobId: string;
   ts: number;
   stage: StageType;
   status: StatusType;
@@ -60,7 +60,7 @@ export interface MentionableFile {
   name: string;         // Display name (filename)
   path: string;         // Full path for disambiguation
   type: string;         // File type: 'fasta', 'pdb', 'structure', etc.
-  source?: 'project' | 'conversation' | 'task';  // Optional context
+  source?: 'project' | 'conversation' | 'job';  // Optional context
 }
 
 // Folder contains input sequences and output structures
@@ -73,7 +73,7 @@ export interface Folder {
   isExpanded: boolean;    // For tree view
   inputs: Asset[];        // Input sequence files (uploaded or created from chat)
   outputs: StructureArtifact[]; // Generated structure files
-  taskId?: string;        // Associated task ID if any
+  jobId?: string;         // Associated job ID if any
   conversationId?: string; // 1:1 association with Conversation
 }
 
@@ -85,7 +85,7 @@ export interface ChatMessage {
   artifacts?: StructureArtifact[];
 }
 
-export interface Task {
+export interface Job {
   id: string;
   conversationId: string;
   status: StatusType;
@@ -194,8 +194,8 @@ export interface AppState {
   consoleWidth: number;
   consoleCollapsed: boolean;
 
-  // Running task
-  activeTask: Task | null;
+  // Running job
+  activeJob: Job | null;
   isStreaming: boolean;
 
   // Thumbnails cache
@@ -238,8 +238,8 @@ export interface AppState {
   setConsoleWidth: (width: number) => void;
   setConsoleCollapsed: (collapsed: boolean) => void;
 
-  setActiveTask: (task: Task | null) => void;
-  addStepEvent: (taskId: string, event: StepEvent) => void;
+  setActiveJob: (job: Job | null) => void;
+  addStepEvent: (jobId: string, event: StepEvent) => void;
 
   setThumbnail: (structureId: string, thumbnail: string) => void;
   setCompareViewMode: (tabId: string, mode: CompareViewMode) => void;

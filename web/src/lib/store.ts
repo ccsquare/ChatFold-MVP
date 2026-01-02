@@ -5,7 +5,7 @@ import {
   Conversation,
   ChatMessage,
   Asset,
-  Task,
+  Job,
   StepEvent,
   ViewerTab,
   StructureArtifact,
@@ -100,7 +100,7 @@ export const useAppStore = create<AppState>()(
   consoleWidth: DEFAULT_CONSOLE_WIDTH,
   consoleCollapsed: false,
 
-  activeTask: null,
+  activeJob: null,
   isStreaming: false,
   thumbnails: {},
   isMolstarExpanded: false,
@@ -133,7 +133,7 @@ export const useAppStore = create<AppState>()(
       return {
         conversations: [conversation, ...state.conversations],
         activeConversationId: id,
-        activeTask: null, // Clear active task when creating new conversation
+        activeJob: null, // Clear active job when creating new conversation
         activeFolderId: folderId || null, // Set active folder if provided
         isStreaming: false,
         folders: updatedFolders
@@ -151,7 +151,7 @@ export const useAppStore = create<AppState>()(
 
       return {
         activeConversationId: id,
-        activeTask: null, // Clear active task when switching conversation
+        activeJob: null, // Clear active job when switching conversation
         activeFolderId: folderId, // Auto-activate associated folder
         isStreaming: false
       };
@@ -460,11 +460,11 @@ export const useAppStore = create<AppState>()(
     set({ consoleCollapsed: collapsed });
   },
 
-  // Task actions
-  setActiveTask: (task) => {
-    const isRunning = task?.status === 'running';
+  // Job actions
+  setActiveJob: (job) => {
+    const isRunning = job?.status === 'running';
     set({
-      activeTask: task,
+      activeJob: job,
       isStreaming: isRunning,
       // Don't auto-switch layout mode - let user stay in their current mode
       // This prevents EventSource from being closed when ChatView unmounts
@@ -472,16 +472,16 @@ export const useAppStore = create<AppState>()(
     });
   },
 
-  addStepEvent: (taskId, event) => {
+  addStepEvent: (jobId, event) => {
     set(state => {
-      if (state.activeTask?.id !== taskId) {
+      if (state.activeJob?.id !== jobId) {
         return state;
       }
 
-      const newSteps = [...state.activeTask.steps, event];
+      const newSteps = [...state.activeJob.steps, event];
       const newStructures = event.artifacts
-        ? [...state.activeTask.structures, ...event.artifacts]
-        : state.activeTask.structures;
+        ? [...state.activeJob.structures, ...event.artifacts]
+        : state.activeJob.structures;
 
       const isDone = event.stage === 'DONE';
 
@@ -503,17 +503,17 @@ export const useAppStore = create<AppState>()(
           return {
             ...folder,
             outputs: [...folder.outputs, ...newArtifacts],
-            taskId: taskId,
+            jobId: jobId,
             updatedAt: Date.now()
           };
         });
       }
 
-      // When task completes, add artifacts to conversation as a message
+      // When job completes, add artifacts to conversation as a message
       // This ensures historical conversations display the folding results
       let updatedConversations = state.conversations;
       if (isDone && newStructures.length > 0) {
-        const conversationId = state.activeTask.conversationId;
+        const conversationId = state.activeJob.conversationId;
         const messageTimestamp = Date.now();
 
         // Normalize artifact timestamps to ensure consistent ordering on reload
@@ -545,8 +545,8 @@ export const useAppStore = create<AppState>()(
       }
 
       return {
-        activeTask: {
-          ...state.activeTask,
+        activeJob: {
+          ...state.activeJob,
           steps: newSteps,
           structures: newStructures,
           status: isDone ? 'complete' : 'running'
@@ -668,7 +668,7 @@ export const useAppStore = create<AppState>()(
 
         return {
           // Persist layout settings, folders, and conversations
-          // Note: active task, streaming state, layoutMode, and pdbData are not persisted
+          // Note: active job, streaming state, layoutMode, and pdbData are not persisted
           // layoutMode is intentionally not persisted - always start in chat-focus mode on refresh
           conversations: cleanConversations,
           activeConversationId: state.activeConversationId,

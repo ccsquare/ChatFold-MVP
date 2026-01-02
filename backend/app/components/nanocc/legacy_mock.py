@@ -9,13 +9,9 @@ For CoT-based mock, use the main mock.py which reads from JSONL files.
 import random
 from collections.abc import Generator
 
-from app.models.schemas import (
-    StageType,
-    StatusType,
-    StepEvent,
-    StructureArtifact,
-)
+from app.components.workspace.models import StructureArtifact
 from app.utils import generate_mock_pdb, get_timestamp_ms
+from .models import JobEvent, StageType, StatusType
 
 # Chain-of-thought templates for each candidate structure
 COT_TEMPLATES = {
@@ -52,16 +48,16 @@ COT_TEMPLATES = {
 }
 
 
-def generate_step_events(task_id: str, sequence: str) -> Generator[StepEvent, None, None]:
-    """Generate mock folding step events.
+def generate_step_events(job_id: str, sequence: str) -> Generator[JobEvent, None, None]:
+    """Generate mock folding job events.
 
     Simulates the protein folding pipeline with realistic stages:
     QUEUED -> MSA -> MODEL -> RELAX -> QA -> DONE
 
-    Yields StepEvent objects with optional structure artifacts.
+    Yields JobEvent objects with optional structure artifacts.
     """
     stages: list[dict] = [
-        {"stage": StageType.QUEUED, "messages": ["Task queued for processing"]},
+        {"stage": StageType.QUEUED, "messages": ["Job queued for processing"]},
         {
             "stage": StageType.MSA,
             "messages": [
@@ -115,7 +111,7 @@ def generate_step_events(task_id: str, sequence: str) -> Generator[StepEvent, No
             if stage == StageType.MODEL and i >= 2:
                 structure_count += 1
                 candidate_num = i - 1  # 1, 2, 3, 4, 5
-                structure_id = f"str_{task_id}_{candidate_num}"
+                structure_id = f"str_{job_id}_{candidate_num}"
 
                 # Generate PDB data for this candidate
                 pdb_data = generate_mock_pdb(sequence, structure_id, structure_count)
@@ -139,7 +135,7 @@ def generate_step_events(task_id: str, sequence: str) -> Generator[StepEvent, No
             # Generate final structure at DONE stage
             if stage == StageType.DONE:
                 structure_count += 1
-                structure_id = f"str_{task_id}_final"
+                structure_id = f"str_{job_id}_final"
 
                 # Generate PDB data for final structure
                 pdb_data = generate_mock_pdb(sequence, structure_id, structure_count)
@@ -166,9 +162,9 @@ def generate_step_events(task_id: str, sequence: str) -> Generator[StepEvent, No
             else:
                 overall_progress = 100
 
-            yield StepEvent(
-                eventId=f"evt_{task_id}_{event_num:04d}",
-                taskId=task_id,
+            yield JobEvent(
+                eventId=f"evt_{job_id}_{event_num:04d}",
+                jobId=job_id,
                 ts=get_timestamp_ms(),
                 stage=stage,
                 status=status,
