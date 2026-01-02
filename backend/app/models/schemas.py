@@ -10,7 +10,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
 # Re-export workspace models for backward compatibility
-from app.workspace.models import (
+from app.components.workspace.models import (
     Project,
     Folder,
     Asset,
