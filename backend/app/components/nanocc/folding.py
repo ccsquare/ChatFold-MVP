@@ -14,7 +14,7 @@ from pathlib import Path
 
 from app.components.workspace.models import StructureArtifact
 from app.utils import get_timestamp_ms
-from .models import JobEvent, StageType, StatusType
+from .job import JobEvent, StageType, StatusType
 from .mock import MockNanoCCClient
 
 # Configuration

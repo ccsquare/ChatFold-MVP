@@ -24,7 +24,7 @@ from app.components.workspace.models import (
 )
 
 # Re-export nanocc models for backward compatibility
-from app.components.nanocc.models import (
+from app.components.nanocc.job import (
     NanoCCJob,
     JobEvent,
     JobType,

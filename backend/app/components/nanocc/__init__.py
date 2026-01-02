@@ -17,7 +17,7 @@ Usage:
         yield event
 """
 
-from .models import (
+from .job import (
     NanoCCJob,
     JobEvent,
     JobType,
