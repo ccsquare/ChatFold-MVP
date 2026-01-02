@@ -1,8 +1,7 @@
-from .mock_folding import generate_step_events
 from .storage import storage
 
 # Re-export nanocc module for backward compatibility
-from app.components.nanocc import generate_cot_events, generate_mock_cot_events
+from app.components.nanocc import generate_cot_events, generate_mock_cot_events, generate_step_events
 from app.components.nanocc.mock import MockNanoCCClient, mock_nanocc_client
 from app.components.nanocc.client import nanocc_client, NanoCCClient, NanoCCEvent, NanoCCSession
 
