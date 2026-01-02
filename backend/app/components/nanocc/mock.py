@@ -26,6 +26,7 @@ MOCK_DELAY_MAX = float(os.getenv("MOCK_NANOCC_DELAY_MAX", "5.0"))
 @dataclass
 class MockCoTMessage:
     """A single Chain-of-Thought message from the mock data."""
+    type: str  # "PROLOGUE", "ANNOTATION", "THINKING", "CONCLUSION"
     state: str  # "MODEL" or "DONE"
     message: str
     pdb_file: str | None = None
@@ -55,6 +56,7 @@ def load_mock_messages(file_path: str | None = None) -> list[MockCoTMessage]:
             try:
                 data = json.loads(line)
                 messages.append(MockCoTMessage(
+                    type=data.get("TYPE", "THINKING"),  # Default to THINKING if not specified
                     state=data.get("STATE", "MODEL"),
                     message=data.get("MESSAGE", ""),
                     pdb_file=data.get("pdb_file"),
@@ -149,10 +151,11 @@ class MockNanoCCClient:
             delay = random.uniform(self.delay_min, self.delay_max)
             await asyncio.sleep(delay)
 
-            # Yield text content
+            # Yield text content with TYPE field
             yield {
                 "event_type": "text",
                 "data": {
+                    "type": msg.type,  # PROLOGUE, ANNOTATION, THINKING, CONCLUSION
                     "content": msg.message,
                     "state": msg.state,
                 }

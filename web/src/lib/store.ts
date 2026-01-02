@@ -524,20 +524,14 @@ export const useAppStore = create<AppState>()(
           createdAt: messageTimestamp - 1000 + index  // 1 second before message, with order preserved
         }));
 
+        // Only persist artifacts to conversation - the CONCLUSION from backend
+        // is shown by TimelineRenderer, so we don't add a mock message here
         updatedConversations = state.conversations.map(conv =>
           conv.id === conversationId
             ? {
                 ...conv,
-                messages: [
-                  ...conv.messages,
-                  {
-                    id: generateId('msg'),
-                    role: 'assistant' as const,
-                    content: `Folding complete! Generated ${newStructures.length} structure${newStructures.length > 1 ? 's' : ''}.`,
-                    timestamp: messageTimestamp,
-                    artifacts: normalizedArtifacts
-                  }
-                ],
+                // Artifacts are stored separately (in steps/structures),
+                // CONCLUSION is rendered from timelineByEventType
                 updatedAt: messageTimestamp
               }
             : conv

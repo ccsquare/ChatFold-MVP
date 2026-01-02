@@ -201,10 +201,12 @@ export function* generateStepEvents(jobId: string, sequence: string): Generator<
         eventId: `evt_${jobId}_${eventNum.toString().padStart(4, '0')}`,
         jobId,
         ts: Date.now(),
+        eventType: 'THINKING_TEXT' as const,  // Default to THINKING_TEXT for legacy mock
         stage,
         status,
         progress: overallProgress,
         message: messages[i],
+        blockIndex: null,
         artifacts: artifacts.length > 0 ? artifacts : undefined
       };
     }

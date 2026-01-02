@@ -107,6 +107,16 @@ export function StructureArtifactCard({
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  // Detect format from filename extension
+  const getFormat = (): 'pdb' | 'mmcif' | 'cif' => {
+    const filename = artifact.filename.toLowerCase();
+    if (filename.endsWith('.cif') || filename.endsWith('.mmcif')) {
+      return 'mmcif';
+    }
+    return 'pdb';
+  };
+  const format = getFormat();
+
   // Use either the artifact's pdbData or lazy-loaded data
   const effectivePdbData = artifact.pdbData || loadedPdbData;
   const needsLazyLoad = !artifact.pdbData && !loadedPdbData;
@@ -231,6 +241,7 @@ export function StructureArtifactCard({
                 tabId={`card-preview-${artifact.structureId}`}
                 pdbData={effectivePdbData!}
                 structureId={artifact.structureId}
+                format={format}
                 showControls={false}
                 minimalUI={true}
                 syncGroupId={syncGroupId}

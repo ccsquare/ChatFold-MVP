@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { useAppStore } from '@/lib/store';
-import { ChatMessage, StructureArtifact } from '@/lib/types';
+import { ChatMessage, StructureArtifact, StepEvent, EventType } from '@/lib/types';
 
 /**
  * Timeline item types for unified rendering.
@@ -10,7 +10,29 @@ import { ChatMessage, StructureArtifact } from '@/lib/types';
  */
 export type TimelineItem =
   | { type: 'message'; data: ChatMessage }
-  | { type: 'artifact'; data: StructureArtifact; timestamp: number };
+  | { type: 'artifact'; data: StructureArtifact; timestamp: number }
+  | { type: 'step'; data: StepEvent };  // NEW: Step events with eventType for UI area mapping
+
+/**
+ * Thinking block groups THINKING_TEXT and THINKING_PDB events by blockIndex.
+ * Each block ends with a THINKING_PDB event containing a structure artifact.
+ */
+export interface ThinkingBlock {
+  blockIndex: number;
+  events: StepEvent[];
+  artifact?: StructureArtifact;  // The structure from THINKING_PDB
+}
+
+/**
+ * Grouped timeline data by EventType for area-based rendering.
+ */
+export interface TimelineByEventType {
+  prologue: StepEvent[];           // Area 2: PROLOGUE events
+  annotations: StepEvent[];        // Area 2: ANNOTATION events
+  thinkingText: StepEvent[];       // Area 3: THINKING_TEXT (scrolling)
+  thinkingBlocks: ThinkingBlock[]; // Area 4: Grouped thinking blocks
+  conclusion: StepEvent | null;    // Area 5: CONCLUSION event
+}
 
 interface TimelineOptions {
   /** Override conversation ID (defaults to activeConversationId) */
@@ -105,9 +127,13 @@ export function useConversationTimeline(options: TimelineOptions = {}) {
 
     // Sort by timestamp
     items.sort((a, b) => {
-      const tsA = a.type === 'message' ? a.data.timestamp : a.timestamp;
-      const tsB = b.type === 'message' ? b.data.timestamp : b.timestamp;
-      return tsA - tsB;
+      const getTimestamp = (item: TimelineItem): number => {
+        if (item.type === 'message') return item.data.timestamp;
+        if (item.type === 'artifact') return item.timestamp;
+        if (item.type === 'step') return item.data.ts;
+        return 0;
+      };
+      return getTimestamp(a) - getTimestamp(b);
     });
 
     return items;
@@ -151,6 +177,68 @@ export function useConversationTimeline(options: TimelineOptions = {}) {
     return lastStep?.message || null;
   }, [activeJob, conversationId, includeStreaming]);
 
+  // NEW: Group steps by EventType for area-based rendering
+  const timelineByEventType = useMemo((): TimelineByEventType => {
+    const result: TimelineByEventType = {
+      prologue: [],
+      annotations: [],
+      thinkingText: [],
+      thinkingBlocks: [],
+      conclusion: null,
+    };
+
+    if (!includeStreaming || !activeJob?.steps || activeJob.conversationId !== conversationId) {
+      return result;
+    }
+
+    // Map to collect events by blockIndex
+    const blockMap = new Map<number, StepEvent[]>();
+
+    activeJob.steps.forEach(step => {
+      const eventType = step.eventType;
+
+      switch (eventType) {
+        case 'PROLOGUE':
+          result.prologue.push(step);
+          break;
+        case 'ANNOTATION':
+          result.annotations.push(step);
+          break;
+        case 'THINKING_TEXT':
+        case 'THINKING_PDB':
+          // Group by blockIndex
+          if (step.blockIndex !== undefined && step.blockIndex !== null) {
+            const existing = blockMap.get(step.blockIndex) || [];
+            existing.push(step);
+            blockMap.set(step.blockIndex, existing);
+          }
+          // Also add THINKING_TEXT to scrolling area
+          if (eventType === 'THINKING_TEXT') {
+            result.thinkingText.push(step);
+          }
+          break;
+        case 'CONCLUSION':
+          result.conclusion = step;
+          break;
+      }
+    });
+
+    // Convert blockMap to ThinkingBlock array
+    blockMap.forEach((events, blockIndex) => {
+      const pdbEvent = events.find(e => e.eventType === 'THINKING_PDB');
+      result.thinkingBlocks.push({
+        blockIndex,
+        events,
+        artifact: pdbEvent?.artifacts?.[0],
+      });
+    });
+
+    // Sort blocks by blockIndex
+    result.thinkingBlocks.sort((a, b) => a.blockIndex - b.blockIndex);
+
+    return result;
+  }, [activeJob, conversationId, includeStreaming]);
+
   return {
     /** Full timeline with messages and artifacts sorted by timestamp */
     timeline,
@@ -166,5 +254,7 @@ export function useConversationTimeline(options: TimelineOptions = {}) {
     conversation,
     /** Latest status message from backend during streaming */
     latestStatusMessage,
+    /** NEW: Steps grouped by EventType for area-based rendering */
+    timelineByEventType,
   };
 }

@@ -40,6 +40,15 @@ export function Canvas() {
   // Determine if current tab is a sequence file
   const isSequenceFile = activeTab?.filename && /\.(fasta|fa|txt)$/i.test(activeTab.filename);
 
+  // Detect format from filename extension for structure files
+  const getFormat = (filename: string): 'pdb' | 'mmcif' | 'cif' => {
+    const lowerFilename = filename.toLowerCase();
+    if (lowerFilename.endsWith('.cif') || lowerFilename.endsWith('.mmcif')) {
+      return 'mmcif';
+    }
+    return 'pdb';
+  };
+
   return (
     <main className="flex-1 flex flex-col overflow-hidden" aria-label="Protein structure viewer">
       {/* Tabs - hide when Mol* built-in expand is active or in CSS fullscreen mode */}
@@ -85,6 +94,7 @@ export function Canvas() {
                   tabId={activeTab.id}
                   pdbData={activeTab.pdbData}
                   structureId={activeTab.structureId}
+                  format={getFormat(activeTab.filename)}
                   isExpanded={isExpanded}
                   onToggleExpand={handleToggleExpand}
                   onAtomClick={handleAtomClick}

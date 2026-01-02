@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { ChevronRight, Lightbulb } from 'lucide-react';
+import { ChevronDown, Sparkles } from 'lucide-react';
 
 interface ThinkingSummaryProps {
   /** The chain-of-thought reasoning text */
@@ -14,11 +14,12 @@ interface ThinkingSummaryProps {
 }
 
 /**
- * Collapsible thinking summary component, similar to Claude's "Thinking" UI.
+ * Scrolling single-line thinking summary component.
  * Shows CoT reasoning text with:
- * - "思考中（用时 X.X 秒）" header
- * - 2-line truncated preview when collapsed
+ * - Sparkles icon on the left
+ * - Single line truncated with ellipsis when collapsed
  * - Expandable to show full content
+ * - No "思考中" header (per timeline.7.png design)
  */
 export function ThinkingSummary({
   text,
@@ -27,8 +28,8 @@ export function ThinkingSummary({
 }: ThinkingSummaryProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Check if text needs expansion (more than ~2 lines worth of content)
-  const needsExpansion = text.length > 100 || text.includes('\n');
+  // Check if text needs expansion (more than single line worth of content)
+  const needsExpansion = text.length > 80 || text.includes('\n');
 
   return (
     <div
@@ -39,43 +40,31 @@ export function ThinkingSummary({
       onClick={() => needsExpansion && setIsExpanded(!isExpanded)}
     >
       <div className={cn(
-        "relative flex items-start gap-3 px-4 py-3 rounded-lg transition-colors duration-200",
-        "bg-cf-bg-tertiary/30 hover:bg-cf-bg-tertiary/50 border border-cf-border/50"
+        "relative flex items-center gap-2 px-3 py-2 rounded-md transition-colors duration-200",
+        "bg-cf-bg-tertiary/20 hover:bg-cf-bg-tertiary/40 border border-cf-border/30"
       )}>
-        {/* Left icon */}
-        <div className="flex-shrink-0 mt-0.5">
-          <Lightbulb className="w-4 h-4 text-cf-text-muted" />
+        {/* Left icon - Sparkles */}
+        <div className="flex-shrink-0">
+          <Sparkles className="w-4 h-4 text-purple-400" />
         </div>
 
-        {/* Main content */}
-        <div className="flex-1 min-w-0 pr-6">
-          {/* Header with duration */}
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-sm font-medium text-cf-text">
-              思考中
-              {duration !== undefined && (
-                <span className="text-cf-text-muted font-normal">
-                  （用时 {duration.toFixed(1)} 秒）
-                </span>
-              )}
-            </span>
-          </div>
-
-          {/* Text content - 2 lines when collapsed */}
+        {/* Main content - single line when collapsed */}
+        <div className="flex-1 min-w-0 pr-5">
           <p className={cn(
-            "text-sm leading-relaxed text-cf-text-secondary whitespace-pre-wrap",
-            !isExpanded && "line-clamp-2"
+            "text-sm text-cf-text-secondary",
+            !isExpanded && "truncate",
+            isExpanded && "whitespace-pre-wrap"
           )}>
             {text}
           </p>
         </div>
 
-        {/* Right expand indicator */}
+        {/* Right expand indicator - chevron down */}
         {needsExpansion && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2">
-            <ChevronRight className={cn(
+          <div className="absolute right-2 top-1/2 -translate-y-1/2">
+            <ChevronDown className={cn(
               "w-4 h-4 text-cf-text-muted transition-transform duration-200",
-              isExpanded && "rotate-90"
+              isExpanded && "rotate-180"
             )} />
           </div>
         )}
