@@ -4,7 +4,7 @@ import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react'
 import { TimelineItem, TimelineByEventType, ThinkingBlock } from '@/hooks/useConversationTimeline';
 import { StructureArtifact, ChatMessage } from '@/lib/types';
 import { cn, formatTimestamp } from '@/lib/utils';
-import { Loader2, Link2, Link2Off, RotateCcw, ChevronUp, ChevronDown, CheckCircle2, Sparkle, Sparkles } from 'lucide-react';
+import { Link2, Link2Off, RotateCcw, ChevronDown, CheckCircle2, Sparkle, Sparkles } from 'lucide-react';
 import { StructureArtifactCard } from '@/components/StructureArtifactCard';
 import { resetSyncGroupCamera } from '@/hooks/useCameraSync';
 import { useAppStore } from '@/lib/store';
@@ -30,11 +30,9 @@ interface TimelineRendererProps {
   variant?: 'compact' | 'wide';
   /** Whether currently streaming */
   isStreaming?: boolean;
-  /** Status message from backend during streaming */
-  statusMessage?: string | null;
   /** Additional CSS classes */
   className?: string;
-  /** NEW: Steps grouped by EventType for area-based rendering */
+  /** Steps grouped by EventType for area-based rendering */
   timelineByEventType?: TimelineByEventType;
 }
 
@@ -52,7 +50,6 @@ export function TimelineRenderer({
   timeline,
   variant = 'wide',
   isStreaming = false,
-  statusMessage,
   className,
   timelineByEventType,
 }: TimelineRendererProps) {
@@ -104,10 +101,6 @@ export function TimelineRenderer({
     return result;
   }, [timeline]);
 
-  if (timeline.length === 0) {
-    return null;
-  }
-
   // Build prologue content from timelineByEventType
   const prologueContent = useMemo(() => {
     if (!timelineByEventType) return null;
@@ -138,8 +131,10 @@ export function TimelineRenderer({
     return thinkingTexts[thinkingTexts.length - 1]?.message || null;
   }, [isStreaming, timelineByEventType]);
 
-  // Check if we have user message (to show prologue after it)
-  const hasUserMessage = groups.some(g => g.type === 'message' && g.data.role === 'user');
+  // Early return after all hooks
+  if (timeline.length === 0) {
+    return null;
+  }
 
   return (
     <div className={cn("flex flex-col", className)}>
@@ -166,7 +161,6 @@ export function TimelineRenderer({
                 groupIndex={groupIndex}
                 artifacts={group.artifacts}
                 allArtifacts={allArtifacts}
-                isCompact={isCompact}
                 isStreaming={isStreaming}
                 thinkingBlocks={thinkingBlocks}
                 currentThinkingText={currentThinkingText}
@@ -311,27 +305,16 @@ function BestBlock({
   artifact: StructureArtifact;
   timestamp: number;
 }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
   return (
     <div className="pb-4">
       {/* Container with green left border */}
       <div className="rounded-lg border-l-4 border-l-cf-success bg-cf-bg-secondary/50 overflow-hidden">
         {/* Header - "Folding Completed." */}
-        <div
-          className="flex items-center justify-between px-4 py-3 border-b border-cf-success/20 bg-cf-success/10 cursor-pointer"
-          onClick={() => setIsExpanded(!isExpanded)}
-        >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-cf-success/20 bg-cf-success/10">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-cf-success flex-shrink-0" />
             <span className="text-sm font-semibold text-cf-text">Folding Completed.</span>
           </div>
-          <ChevronDown
-            className={cn(
-              "w-4 h-4 text-cf-text-muted transition-transform",
-              isExpanded && "rotate-180"
-            )}
-          />
         </div>
 
         {/* Quality description */}
@@ -478,7 +461,6 @@ function ArtifactGroup({
   groupIndex,
   artifacts,
   allArtifacts,
-  isCompact,
   isStreaming,
   thinkingBlocks,
   currentThinkingText,
@@ -486,14 +468,12 @@ function ArtifactGroup({
   groupIndex: number;
   artifacts: Array<{ data: StructureArtifact; timestamp: number; index: number }>;
   allArtifacts: Array<{ type: 'artifact'; data: StructureArtifact; timestamp: number }>;
-  isCompact: boolean;
   isStreaming: boolean;
   thinkingBlocks?: ThinkingBlock[];
   /** Current streaming thinking text for typewriter display */
   currentThinkingText?: string | null;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const isComplete = !isStreaming || artifacts[artifacts.length - 1]?.index < allArtifacts.length - 1;
   const [isExpanded, setIsExpanded] = useState(false);
 
   // ESC key to cancel compare selection

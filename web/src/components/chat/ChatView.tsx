@@ -36,7 +36,7 @@ export function ChatView() {
 
   // Use shared hooks
   const { submit } = useFoldingJob();
-  const { timeline, isStreaming, latestStatusMessage, timelineByEventType } = useConversationTimeline();
+  const { timeline, isStreaming, timelineByEventType } = useConversationTimeline();
   const availableFiles = useAvailableFiles();
 
   const [inputValue, setInputValue] = useState('');
@@ -247,7 +247,6 @@ export function ChatView() {
                 timeline={timeline}
                 variant="wide"
                 isStreaming={isStreaming}
-                statusMessage={latestStatusMessage}
                 timelineByEventType={timelineByEventType}
               />
               <div ref={messagesEndRef} />
