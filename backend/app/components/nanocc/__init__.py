@@ -9,7 +9,7 @@ Components:
 - mock.py: Mock NanoCC service for testing without real backend
 
 Usage:
-    from app.nanocc import generate_cot_events
+    from app.components.nanocc import generate_cot_events
 
     async for event in generate_cot_events(task_id, sequence):
         yield event

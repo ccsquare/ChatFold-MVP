@@ -8,7 +8,7 @@ This endpoint layer delegates to the workspace module for business logic.
 
 from fastapi import APIRouter, HTTPException
 
-from app.workspace import (
+from app.components.workspace import (
     Folder,
     Asset,
     CreateFolderRequest,

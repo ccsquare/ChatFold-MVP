@@ -16,7 +16,7 @@ from app.models.schemas import (
 )
 from app.services.mock_folding import generate_step_events
 from app.services.storage import storage
-from app.nanocc import generate_cot_events
+from app.components.nanocc import generate_cot_events
 from app.utils import (
     generate_id,
     get_timestamp_ms,

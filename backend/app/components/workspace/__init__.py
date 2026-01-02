@@ -9,7 +9,7 @@ Components:
 - service.py: Business logic for folder/asset management
 
 Usage:
-    from app.workspace import (
+    from app.components.workspace import (
         # Models
         Project,
         Folder,
