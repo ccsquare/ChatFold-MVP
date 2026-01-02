@@ -4,7 +4,7 @@ import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react'
 import { TimelineItem, TimelineByEventType, ThinkingBlock } from '@/hooks/useConversationTimeline';
 import { StructureArtifact, ChatMessage } from '@/lib/types';
 import { cn, formatTimestamp } from '@/lib/utils';
-import { Loader2, Link2, Link2Off, RotateCcw, ChevronUp, ChevronDown, CheckCircle2, Sparkles } from 'lucide-react';
+import { Loader2, Link2, Link2Off, RotateCcw, ChevronUp, ChevronDown, CheckCircle2, Sparkle, Sparkles } from 'lucide-react';
 import { StructureArtifactCard } from '@/components/StructureArtifactCard';
 import { resetSyncGroupCamera } from '@/hooks/useCameraSync';
 import { useAppStore } from '@/lib/store';
@@ -175,6 +175,13 @@ export function TimelineRenderer({
               {!isStreaming && conclusionContent && (
                 <ConclusionBubble text={conclusionContent} isCompact={isCompact} />
               )}
+              {/* Show Best Block after conclusion - the final/best structure */}
+              {!isStreaming && group.artifacts.length > 0 && (
+                <BestBlock
+                  artifact={group.artifacts[group.artifacts.length - 1].data}
+                  timestamp={group.artifacts[group.artifacts.length - 1].timestamp}
+                />
+              )}
             </React.Fragment>
           );
         }
@@ -184,8 +191,8 @@ export function TimelineRenderer({
       {/* Streaming indicator at bottom - only show when no artifacts yet */}
       {isStreaming && groups.every(g => g.type !== 'artifact-group') && (
         <div className="flex items-center gap-2 py-2 text-cf-text-secondary">
-          <Sparkles className="w-4 h-4 text-cf-accent" />
-          <span className="text-sm truncate">{currentThinkingText || 'Thinking...'}</span>
+          <Sparkle className="w-4 h-4 text-cf-accent" />
+          <span className="text-sm">Thinking...</span>
         </div>
       )}
 
@@ -294,24 +301,152 @@ function ConclusionBubble({
 }
 
 /**
+ * Best Block component - shows the final/best structure after conclusion
+ * Green left border, "Folding Completed." header, quality description, and structure card
+ */
+function BestBlock({
+  artifact,
+  timestamp,
+}: {
+  artifact: StructureArtifact;
+  timestamp: number;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  return (
+    <div className="pb-4">
+      {/* Container with green left border */}
+      <div className="rounded-lg border-l-4 border-l-cf-success bg-cf-bg-secondary/50 overflow-hidden">
+        {/* Header - "Folding Completed." */}
+        <div
+          className="flex items-center justify-between px-4 py-3 border-b border-cf-success/20 bg-cf-success/10 cursor-pointer"
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-cf-success flex-shrink-0" />
+            <span className="text-sm font-semibold text-cf-text">Folding Completed.</span>
+          </div>
+          <ChevronDown
+            className={cn(
+              "w-4 h-4 text-cf-text-muted transition-transform",
+              isExpanded && "rotate-180"
+            )}
+          />
+        </div>
+
+        {/* Quality description */}
+        <div className="px-4 py-2 border-b border-cf-border/30">
+          <div className="flex items-center gap-2">
+            <Sparkle className="w-4 h-4 text-cf-accent flex-shrink-0" />
+            <p className="text-sm text-cf-text-secondary truncate">
+              All quality metrics passed. Structure ready for downstream analysis.
+            </p>
+          </div>
+        </div>
+
+        {/* Structure card */}
+        <div className="p-3">
+          <StructureArtifactCard
+            artifact={artifact}
+            timestamp={timestamp}
+            showPreview={true}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Header thinking text with ChatGPT-style continuous scrolling
+ * Fixed height container, content auto-scrolls to bottom as new text arrives
+ * When expanded: shows all text
+ */
+function HeaderThinkingText({
+  text,
+  isExpanded,
+}: {
+  text: string;
+  isExpanded: boolean;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when text changes (ChatGPT style)
+  useEffect(() => {
+    if (scrollRef.current && !isExpanded) {
+      // Use requestAnimationFrame for smoother scrolling
+      requestAnimationFrame(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+      });
+    }
+  }, [text, isExpanded]);
+
+  if (isExpanded) {
+    // Expanded: show all text
+    return (
+      <div className="flex-1 min-w-0">
+        <p className="text-sm text-cf-text-secondary font-semibold whitespace-pre-wrap break-words">
+          {text}
+        </p>
+      </div>
+    );
+  }
+
+  // Collapsed: fixed height scrolling container (2 lines ≈ 3rem)
+  return (
+    <div className="flex-1 min-w-0">
+      <div
+        ref={scrollRef}
+        className="max-h-[3rem] overflow-y-auto scrollbar-none scroll-smooth"
+      >
+        <p className="text-sm text-cf-text-secondary font-semibold whitespace-pre-wrap break-words leading-6">
+          {text}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Thinking bubble component - shown before each structure artifact
  * Single line with sparkle icon, truncated with "...", expandable via chevron
- * Matches design: [✨ Thinking text here...                    ∨]
+ * Icon blinks between Sparkle and Sparkles when thinking, shows Sparkles when done
  */
-function ThinkingBubble({ text }: { text: string }) {
+function ThinkingBubble({ text, isThinking = false }: { text: string; isThinking?: boolean }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showSparkles, setShowSparkles] = useState(false);
+
+  // Blinking effect when thinking
+  useEffect(() => {
+    if (!isThinking) {
+      setShowSparkles(true); // Show Sparkles when done
+      return;
+    }
+
+    // Toggle between Sparkle and Sparkles every 500ms
+    const interval = setInterval(() => {
+      setShowSparkles(prev => !prev);
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [isThinking]);
 
   return (
     <div
       className={cn(
-        "flex items-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer transition-all",
-        "border-cf-border/60 bg-white dark:bg-cf-bg-secondary",
-        "hover:border-cf-accent/40 hover:shadow-sm"
+        "flex items-start gap-2 px-1 py-1 cursor-pointer transition-all",
+        "hover:bg-cf-bg-secondary/50 rounded"
       )}
       onClick={() => setIsExpanded(!isExpanded)}
     >
-      {/* Sparkle icon */}
-      <Sparkles className="w-4 h-4 text-cf-accent flex-shrink-0" />
+      {/* Sparkle/Sparkles icon - blinks when thinking, Sparkles when done */}
+      {showSparkles ? (
+        <Sparkles className="w-4 h-4 text-cf-accent flex-shrink-0 mt-0.5" />
+      ) : (
+        <Sparkle className="w-4 h-4 text-cf-accent flex-shrink-0 mt-0.5" />
+      )}
 
       {/* Text content - single line truncated or expanded */}
       <p
@@ -322,13 +457,13 @@ function ThinkingBubble({ text }: { text: string }) {
             : "truncate"
         )}
       >
-        {text}
+        {text}{!isExpanded && '...'}
       </p>
 
       {/* Expand/collapse chevron */}
       <ChevronDown
         className={cn(
-          "w-4 h-4 text-cf-text-muted flex-shrink-0 transition-transform",
+          "w-4 h-4 text-cf-text-muted flex-shrink-0 mt-0.5 transition-transform",
           isExpanded && "rotate-180"
         )}
       />
@@ -433,47 +568,24 @@ function ArtifactGroup({
 
   return (
     <div className="pb-4">
-      {/* Container wrapper with border */}
-      <div className={cn(
-        "rounded-lg border-l-4 bg-cf-bg-secondary/50 overflow-hidden transition-all duration-300",
-        isComplete
-          ? "border-l-cf-success"
-          : "border-l-cf-accent"
-      )}>
+      {/* Container wrapper with border - always green left border */}
+      <div className="rounded-lg border-l-4 border-l-cf-success bg-cf-bg-secondary/50 overflow-hidden transition-all duration-300">
         {/* Header - thinking summary with 2-line display, expandable */}
+        {/* Always green background to match left border */}
         <div
-          className={cn(
-            "flex items-start gap-2 px-4 py-2.5 border-b cursor-pointer",
-            isComplete
-              ? "border-cf-success/20 bg-cf-success/5"
-              : "border-cf-accent/20 bg-cf-accent/5"
-          )}
+          className="flex items-start gap-2 px-4 py-3 border-b border-cf-success/20 bg-cf-success/10 cursor-pointer"
           onClick={() => setHeaderExpanded(!headerExpanded)}
         >
-          {/* Left: Status indicator */}
+          {/* Left: Status indicator - always green CheckCircle2 */}
           <div className="flex-shrink-0 pt-0.5">
-            {isComplete ? (
-              <CheckCircle2 className="w-4 h-4 text-cf-success" />
-            ) : (
-              <Sparkles className="w-4 h-4 text-cf-accent" />
-            )}
+            <CheckCircle2 className="w-4 h-4 text-cf-success" />
           </div>
 
-          {/* Middle: Thinking text - 2 lines by default, expandable */}
-          <div className="flex-1 min-w-0">
-            {(allThinkingText || currentThinkingText) && (
-              <p
-                className={cn(
-                  "text-sm text-cf-text-secondary",
-                  headerExpanded
-                    ? "whitespace-pre-wrap break-words"
-                    : "line-clamp-2"
-                )}
-              >
-                {allThinkingText || currentThinkingText}
-              </p>
-            )}
-          </div>
+          {/* Middle: Thinking text - scrolling container showing latest 2 lines */}
+          <HeaderThinkingText
+            text={allThinkingText || currentThinkingText || 'Thinking...'}
+            isExpanded={headerExpanded}
+          />
 
           {/* Right: Controls */}
           <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -541,19 +653,21 @@ function ArtifactGroup({
           )}
         >
           <div className="flex flex-col gap-3">
-            {artifacts.map((artifactItem) => {
+            {artifacts.map((artifactItem, idx) => {
               const artifact = artifactItem.data;
               const currentIndex = artifactItem.index;
               const thinkingText = getThinkingTextForBlock(currentIndex);
+              // This block is still thinking if streaming and it's the last artifact
+              const isBlockThinking = isStreaming && idx === artifacts.length - 1;
 
               return (
                 <div
                   key={artifact.structureId}
-                  className="flex flex-col gap-2"
+                  className="flex flex-col gap-1"
                 >
-                  {/* Thinking bubble before each structure - max 2 lines by default */}
+                  {/* Block text before each structure - no border, close to structure */}
                   {thinkingText && (
-                    <ThinkingBubble text={thinkingText} />
+                    <ThinkingBubble text={thinkingText} isThinking={isBlockThinking} />
                   )}
                   {/* Structure Card - now directly clickable for compare selection */}
                   <StructureArtifactCard
