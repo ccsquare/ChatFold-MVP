@@ -1,15 +1,21 @@
-"""Mock protein folding simulation service."""
+"""Legacy mock protein folding simulation service.
+
+This is the original mock folding service with hardcoded stage messages.
+Kept for backward compatibility when USE_NANOCC=false.
+
+For CoT-based mock, use the main mock.py which reads from JSONL files.
+"""
 
 import random
 from collections.abc import Generator
 
-from ..models.schemas import (
+from app.models.schemas import (
     StageType,
     StatusType,
     StepEvent,
     StructureArtifact,
 )
-from ..utils import generate_mock_pdb, get_timestamp_ms
+from app.utils import generate_mock_pdb, get_timestamp_ms
 
 # Chain-of-thought templates for each candidate structure
 COT_TEMPLATES = {
