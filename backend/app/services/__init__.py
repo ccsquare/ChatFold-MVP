@@ -1,4 +1,4 @@
-from .storage import storage
+from .runtime_storage import storage
 
 # Re-export nanocc module for backward compatibility
 from app.components.nanocc import generate_cot_events, generate_mock_cot_events, generate_step_events
