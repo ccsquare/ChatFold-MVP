@@ -2,45 +2,32 @@
 
 Manages folders that contain input sequences and output structures.
 Each folder has a 1:1 association with a conversation.
-"""
 
-import time
-import uuid
-from datetime import datetime
+This endpoint layer delegates to the workspace module for business logic.
+"""
 
 from fastapi import APIRouter, HTTPException
 
-from app.models.schemas import (
-    Asset,
+from app.workspace import (
     Folder,
+    Asset,
     CreateFolderRequest,
     AddFolderInputRequest,
+    create_folder,
+    get_folder,
+    list_folders,
+    delete_folder,
+    update_folder,
+    add_folder_input,
+    list_folder_inputs,
+    link_folder_conversation,
 )
 
 router = APIRouter()
 
-# In-memory storage (for MVP, replace with database later)
-folders_db: dict[str, Folder] = {}
-
-
-def generate_folder_id() -> str:
-    """Generate a unique folder ID."""
-    return f"folder_{uuid.uuid4().hex[:12]}"
-
-
-def generate_asset_id() -> str:
-    """Generate a unique asset ID."""
-    return f"asset_{uuid.uuid4().hex[:12]}"
-
-
-def generate_folder_name() -> str:
-    """Generate a folder name based on current timestamp."""
-    now = datetime.now()
-    return now.strftime("%Y-%m-%d_%H%M")
-
 
 @router.post("", response_model=Folder)
-async def create_folder(request: CreateFolderRequest) -> Folder:
+async def create_folder_endpoint(request: CreateFolderRequest) -> Folder:
     """Create a new folder.
 
     Args:
@@ -49,36 +36,21 @@ async def create_folder(request: CreateFolderRequest) -> Folder:
     Returns:
         The created folder
     """
-    now = int(time.time() * 1000)
-    folder_id = generate_folder_id()
-
-    folder = Folder(
-        id=folder_id,
-        name=request.name or generate_folder_name(),
-        createdAt=now,
-        updatedAt=now,
-        isExpanded=True,
-        inputs=[],
-        outputs=[],
-        conversationId=request.conversationId,
-    )
-
-    folders_db[folder_id] = folder
-    return folder
+    return create_folder(request)
 
 
 @router.get("", response_model=list[Folder])
-async def list_folders() -> list[Folder]:
+async def list_folders_endpoint() -> list[Folder]:
     """List all folders.
 
     Returns:
         List of all folders, sorted by creation time (newest first)
     """
-    return sorted(folders_db.values(), key=lambda f: f.createdAt, reverse=True)
+    return list_folders()
 
 
 @router.get("/{folder_id}", response_model=Folder)
-async def get_folder(folder_id: str) -> Folder:
+async def get_folder_endpoint(folder_id: str) -> Folder:
     """Get a specific folder by ID.
 
     Args:
@@ -90,14 +62,14 @@ async def get_folder(folder_id: str) -> Folder:
     Raises:
         HTTPException: If folder not found
     """
-    folder = folders_db.get(folder_id)
+    folder = get_folder(folder_id)
     if not folder:
         raise HTTPException(status_code=404, detail="Folder not found")
     return folder
 
 
 @router.delete("/{folder_id}")
-async def delete_folder(folder_id: str) -> dict:
+async def delete_folder_endpoint(folder_id: str) -> dict:
     """Delete a folder.
 
     Args:
@@ -109,15 +81,18 @@ async def delete_folder(folder_id: str) -> dict:
     Raises:
         HTTPException: If folder not found
     """
-    if folder_id not in folders_db:
+    if not delete_folder(folder_id):
         raise HTTPException(status_code=404, detail="Folder not found")
 
-    del folders_db[folder_id]
     return {"message": "Folder deleted", "id": folder_id}
 
 
 @router.patch("/{folder_id}", response_model=Folder)
-async def update_folder(folder_id: str, name: str | None = None, isExpanded: bool | None = None) -> Folder:
+async def update_folder_endpoint(
+    folder_id: str,
+    name: str | None = None,
+    isExpanded: bool | None = None,
+) -> Folder:
     """Update a folder's properties.
 
     Args:
@@ -131,21 +106,17 @@ async def update_folder(folder_id: str, name: str | None = None, isExpanded: boo
     Raises:
         HTTPException: If folder not found
     """
-    folder = folders_db.get(folder_id)
+    folder = update_folder(folder_id, name=name, isExpanded=isExpanded)
     if not folder:
         raise HTTPException(status_code=404, detail="Folder not found")
-
-    if name is not None:
-        folder.name = name
-    if isExpanded is not None:
-        folder.isExpanded = isExpanded
-
-    folder.updatedAt = int(time.time() * 1000)
     return folder
 
 
 @router.post("/{folder_id}/inputs", response_model=Asset)
-async def add_folder_input(folder_id: str, request: AddFolderInputRequest) -> Asset:
+async def add_folder_input_endpoint(
+    folder_id: str,
+    request: AddFolderInputRequest,
+) -> Asset:
     """Add an input file to a folder.
 
     Args:
@@ -158,27 +129,14 @@ async def add_folder_input(folder_id: str, request: AddFolderInputRequest) -> As
     Raises:
         HTTPException: If folder not found
     """
-    folder = folders_db.get(folder_id)
-    if not folder:
+    asset = add_folder_input(folder_id, request)
+    if not asset:
         raise HTTPException(status_code=404, detail="Folder not found")
-
-    now = int(time.time() * 1000)
-    asset = Asset(
-        id=generate_asset_id(),
-        name=request.name,
-        type=request.type,
-        content=request.content,
-        uploadedAt=now,
-    )
-
-    folder.inputs.append(asset)
-    folder.updatedAt = now
-
     return asset
 
 
 @router.get("/{folder_id}/inputs", response_model=list[Asset])
-async def list_folder_inputs(folder_id: str) -> list[Asset]:
+async def list_folder_inputs_endpoint(folder_id: str) -> list[Asset]:
     """List all input files in a folder.
 
     Args:
@@ -190,15 +148,14 @@ async def list_folder_inputs(folder_id: str) -> list[Asset]:
     Raises:
         HTTPException: If folder not found
     """
-    folder = folders_db.get(folder_id)
-    if not folder:
+    inputs = list_folder_inputs(folder_id)
+    if inputs is None:
         raise HTTPException(status_code=404, detail="Folder not found")
-
-    return folder.inputs
+    return inputs
 
 
 @router.post("/{folder_id}/link-conversation")
-async def link_conversation(folder_id: str, conversation_id: str) -> Folder:
+async def link_conversation_endpoint(folder_id: str, conversation_id: str) -> Folder:
     """Link a folder to a conversation (1:1 association).
 
     Args:
@@ -211,11 +168,7 @@ async def link_conversation(folder_id: str, conversation_id: str) -> Folder:
     Raises:
         HTTPException: If folder not found
     """
-    folder = folders_db.get(folder_id)
+    folder = link_folder_conversation(folder_id, conversation_id)
     if not folder:
         raise HTTPException(status_code=404, detail="Folder not found")
-
-    folder.conversationId = conversation_id
-    folder.updatedAt = int(time.time() * 1000)
-
     return folder
