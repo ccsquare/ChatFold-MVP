@@ -14,10 +14,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 # Configuration
-MOCK_DATA_PATH = os.getenv(
-    "MOCK_NANOCC_DATA_PATH",
-    "/SPXvePFS/users/ccheng/projects/ChatFold-MVP/chatfold-workspace/Mocking_CoT.nanocc.jsonl"
-)
+# Default path relative to backend directory
+_BACKEND_DIR = Path(__file__).resolve().parent.parent.parent.parent
+_DEFAULT_MOCK_DATA = _BACKEND_DIR / "tests" / "fixtures" / "Mocking_CoT.nanocc.jsonl"
+MOCK_DATA_PATH = os.getenv("MOCK_NANOCC_DATA_PATH", str(_DEFAULT_MOCK_DATA))
 MOCK_DELAY_MIN = float(os.getenv("MOCK_NANOCC_DELAY_MIN", "1.0"))
 MOCK_DELAY_MAX = float(os.getenv("MOCK_NANOCC_DELAY_MAX", "5.0"))
 
