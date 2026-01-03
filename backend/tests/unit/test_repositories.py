@@ -11,6 +11,8 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.db.models import Base, Project, User
 from app.repositories.base import BaseRepository
 from app.repositories.job import JobRepository
+from app.repositories.job_event import JobEventRepository
+from app.repositories.learning_record import LearningRecordRepository
 from app.repositories.structure import StructureRepository
 from app.repositories.user import UserRepository
 from app.utils import get_timestamp_ms
@@ -416,3 +418,273 @@ class TestStructureRepository:
 
         updated = repo.update_plddt_score(db_session, structure.id, 92)
         assert updated.plddt_score == 92
+
+
+class TestJobEventRepository:
+    """Test JobEventRepository specific methods."""
+
+    @pytest.fixture
+    def setup_data(self, db_session: Session):
+        """Create default user and job for event tests."""
+        # Create user
+        user_repo = BaseRepository(User)
+        user_data = {
+            "id": "user_default",
+            "name": "Default User",
+            "email": "default@example.com",
+            "plan": "free",
+            "created_at": get_timestamp_ms(),
+        }
+        user_repo.create(db_session, user_data)
+
+        # Create job
+        job_repo = JobRepository()
+        job = job_repo.create_job(db_session, sequence="MVLSPADKTNVKAAWG")
+
+        return {"user_id": "user_default", "job_id": job.id}
+
+    def test_create_event(self, db_session: Session, setup_data):
+        """Create job event record."""
+        repo = JobEventRepository()
+
+        event = repo.create_event(
+            db_session,
+            job_id=setup_data["job_id"],
+            event_type="THINKING_TEXT",
+            stage="MODEL",
+            status="running",
+            progress=50,
+            message="Processing structure...",
+            block_index=1,
+        )
+
+        assert event.id.startswith("evt_")
+        assert event.job_id == setup_data["job_id"]
+        assert event.event_type == "THINKING_TEXT"
+        assert event.stage == "MODEL"
+        assert event.progress == 50
+        assert event.block_index == 1
+
+    def test_get_by_job(self, db_session: Session, setup_data):
+        """Get events by job."""
+        repo = JobEventRepository()
+
+        # Create 3 events
+        for i in range(3):
+            repo.create_event(
+                db_session,
+                job_id=setup_data["job_id"],
+                event_type="THINKING_TEXT",
+                stage="MODEL",
+                status="running",
+                progress=i * 30,
+                message=f"Step {i+1}",
+            )
+
+        events = repo.get_by_job(db_session, setup_data["job_id"])
+        assert len(events) == 3
+
+    def test_get_by_event_type(self, db_session: Session, setup_data):
+        """Get events by type."""
+        repo = JobEventRepository()
+
+        # Create events of different types
+        repo.create_event(
+            db_session,
+            job_id=setup_data["job_id"],
+            event_type="PROLOGUE",
+            stage="QUEUED",
+            status="running",
+        )
+        repo.create_event(
+            db_session,
+            job_id=setup_data["job_id"],
+            event_type="THINKING_TEXT",
+            stage="MODEL",
+            status="running",
+        )
+        repo.create_event(
+            db_session,
+            job_id=setup_data["job_id"],
+            event_type="THINKING_TEXT",
+            stage="MODEL",
+            status="running",
+        )
+
+        prologue_events = repo.get_by_event_type(db_session, setup_data["job_id"], "PROLOGUE")
+        assert len(prologue_events) == 1
+
+        thinking_events = repo.get_by_event_type(db_session, setup_data["job_id"], "THINKING_TEXT")
+        assert len(thinking_events) == 2
+
+    def test_count_thinking_blocks(self, db_session: Session, setup_data):
+        """Count unique thinking blocks."""
+        repo = JobEventRepository()
+
+        # Create events with block indices
+        repo.create_event(
+            db_session,
+            job_id=setup_data["job_id"],
+            event_type="THINKING_TEXT",
+            stage="MODEL",
+            status="running",
+            block_index=1,
+        )
+        repo.create_event(
+            db_session,
+            job_id=setup_data["job_id"],
+            event_type="THINKING_PDB",
+            stage="MODEL",
+            status="running",
+            block_index=1,  # Same block
+        )
+        repo.create_event(
+            db_session,
+            job_id=setup_data["job_id"],
+            event_type="THINKING_TEXT",
+            stage="MODEL",
+            status="running",
+            block_index=2,  # Different block
+        )
+
+        count = repo.count_thinking_blocks(db_session, setup_data["job_id"])
+        assert count == 2
+
+
+class TestLearningRecordRepository:
+    """Test LearningRecordRepository specific methods."""
+
+    @pytest.fixture
+    def setup_data(self, db_session: Session):
+        """Create default user, project, and job for learning record tests."""
+        # Create user
+        user_repo = BaseRepository(User)
+        user_data = {
+            "id": "user_default",
+            "name": "Default User",
+            "email": "default@example.com",
+            "plan": "free",
+            "created_at": get_timestamp_ms(),
+        }
+        user_repo.create(db_session, user_data)
+
+        # Create project
+        project_data = {
+            "id": "project_default",
+            "user_id": "user_default",
+            "name": "Default Project",
+            "description": "Test project",
+            "created_at": get_timestamp_ms(),
+            "updated_at": get_timestamp_ms(),
+        }
+        db_session.add(Project(**project_data))
+        db_session.commit()
+
+        # Create job
+        job_repo = JobRepository()
+        job = job_repo.create_job(db_session, sequence="MVLSPADKTNVKAAWG")
+
+        return {"user_id": "user_default", "project_id": "project_default", "job_id": job.id}
+
+    def test_create_record(self, db_session: Session, setup_data):
+        """Create learning record."""
+        repo = LearningRecordRepository()
+
+        record = repo.create_record(
+            db_session,
+            job_id=setup_data["job_id"],
+            input_sequence="MVLSPADKTNVKAAWG",
+            thinking_block_count=3,
+            structure_count=5,
+            final_plddt=85,
+        )
+
+        assert record.id.startswith("lrn_")
+        assert record.job_id == setup_data["job_id"]
+        assert record.input_sequence == "MVLSPADKTNVKAAWG"
+        assert record.thinking_block_count == 3
+        assert record.structure_count == 5
+        assert record.final_plddt == 85
+        assert record.exported_at is None
+
+    def test_get_by_job(self, db_session: Session, setup_data):
+        """Get learning record by job."""
+        repo = LearningRecordRepository()
+
+        repo.create_record(
+            db_session,
+            job_id=setup_data["job_id"],
+            input_sequence="MVLSPADKTNVKAAWG",
+        )
+
+        found = repo.get_by_job(db_session, setup_data["job_id"])
+        assert found is not None
+        assert found.job_id == setup_data["job_id"]
+
+    def test_add_user_feedback(self, db_session: Session, setup_data):
+        """Add user feedback to learning record."""
+        repo = LearningRecordRepository()
+
+        record = repo.create_record(
+            db_session,
+            job_id=setup_data["job_id"],
+            input_sequence="MVLSPADKTNVKAAWG",
+        )
+
+        updated = repo.add_user_feedback(
+            db_session,
+            record_id=record.id,
+            user_rating=5,
+            user_feedback="Excellent prediction!",
+        )
+
+        assert updated.user_rating == 5
+        assert updated.user_feedback == "Excellent prediction!"
+
+    def test_get_unexported(self, db_session: Session, setup_data):
+        """Get unexported learning records."""
+        repo = LearningRecordRepository()
+        job_repo = JobRepository()
+
+        # Create first record (unexported)
+        repo.create_record(
+            db_session,
+            job_id=setup_data["job_id"],
+            input_sequence="MVLSPADKTNVKAAWG",
+        )
+
+        # Create second job and record
+        job2 = job_repo.create_job(db_session, sequence="GAWKVNTKDAPSLVM")
+        record2 = repo.create_record(
+            db_session,
+            job_id=job2.id,
+            input_sequence="GAWKVNTKDAPSLVM",
+        )
+
+        # Mark second as exported
+        repo.mark_exported(db_session, [record2.id], "batch_001")
+
+        unexported = repo.get_unexported(db_session)
+        assert len(unexported) == 1
+        assert unexported[0].job_id == setup_data["job_id"]
+
+    def test_mark_exported(self, db_session: Session, setup_data):
+        """Mark learning records as exported."""
+        repo = LearningRecordRepository()
+
+        record = repo.create_record(
+            db_session,
+            job_id=setup_data["job_id"],
+            input_sequence="MVLSPADKTNVKAAWG",
+        )
+
+        assert record.exported_at is None
+        assert record.export_batch_id is None
+
+        count = repo.mark_exported(db_session, [record.id], "batch_test")
+        assert count == 1
+
+        # Refresh record
+        updated = repo.get_by_id(db_session, record.id)
+        assert updated.exported_at is not None
+        assert updated.export_batch_id == "batch_test"

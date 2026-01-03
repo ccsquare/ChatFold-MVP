@@ -13,6 +13,8 @@ from app.db.models import (
     Conversation,
     Folder,
     Job,
+    JobEvent,
+    LearningRecord,
     Message,
     Project,
     Structure,
@@ -57,5 +59,7 @@ __all__ = [
     "Conversation",
     "Message",
     "Job",
+    "JobEvent",
+    "LearningRecord",
     "Structure",
 ]

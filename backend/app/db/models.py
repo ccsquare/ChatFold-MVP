@@ -209,6 +209,8 @@ class Job(Base):
     user = relationship("User", back_populates="jobs")
     conversation = relationship("Conversation", back_populates="jobs")
     structures = relationship("Structure", back_populates="job", cascade="all, delete-orphan")
+    events = relationship("JobEvent", back_populates="job", cascade="all, delete-orphan")
+    learning_record = relationship("LearningRecord", back_populates="job", uselist=False, cascade="all, delete-orphan")
 
     # Indexes
     __table_args__ = (
@@ -219,6 +221,99 @@ class Job(Base):
 
     def __repr__(self) -> str:
         return f"<Job(id={self.id}, status={self.status})>"
+
+
+class JobEvent(Base):
+    """JobEvent - persisted SSE event for NanoCC job execution.
+
+    Used for:
+    - Debugging and replay of job execution
+    - Training data collection for model improvement
+    - Analytics on job execution patterns
+
+    Note: This ORM entity corresponds to the Pydantic JobEvent in nanocc/job.py.
+    Use import alias to distinguish them when both are needed.
+    """
+
+    __tablename__ = "job_events"
+
+    id = Column(String(64), primary_key=True)
+    job_id = Column(String(64), ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False)
+    event_type = Column(
+        Enum(
+            "PROLOGUE", "ANNOTATION", "THINKING_TEXT", "THINKING_PDB", "CONCLUSION",
+            name="event_type_enum"
+        ),
+        nullable=False,
+    )
+    stage = Column(String(32), nullable=False)
+    status = Column(String(32), nullable=False)
+    progress = Column(Integer, nullable=False, default=0)
+    message = Column(Text, nullable=True)
+    block_index = Column(Integer, nullable=True)  # Thinking block grouping
+    structure_id = Column(String(64), ForeignKey("structures.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(BigInteger, nullable=False)
+
+    # Relationships
+    job = relationship("Job", back_populates="events")
+    structure = relationship("Structure")
+
+    # Indexes
+    __table_args__ = (
+        Index("idx_job_events_job_id", "job_id"),
+        Index("idx_job_events_created_at", "created_at"),
+        Index("idx_job_events_event_type", "event_type"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<JobEvent(id={self.id}, job_id={self.job_id}, event_type={self.event_type})>"
+
+
+class LearningRecord(Base):
+    """LearningRecord - curated learning data from completed job.
+
+    Aggregates job execution data for machine learning purposes:
+    - Model fine-tuning (sequence → structure mapping)
+    - Preference learning (user selection among candidates)
+    - Quality assessment (pLDDT correlation with user satisfaction)
+
+    Created automatically when a job completes successfully.
+    User feedback is optional and added later via API.
+    """
+
+    __tablename__ = "learning_records"
+
+    id = Column(String(64), primary_key=True)
+    job_id = Column(String(64), ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False, unique=True)
+    input_sequence = Column(Text, nullable=False)
+    input_constraints = Column(Text, nullable=True)  # Optional constraints/annotations
+    thinking_block_count = Column(Integer, default=0)
+    structure_count = Column(Integer, default=0)
+    final_structure_id = Column(String(64), ForeignKey("structures.id", ondelete="SET NULL"), nullable=True)
+    final_plddt = Column(Integer, nullable=True)  # 0-100
+    # User feedback (optional)
+    user_selected_structure_id = Column(String(64), ForeignKey("structures.id", ondelete="SET NULL"), nullable=True)
+    user_rating = Column(Integer, nullable=True)  # 1-5
+    user_feedback = Column(Text, nullable=True)
+    # Export tracking
+    created_at = Column(BigInteger, nullable=False)
+    exported_at = Column(BigInteger, nullable=True)
+    export_batch_id = Column(String(64), nullable=True)
+
+    # Relationships
+    job = relationship("Job", back_populates="learning_record")
+    final_structure = relationship("Structure", foreign_keys=[final_structure_id])
+    user_selected_structure = relationship("Structure", foreign_keys=[user_selected_structure_id])
+
+    # Indexes
+    __table_args__ = (
+        Index("idx_learning_records_job_id", "job_id"),
+        Index("idx_learning_records_created_at", "created_at"),
+        Index("idx_learning_records_exported_at", "exported_at"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<LearningRecord(id={self.id}, job_id={self.job_id})>"
 
 
 class Structure(Base):
