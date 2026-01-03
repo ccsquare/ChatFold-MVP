@@ -1,5 +1,5 @@
 # ChatFold Backend Dockerfile
-# FastAPI + Uvicorn
+# FastAPI + Uvicorn with uv package manager
 
 FROM python:3.11-slim
 
@@ -24,13 +24,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Install uv (fast Python package manager)
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:$PATH"
+
 # Create non-root user
 RUN groupadd --system --gid 1001 chatfold && \
     useradd --system --uid 1001 --gid chatfold chatfold
 
-# Copy requirements and install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy dependency files first for better caching
+COPY pyproject.toml uv.lock* ./
+
+# Install dependencies with uv (faster than pip)
+RUN uv sync --frozen --no-dev || uv sync --no-dev
 
 # Copy application code
 COPY . .
@@ -44,8 +50,9 @@ RUN echo "{\n\
   \"component\": \"backend\"\n\
 }" > /app/.build-info.json
 
-# Set ownership
-RUN chown -R chatfold:chatfold /app
+# Create workspace directory
+RUN mkdir -p /app/chatfold-workspace && \
+    chown -R chatfold:chatfold /app
 
 # Switch to non-root user
 USER chatfold
@@ -61,5 +68,5 @@ ENV PORT=8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8000/api/v1/health || exit 1
 
-# Start command
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Start command using uv run
+CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -256,6 +256,45 @@ class JobStateService:
         logger.warning(f"Job marked as failed: {job_id}, message={message}")
         return result
 
+    def mark_canceled(self, job_id: str, message: str = "Job canceled by user") -> bool:
+        """Mark job as canceled.
+
+        This method stores the canceled status in Redis, making it visible
+        across all application instances in a multi-instance deployment.
+
+        Args:
+            job_id: Job ID
+            message: Cancellation message
+
+        Returns:
+            True if successful
+        """
+        updates = {
+            "status": StatusType.canceled.value,
+            "message": message,
+            "updated_at": str(get_timestamp_ms()),
+        }
+        result = self._cache.hset(self._key(job_id), updates)
+        logger.info(f"Job marked as canceled: {job_id}")
+        return result
+
+    def is_canceled(self, job_id: str) -> bool:
+        """Check if job has been canceled.
+
+        This method checks Redis for the canceled status, which is shared
+        across all application instances.
+
+        Args:
+            job_id: Job ID
+
+        Returns:
+            True if job is canceled
+        """
+        state = self.get_state(job_id)
+        if state is None:
+            return False
+        return state.get("status") == StatusType.canceled.value
+
     def delete_state(self, job_id: str) -> bool:
         """Delete job state.
 
@@ -292,6 +331,108 @@ class JobStateService:
             True if successful
         """
         return self._cache.expire(self._key(job_id), ttl)
+
+    # ==================== Job Metadata (Multi-instance support) ====================
+
+    def _meta_key(self, job_id: str) -> str:
+        """Generate Redis key for job metadata."""
+        return f"job:{job_id}:meta"
+
+    def save_job_meta(
+        self,
+        job_id: str,
+        sequence: str,
+        conversation_id: str | None = None,
+        ttl: int | None = JOB_STATE_TTL,
+    ) -> bool:
+        """Save job metadata to Redis for multi-instance access.
+
+        This stores essential job information that needs to be accessible
+        across all application instances.
+
+        Args:
+            job_id: Job ID
+            sequence: Amino acid sequence
+            conversation_id: Optional conversation ID
+            ttl: TTL in seconds (default: 24 hours)
+
+        Returns:
+            True if successful
+        """
+        key = self._meta_key(job_id)
+        meta = {
+            "sequence": sequence,
+            "conversation_id": conversation_id or "",
+            "created_at": str(get_timestamp_ms()),
+        }
+
+        result = self._cache.hset(key, meta)
+
+        if result and ttl:
+            self._cache.expire(key, ttl)
+
+        logger.debug(f"Saved job metadata: {job_id}")
+        return result
+
+    def get_job_meta(self, job_id: str) -> dict | None:
+        """Get job metadata from Redis.
+
+        Args:
+            job_id: Job ID
+
+        Returns:
+            Job metadata dict or None if not found
+        """
+        data = self._cache.hgetall(self._meta_key(job_id))
+        if not data:
+            return None
+
+        return {
+            "sequence": data.get("sequence", ""),
+            "conversation_id": data.get("conversation_id") or None,
+            "created_at": int(data.get("created_at", 0)),
+        }
+
+    def get_job_sequence(self, job_id: str) -> str | None:
+        """Get job sequence from Redis.
+
+        Convenience method for retrieving just the sequence.
+
+        Args:
+            job_id: Job ID
+
+        Returns:
+            Amino acid sequence or None if not found
+        """
+        meta = self.get_job_meta(job_id)
+        if meta:
+            return meta.get("sequence") or None
+        return None
+
+    def delete_job_meta(self, job_id: str) -> bool:
+        """Delete job metadata from Redis.
+
+        Args:
+            job_id: Job ID
+
+        Returns:
+            True if deleted
+        """
+        result = self._cache.delete(self._meta_key(job_id))
+        if result:
+            logger.debug(f"Deleted job metadata: {job_id}")
+        return result
+
+    def job_exists(self, job_id: str) -> bool:
+        """Check if job exists in Redis (has state or metadata).
+
+        Args:
+            job_id: Job ID
+
+        Returns:
+            True if job exists
+        """
+        return self.exists(job_id) or self._cache.exists(self._meta_key(job_id))
 
 
 # Singleton instance
