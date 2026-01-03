@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Unit tests for Redis cache module
 
@@ -11,8 +10,9 @@ Tests cover:
 """
 
 import pytest
-from app.db.redis_db import RedisDB
+
 from app.db.redis_cache import RedisCache, get_job_state_cache, get_sse_events_cache
+from app.db.redis_db import RedisDB
 
 
 class TestRedisDB:

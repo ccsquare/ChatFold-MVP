@@ -13,14 +13,24 @@ from pydantic import BaseModel, Field
 
 # Re-export nanocc models for backward compatibility
 from app.components.nanocc.job import (
+    CreateJobRequest,
     JobEvent,
     NanoCCJob,
+    RegisterSequenceRequest,
+    StageType,
+    StatusType,
 )
 
 # Re-export workspace models for backward compatibility
 from app.components.workspace.models import (
+    AddFolderInputRequest,
     Asset,
+    CreateFolderRequest,
+    Folder,
+    Project,
     StructureArtifact,
+    User,
+    UserPlan,
 )
 
 # Aliases
@@ -55,3 +65,31 @@ class CreateConversationRequest(BaseModel):
 
 class CachePDBRequest(BaseModel):
     pdbData: str
+
+
+__all__ = [
+    # Re-exported from nanocc
+    "CreateJobRequest",
+    "JobEvent",
+    "NanoCCJob",
+    "RegisterSequenceRequest",
+    "StageType",
+    "StatusType",
+    # Re-exported from workspace
+    "AddFolderInputRequest",
+    "Asset",
+    "CreateFolderRequest",
+    "Folder",
+    "Project",
+    "StructureArtifact",
+    "User",
+    "UserPlan",
+    # Aliases
+    "Job",
+    "StepEvent",
+    # Local models
+    "ChatMessage",
+    "Conversation",
+    "CreateConversationRequest",
+    "CachePDBRequest",
+]

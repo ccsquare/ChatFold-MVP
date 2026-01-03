@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.api import api_router as api_v1_router
+from app.services.filesystem import filesystem_service
 from app.settings import settings
 from app.utils.logging import setup_logging
 
@@ -31,7 +32,10 @@ app.include_router(api_v1_router, prefix="/api/v1")
 
 @app.on_event("startup")
 async def startup_event():
-    """Log startup message."""
+    """Initialize services and log startup message."""
+    # Initialize filesystem (creates directories)
+    filesystem_service.initialize()
+
     logger.info("ChatFold API started successfully")
 
 

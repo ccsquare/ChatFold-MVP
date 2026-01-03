@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 pytest configuration file
 
@@ -7,8 +6,8 @@ This file contains shared fixtures for all tests.
 """
 
 import os
+
 import pytest
-from typing import Generator
 
 # Test configuration
 REDIS_HOST = os.getenv("CHATFOLD_REDIS_HOST", "127.0.0.1")
