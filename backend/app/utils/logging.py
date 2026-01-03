@@ -11,7 +11,6 @@ Paths:
 import logging
 import os
 from logging.handlers import RotatingFileHandler
-from pathlib import Path
 
 from app.settings import settings
 

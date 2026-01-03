@@ -17,17 +17,17 @@ Usage:
         yield event
 """
 
+from app.components.nanocc.folding import generate_cot_events, generate_mock_cot_events
 from app.components.nanocc.job import (
-    NanoCCJob,
+    CreateJobRequest,
+    EventType,
     JobEvent,
     JobType,
-    EventType,
+    NanoCCJob,
+    RegisterSequenceRequest,
     StageType,
     StatusType,
-    CreateJobRequest,
-    RegisterSequenceRequest,
 )
-from app.components.nanocc.folding import generate_cot_events, generate_mock_cot_events
 from app.components.nanocc.legacy_mock import generate_step_events
 
 __all__ = [

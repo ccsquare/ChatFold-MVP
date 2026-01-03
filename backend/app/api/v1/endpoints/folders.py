@@ -9,18 +9,18 @@ This endpoint layer delegates to the workspace module for business logic.
 from fastapi import APIRouter, HTTPException
 
 from app.components.workspace import (
-    Folder,
+    AddFolderInputRequest,
     Asset,
     CreateFolderRequest,
-    AddFolderInputRequest,
-    create_folder,
-    get_folder,
-    list_folders,
-    delete_folder,
-    update_folder,
+    Folder,
     add_folder_input,
-    list_folder_inputs,
+    create_folder,
+    delete_folder,
+    get_folder,
     link_folder_conversation,
+    list_folder_inputs,
+    list_folders,
+    update_folder,
 )
 
 router = APIRouter()

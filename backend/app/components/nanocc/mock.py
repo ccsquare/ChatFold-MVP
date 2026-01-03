@@ -5,14 +5,13 @@ a JSONL file and streams them with configurable random delays to simulate
 realistic generation behavior.
 """
 
+import asyncio
 import json
 import os
 import random
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from pathlib import Path
-
-import asyncio
 
 # Configuration
 MOCK_DATA_PATH = os.getenv(
@@ -48,7 +47,7 @@ def load_mock_messages(file_path: str | None = None) -> list[MockCoTMessage]:
         raise FileNotFoundError(f"Mock data file not found: {path}")
 
     messages = []
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:

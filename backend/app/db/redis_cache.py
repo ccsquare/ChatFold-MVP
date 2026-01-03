@@ -33,12 +33,12 @@ Usage:
 
 import json
 import logging
-from typing import Any, Optional
+from typing import Any
 
 import redis
 
-from app.settings import settings
 from app.db.redis_db import RedisDB
+from app.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +66,7 @@ class RedisCache:
             db: RedisDB enum value specifying which database to use
         """
         self.db = db
-        self._client: Optional[redis.Redis] = None
+        self._client: redis.Redis | None = None
         self._db_description = RedisDB.get_description(db)
 
     @property
@@ -91,7 +91,7 @@ class RedisCache:
 
     # ==================== String Operations ====================
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         """
         Get cached value
 
@@ -114,7 +114,7 @@ class RedisCache:
             logger.error(f"JSON decode error for key {key}: {e}")
             return None
 
-    def set(self, key: str, value: Any, expire_seconds: Optional[int] = None) -> bool:
+    def set(self, key: str, value: Any, expire_seconds: int | None = None) -> bool:
         """
         Set cached value with optional TTL
 
@@ -215,7 +215,7 @@ class RedisCache:
             logger.error(f"Redis hset error for key {key}: {e}")
             return False
 
-    def hget(self, key: str, field: str) -> Optional[Any]:
+    def hget(self, key: str, field: str) -> Any | None:
         """Get a single hash field value"""
         try:
             data = self.client.hget(key, field)
@@ -229,7 +229,7 @@ class RedisCache:
             logger.error(f"Redis hget error for key {key}, field {field}: {e}")
             return None
 
-    def hgetall(self, key: str) -> Optional[dict[str, Any]]:
+    def hgetall(self, key: str) -> dict[str, Any] | None:
         """
         Get all hash fields
 
@@ -371,8 +371,8 @@ class RedisCache:
 # ==================== Singleton Instances ====================
 # Pre-configured cache instances for common use cases
 
-_job_state_cache: Optional[RedisCache] = None
-_sse_events_cache: Optional[RedisCache] = None
+_job_state_cache: RedisCache | None = None
+_sse_events_cache: RedisCache | None = None
 
 
 def get_job_state_cache() -> RedisCache:
