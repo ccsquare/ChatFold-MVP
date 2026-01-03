@@ -5,6 +5,10 @@ This module provides REST endpoints for NanoCC job management:
 - List/get jobs
 - Stream job progress via SSE
 - Cancel running jobs
+
+Redis Integration:
+- Job state is stored in Redis for fast access
+- SSE events are pushed to Redis queues for replay support
 """
 
 import asyncio
@@ -19,11 +23,14 @@ from app.components.nanocc import (
     CreateJobRequest,
     NanoCCJob,
     RegisterSequenceRequest,
+    StageType,
     StatusType,
     generate_cot_events,
     generate_step_events,
 )
+from app.services.job_state import job_state_service
 from app.services.memory_store import storage
+from app.services.sse_events import sse_events_service
 from app.utils import (
     DEFAULT_SEQUENCE,
     SequenceValidationError,
@@ -59,8 +66,17 @@ async def create_job(request: CreateJobRequest):
         structures=[],
     )
 
+    # Save to memory store (legacy)
     storage.save_job(job)
     storage.save_job_sequence(job.id, sequence)
+
+    # Create job state in Redis
+    job_state_service.create_state(
+        job.id,
+        status=StatusType.queued,
+        stage=StageType.QUEUED,
+        message="Job created and queued for processing",
+    )
 
     return {"jobId": job.id, "job": job.model_dump()}
 
@@ -148,13 +164,35 @@ async def stream_job(
 
     async def event_stream():
         """Generate SSE events for the folding job."""
+        # Update job state to running in Redis
+        job_state_service.set_state(
+            job_id,
+            status=StatusType.running,
+            stage=StageType.QUEUED,
+            progress=0,
+            message="Starting job processing",
+        )
+
         if enable_nanocc:
             # Use NanoCC-powered async generator
             async for event in generate_cot_events(job_id, final_sequence):
                 # Check if job was canceled before each event
                 if storage.is_job_canceled(job_id):
+                    job_state_service.mark_failed(job_id, "Job canceled by user")
                     yield f'event: canceled\ndata: {{"jobId": "{job_id}", "message": "Job canceled by user"}}\n\n'
                     return
+
+                # Push event to Redis queue for replay support
+                sse_events_service.push_event(event)
+
+                # Update job state in Redis
+                job_state_service.set_state(
+                    job_id,
+                    status=event.status,
+                    stage=event.stage,
+                    progress=event.progress,
+                    message=event.message,
+                )
 
                 # Format as SSE
                 event_data = event.model_dump_json()
@@ -164,8 +202,21 @@ async def stream_job(
             for event in generate_step_events(job_id, final_sequence):
                 # Check if job was canceled before each event
                 if storage.is_job_canceled(job_id):
+                    job_state_service.mark_failed(job_id, "Job canceled by user")
                     yield f'event: canceled\ndata: {{"jobId": "{job_id}", "message": "Job canceled by user"}}\n\n'
                     return
+
+                # Push event to Redis queue for replay support
+                sse_events_service.push_event(event)
+
+                # Update job state in Redis
+                job_state_service.set_state(
+                    job_id,
+                    status=event.status,
+                    stage=event.stage,
+                    progress=event.progress,
+                    message=event.message,
+                )
 
                 # Format as SSE
                 event_data = event.model_dump_json()
@@ -174,12 +225,15 @@ async def stream_job(
                 # Simulate processing time, split into smaller chunks for faster cancellation detection
                 for _ in range(5):
                     if storage.is_job_canceled(job_id):
+                        job_state_service.mark_failed(job_id, "Job canceled by user")
                         yield f'event: canceled\ndata: {{"jobId": "{job_id}", "message": "Job canceled by user"}}\n\n'
                         return
                     await asyncio.sleep(0.1 + random.random() * 0.14)
 
         # Send done event only if not canceled
         if not storage.is_job_canceled(job_id):
+            job_state_service.mark_complete(job_id, "Job completed successfully")
+            sse_events_service.set_completion_ttl(job_id)
             yield f'event: done\ndata: {{"jobId": "{job_id}"}}\n\n'
 
     return StreamingResponse(
@@ -191,3 +245,51 @@ async def stream_job(
             "X-Accel-Buffering": "no",  # Disable nginx buffering
         },
     )
+
+
+@router.get("/{job_id}/state")
+async def get_job_state(job_id: str):
+    """Get current job state from Redis.
+
+    This endpoint provides fast access to job status without
+    requiring a database query.
+    """
+    if not JOB_ID_PATTERN.match(job_id):
+        raise HTTPException(status_code=400, detail="Invalid job ID")
+
+    state = job_state_service.get_state(job_id)
+    if not state:
+        raise HTTPException(status_code=404, detail="Job state not found")
+
+    return {"jobId": job_id, "state": state}
+
+
+@router.get("/{job_id}/events")
+async def get_job_events(
+    job_id: str,
+    offset: int = Query(0, ge=0, description="Start from this event index"),
+    limit: int = Query(100, ge=1, le=1000, description="Maximum events to return"),
+):
+    """Get job events from Redis for replay.
+
+    This endpoint allows clients to retrieve missed events when
+    reconnecting to an SSE stream.
+
+    Args:
+        job_id: The job identifier
+        offset: Start from this event index (0-based)
+        limit: Maximum number of events to return
+    """
+    if not JOB_ID_PATTERN.match(job_id):
+        raise HTTPException(status_code=400, detail="Invalid job ID")
+
+    # Get events from offset
+    events = sse_events_service.get_events(job_id, start=offset, end=offset + limit - 1)
+
+    return {
+        "jobId": job_id,
+        "offset": offset,
+        "count": len(events),
+        "total": sse_events_service.get_events_count(job_id),
+        "events": [e.model_dump() for e in events],
+    }
