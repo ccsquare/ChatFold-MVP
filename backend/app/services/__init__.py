@@ -6,6 +6,7 @@ from app.components.nanocc import (
 )
 from app.components.nanocc.client import NanoCCClient, NanoCCEvent, NanoCCSession, nanocc_client
 from app.components.nanocc.mock import MockNanoCCClient, mock_nanocc_client
+from app.services.data_consistency import DataConsistencyService, data_consistency_service
 from app.services.filesystem import FileSystemService, filesystem_service
 from app.services.job_state import JobStateService, job_state_service
 from app.services.memory_store import storage
@@ -25,6 +26,9 @@ __all__ = [
     # SSE events service (Redis)
     "sse_events_service",
     "SSEEventsService",
+    # Data consistency service
+    "data_consistency_service",
+    "DataConsistencyService",
     # NanoCC exports
     "generate_step_events",
     "generate_cot_events",
