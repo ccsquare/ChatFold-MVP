@@ -14,6 +14,11 @@ Usage:
 """
 
 from app.repositories.job import JobRepository, job_repository
+from app.repositories.job_event import JobEventRepository, job_event_repository
+from app.repositories.learning_record import (
+    LearningRecordRepository,
+    learning_record_repository,
+)
 from app.repositories.structure import StructureRepository, structure_repository
 from app.repositories.user import UserRepository, user_repository
 
@@ -22,6 +27,10 @@ __all__ = [
     "user_repository",
     "JobRepository",
     "job_repository",
+    "JobEventRepository",
+    "job_event_repository",
+    "LearningRecordRepository",
+    "learning_record_repository",
     "StructureRepository",
     "structure_repository",
 ]

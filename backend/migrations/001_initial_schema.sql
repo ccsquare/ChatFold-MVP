@@ -143,6 +143,55 @@ CREATE TABLE IF NOT EXISTS structures (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ==============================================================================
+-- Job Events Table
+-- Persisted SSE events for NanoCC job execution (for learning/debugging)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS job_events (
+    id VARCHAR(64) PRIMARY KEY,
+    job_id VARCHAR(64) NOT NULL,
+    event_type ENUM('PROLOGUE', 'ANNOTATION', 'THINKING_TEXT', 'THINKING_PDB', 'CONCLUSION') NOT NULL,
+    stage VARCHAR(32) NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    progress INT NOT NULL DEFAULT 0,
+    message TEXT,
+    block_index INT,
+    structure_id VARCHAR(64),
+    created_at BIGINT NOT NULL,
+    FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE,
+    FOREIGN KEY (structure_id) REFERENCES structures(id) ON DELETE SET NULL,
+    INDEX idx_job_events_job_id (job_id),
+    INDEX idx_job_events_created_at (created_at),
+    INDEX idx_job_events_event_type (event_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ==============================================================================
+-- Learning Records Table
+-- Curated learning data from completed jobs (for ML training)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS learning_records (
+    id VARCHAR(64) PRIMARY KEY,
+    job_id VARCHAR(64) NOT NULL UNIQUE,
+    input_sequence TEXT NOT NULL,
+    input_constraints TEXT,
+    thinking_block_count INT DEFAULT 0,
+    structure_count INT DEFAULT 0,
+    final_structure_id VARCHAR(64),
+    final_plddt INT,
+    user_selected_structure_id VARCHAR(64),
+    user_rating INT,
+    user_feedback TEXT,
+    created_at BIGINT NOT NULL,
+    exported_at BIGINT,
+    export_batch_id VARCHAR(64),
+    FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE,
+    FOREIGN KEY (final_structure_id) REFERENCES structures(id) ON DELETE SET NULL,
+    FOREIGN KEY (user_selected_structure_id) REFERENCES structures(id) ON DELETE SET NULL,
+    INDEX idx_learning_records_job_id (job_id),
+    INDEX idx_learning_records_created_at (created_at),
+    INDEX idx_learning_records_exported_at (exported_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ==============================================================================
 -- Seed Data: Default User and Project (MVP)
 -- ==============================================================================
 INSERT INTO users (id, name, email, plan, created_at)
