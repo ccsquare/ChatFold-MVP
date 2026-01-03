@@ -1,12 +1,19 @@
 """FastAPI application entry point."""
 
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.api import api_router as api_v1_router
+from app.db.mysql import check_connection as check_db_connection
+from app.db.mysql import close_db, init_db
 from app.services.filesystem import filesystem_service
 from app.settings import settings
 from app.utils.logging import setup_logging
+
+# Feature flag for MySQL (disabled by default for backward compatibility)
+USE_MYSQL = os.getenv("USE_MYSQL", "false").lower() in ("true", "1", "yes")
 
 # Initialize logging
 logger = setup_logging("chatfold")
@@ -36,7 +43,23 @@ async def startup_event():
     # Initialize filesystem (creates directories)
     filesystem_service.initialize()
 
+    # Initialize MySQL if enabled
+    if USE_MYSQL:
+        if check_db_connection():
+            init_db()
+            logger.info("MySQL database initialized")
+        else:
+            logger.warning("MySQL connection failed - running without database persistence")
+
     logger.info("ChatFold API started successfully")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Clean up resources on shutdown."""
+    if USE_MYSQL:
+        close_db()
+        logger.info("MySQL connections closed")
 
 
 @app.get("/")
