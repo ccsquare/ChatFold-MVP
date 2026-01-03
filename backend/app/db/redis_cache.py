@@ -58,15 +58,16 @@ class RedisCache:
     - Hash/List support: For job state and SSE events
     """
 
-    def __init__(self, db: RedisDB):
+    def __init__(self, db: RedisDB, client: redis.Redis | None = None):
         """
         Initialize Redis cache with specific database
 
         Args:
             db: RedisDB enum value specifying which database to use
+            client: Optional pre-configured Redis client (for testing with fakeredis)
         """
         self.db = db
-        self._client: redis.Redis | None = None
+        self._client: redis.Redis | None = client
         self._db_description = RedisDB.get_description(db)
 
     @property

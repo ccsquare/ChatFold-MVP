@@ -11,11 +11,14 @@ Key Features:
 - Optional TTL for automatic cleanup
 """
 
-from typing import TypedDict
+from typing import TYPE_CHECKING, TypedDict
 
 from app.components.nanocc.job import StageType, StatusType
 from app.db.redis_cache import get_job_state_cache
 from app.utils import get_logger, get_timestamp_ms
+
+if TYPE_CHECKING:
+    from app.db.redis_cache import RedisCache
 
 logger = get_logger(__name__)
 
@@ -49,8 +52,14 @@ class JobStateService:
     - updated_at: Last update timestamp (ms)
     """
 
-    def __init__(self):
-        self._cache = get_job_state_cache()
+    def __init__(self, cache: "RedisCache | None" = None):
+        """Initialize job state service.
+
+        Args:
+            cache: Optional RedisCache instance for dependency injection (testing).
+                   If not provided, uses the default singleton cache.
+        """
+        self._cache = cache if cache is not None else get_job_state_cache()
 
     def _key(self, job_id: str) -> str:
         """Generate Redis key for job state."""

@@ -7,6 +7,7 @@ This file contains shared fixtures for all tests.
 
 import os
 
+import fakeredis
 import pytest
 
 # Test configuration
@@ -67,3 +68,17 @@ def sample_sse_events() -> list:
         '{"eventId":"evt_2","stage":"MODEL","progress":45}',
         '{"eventId":"evt_3","stage":"RELAX","progress":70}',
     ]
+
+
+@pytest.fixture
+def fake_redis_client():
+    """
+    Create a fakeredis client for unit tests.
+
+    This provides an in-memory Redis implementation that allows
+    unit tests to run without a real Redis server.
+    """
+    server = fakeredis.FakeServer()
+    client = fakeredis.FakeRedis(server=server, decode_responses=True)
+    yield client
+    client.close()
