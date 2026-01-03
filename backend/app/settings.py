@@ -12,6 +12,11 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# ==================== MVP 默认常量 ====================
+# MVP 阶段使用默认用户和项目，简化实现
+DEFAULT_USER_ID = "user_default"
+DEFAULT_PROJECT_ID = "project_default"
+
 # Helper function to get project root directory (where .env file is located)
 # backend/app/settings.py -> backend/app/ -> backend/ -> project root
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -165,40 +170,135 @@ class Settings(BaseSettings):
         logs_root = self.get_logs_root()
         return logs_root / Path(*paths) if paths else logs_root
 
-    # ==================== 业务路径便捷方法 ====================
+    # ==================== 旧版业务路径方法 (将在后续版本移除) ====================
+    # 这些方法不支持用户/项目层级，仅用于向后兼容
+    # 请使用新版 get_*_path(user_id, project_id, ...) 方法
 
-    def get_structures_path(self, *paths: str) -> Path:
-        """获取结构文件存储路径
+    def get_structures_path_legacy(self, *paths: str) -> Path:
+        """获取结构文件存储路径 (旧版，将在后续版本移除)
 
         Examples:
-            get_structures_path() -> {outputs_root}/structures
-            get_structures_path("job_123.pdb") -> {outputs_root}/structures/job_123.pdb
+            get_structures_path_legacy() -> {outputs_root}/structures
+            get_structures_path_legacy("job_123.pdb") -> {outputs_root}/structures/job_123.pdb
+
+        Note: 请使用 get_structures_path(user_id, project_id, job_id) 替代
         """
         if paths:
             return self.get_output_path("structures", *paths)
         return self.get_output_path("structures")
 
-    def get_jobs_path(self, *paths: str) -> Path:
-        """获取任务中间文件路径
+    def get_jobs_path_legacy(self, *paths: str) -> Path:
+        """获取任务中间文件路径 (旧版，将在后续版本移除)
 
         Examples:
-            get_jobs_path() -> {outputs_root}/jobs
-            get_jobs_path("job_123") -> {outputs_root}/jobs/job_123
+            get_jobs_path_legacy() -> {outputs_root}/jobs
+            get_jobs_path_legacy("job_123") -> {outputs_root}/jobs/job_123
+
+        Note: 请使用 get_jobs_path(user_id, job_id) 替代
         """
         if paths:
             return self.get_output_path("jobs", *paths)
         return self.get_output_path("jobs")
 
-    def get_uploads_path(self, *paths: str) -> Path:
-        """获取用户上传文件路径
+    def get_uploads_path_legacy(self, *paths: str) -> Path:
+        """获取用户上传文件路径 (旧版，将在后续版本移除)
 
         Examples:
-            get_uploads_path() -> {outputs_root}/uploads
-            get_uploads_path("user_123", "input.fasta") -> {outputs_root}/uploads/user_123/input.fasta
+            get_uploads_path_legacy() -> {outputs_root}/uploads
+            get_uploads_path_legacy("user_123", "input.fasta") -> {outputs_root}/uploads/user_123/input.fasta
+
+        Note: 请使用 get_uploads_path(user_id, project_id, folder_id) 替代
         """
         if paths:
             return self.get_output_path("uploads", *paths)
         return self.get_output_path("uploads")
+
+    # ==================== 用户/项目级别路径 ====================
+
+    def get_user_path(self, user_id: str) -> Path:
+        """获取用户根目录
+
+        目录结构: {outputs}/users/{user_id}
+
+        Examples:
+            get_user_path("u001") -> {outputs}/users/u001
+        """
+        return self.get_outputs_root() / "users" / user_id
+
+    def get_project_path(self, user_id: str, project_id: str) -> Path:
+        """获取项目目录
+
+        目录结构: {outputs}/users/{user_id}/projects/{project_id}
+
+        Examples:
+            get_project_path("u001", "p001") -> {outputs}/users/u001/projects/p001
+        """
+        return self.get_user_path(user_id) / "projects" / project_id
+
+    def get_folder_path(self, user_id: str, project_id: str, folder_id: str) -> Path:
+        """获取文件夹目录
+
+        目录结构: {outputs}/users/{user_id}/projects/{project_id}/folders/{folder_id}
+
+        Examples:
+            get_folder_path("u001", "p001", "f001") -> .../folders/f001
+        """
+        return self.get_project_path(user_id, project_id) / "folders" / folder_id
+
+    def get_uploads_path(self, user_id: str, project_id: str, folder_id: str) -> Path:
+        """获取上传目录
+
+        目录结构: {outputs}/users/{user_id}/projects/{project_id}/uploads/{folder_id}
+
+        Examples:
+            get_uploads_path("u001", "p001", "f001") -> .../uploads/f001
+        """
+        return self.get_project_path(user_id, project_id) / "uploads" / folder_id
+
+    def get_structures_path(self, user_id: str, project_id: str, job_id: str) -> Path:
+        """获取结构文件目录
+
+        目录结构: {outputs}/users/{user_id}/projects/{project_id}/structures/{job_id}
+
+        Examples:
+            get_structures_path("u001", "p001", "job001") -> .../structures/job001
+        """
+        return self.get_project_path(user_id, project_id) / "structures" / job_id
+
+    def get_jobs_path(self, user_id: str, job_id: str) -> Path:
+        """获取 Job 目录
+
+        Job 在用户级别（不在项目级别），因为 Job 可能跨项目共享
+
+        目录结构: {outputs}/users/{user_id}/jobs/{job_id}
+
+        Examples:
+            get_jobs_path("u001", "job001") -> {outputs}/users/u001/jobs/job001
+        """
+        return self.get_user_path(user_id) / "jobs" / job_id
+
+    # ==================== MVP 便捷方法 ====================
+    # 使用默认用户和项目，简化 MVP 阶段的 API 调用
+
+    def get_default_user_path(self) -> Path:
+        """MVP: 获取默认用户目录"""
+        return self.get_user_path(DEFAULT_USER_ID)
+
+    def get_default_project_path(self) -> Path:
+        """MVP: 获取默认项目目录"""
+        return self.get_project_path(DEFAULT_USER_ID, DEFAULT_PROJECT_ID)
+
+    def get_default_uploads_path(self, folder_id: str) -> Path:
+        """MVP: 使用默认用户和项目获取上传目录"""
+        return self.get_uploads_path(DEFAULT_USER_ID, DEFAULT_PROJECT_ID, folder_id)
+
+    def get_default_structures_path(self, job_id: str) -> Path:
+        """MVP: 使用默认用户和项目获取结构目录"""
+        return self.get_structures_path(DEFAULT_USER_ID, DEFAULT_PROJECT_ID, job_id)
+
+    def get_default_jobs_path(self, job_id: str) -> Path:
+        """MVP: 使用默认用户获取 Job 目录"""
+        return self.get_jobs_path(DEFAULT_USER_ID, job_id)
 
 
 # 创建全局配置实例

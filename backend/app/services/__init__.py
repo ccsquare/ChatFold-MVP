@@ -6,6 +6,7 @@ from app.components.nanocc import (
 )
 from app.components.nanocc.client import NanoCCClient, NanoCCEvent, NanoCCSession, nanocc_client
 from app.components.nanocc.mock import MockNanoCCClient, mock_nanocc_client
+from app.services.filesystem import FileSystemService, filesystem_service
 from app.services.memory_store import storage
 
 # Alias for backward compatibility
@@ -13,6 +14,8 @@ generate_nanocc_step_events = generate_cot_events
 
 __all__ = [
     "storage",
+    "filesystem_service",
+    "FileSystemService",
     "generate_step_events",
     # NanoCC exports (for backward compatibility)
     "generate_cot_events",
