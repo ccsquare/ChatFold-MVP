@@ -11,7 +11,7 @@ from .id_generator import (
     generate_event_id,
 )
 from .logging import get_logger, setup_logging
-from .pdb_generator import generate_mock_pdb
+from .mock_pdb import generate_mock_pdb
 from .sequence_validator import (
     DEFAULT_SEQUENCE,
     SequenceValidationError,
