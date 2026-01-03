@@ -6,9 +6,10 @@ This module provides REST endpoints for NanoCC job management:
 - Stream job progress via SSE
 - Cancel running jobs
 
-Redis Integration:
-- Job state is stored in Redis for fast access
-- SSE events are pushed to Redis queues for replay support
+Storage Integration:
+- Redis: Job state cache and SSE event queues (always enabled)
+- MySQL: Persistent storage (optional, enabled via USE_MYSQL env var)
+- Memory: Legacy in-memory storage (fallback)
 """
 
 import asyncio
@@ -39,13 +40,58 @@ from app.utils import (
     validate_amino_acid_sequence,
 )
 
-# NanoCC feature flag - can be disabled via environment variable
+# Feature flags
 USE_NANOCC = os.getenv("USE_NANOCC", "true").lower() in ("true", "1", "yes")
+USE_MYSQL = os.getenv("USE_MYSQL", "false").lower() in ("true", "1", "yes")
 
 router = APIRouter(tags=["Jobs"])
 
 # Job ID pattern
 JOB_ID_PATTERN = re.compile(r"^job_[a-z0-9]+$")
+
+
+def _save_job_to_mysql(job: NanoCCJob) -> None:
+    """Save job to MySQL database (if enabled)."""
+    if not USE_MYSQL:
+        return
+
+    from app.db.mysql import get_db_session
+    from app.repositories import job_repository
+
+    try:
+        with get_db_session() as db:
+            job_repository.create(db, {
+                "id": job.id,
+                "user_id": "user_default",
+                "conversation_id": job.conversationId,
+                "job_type": "folding",
+                "status": job.status.value,
+                "stage": "QUEUED",
+                "sequence": job.sequence,
+                "file_path": None,
+                "created_at": job.createdAt,
+                "completed_at": None,
+            })
+    except Exception as e:
+        # Log but don't fail - MySQL is optional
+        import logging
+        logging.getLogger(__name__).warning(f"Failed to save job to MySQL: {e}")
+
+
+def _update_job_status_mysql(job_id: str, status: str, stage: str | None = None) -> None:
+    """Update job status in MySQL database (if enabled)."""
+    if not USE_MYSQL:
+        return
+
+    from app.db.mysql import get_db_session
+    from app.repositories import job_repository
+
+    try:
+        with get_db_session() as db:
+            job_repository.update_status(db, job_id, status, stage)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Failed to update job status in MySQL: {e}")
 
 
 @router.post("")
@@ -66,17 +112,20 @@ async def create_job(request: CreateJobRequest):
         structures=[],
     )
 
-    # Save to memory store (legacy)
+    # Save to memory store (legacy fallback)
     storage.save_job(job)
     storage.save_job_sequence(job.id, sequence)
 
-    # Create job state in Redis
+    # Create job state in Redis (always enabled)
     job_state_service.create_state(
         job.id,
         status=StatusType.queued,
         stage=StageType.QUEUED,
         message="Job created and queued for processing",
     )
+
+    # Save to MySQL (if enabled)
+    _save_job_to_mysql(job)
 
     return {"jobId": job.id, "job": job.model_dump()}
 
@@ -179,6 +228,7 @@ async def stream_job(
                 # Check if job was canceled before each event
                 if storage.is_job_canceled(job_id):
                     job_state_service.mark_failed(job_id, "Job canceled by user")
+                    _update_job_status_mysql(job_id, "canceled", "ERROR")
                     yield f'event: canceled\ndata: {{"jobId": "{job_id}", "message": "Job canceled by user"}}\n\n'
                     return
 
@@ -203,6 +253,7 @@ async def stream_job(
                 # Check if job was canceled before each event
                 if storage.is_job_canceled(job_id):
                     job_state_service.mark_failed(job_id, "Job canceled by user")
+                    _update_job_status_mysql(job_id, "canceled", "ERROR")
                     yield f'event: canceled\ndata: {{"jobId": "{job_id}", "message": "Job canceled by user"}}\n\n'
                     return
 
@@ -226,6 +277,7 @@ async def stream_job(
                 for _ in range(5):
                     if storage.is_job_canceled(job_id):
                         job_state_service.mark_failed(job_id, "Job canceled by user")
+                        _update_job_status_mysql(job_id, "canceled", "ERROR")
                         yield f'event: canceled\ndata: {{"jobId": "{job_id}", "message": "Job canceled by user"}}\n\n'
                         return
                     await asyncio.sleep(0.1 + random.random() * 0.14)
@@ -234,6 +286,7 @@ async def stream_job(
         if not storage.is_job_canceled(job_id):
             job_state_service.mark_complete(job_id, "Job completed successfully")
             sse_events_service.set_completion_ttl(job_id)
+            _update_job_status_mysql(job_id, "complete", "DONE")
             yield f'event: done\ndata: {{"jobId": "{job_id}"}}\n\n'
 
     return StreamingResponse(
