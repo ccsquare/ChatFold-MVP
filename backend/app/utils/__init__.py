@@ -1,5 +1,5 @@
-from .fasta_parser import parse_fasta
-from .id_generator import (
+from app.utils.fasta_parser import parse_fasta
+from app.utils.id_generator import (
     generate_id,
     generate_user_id,
     generate_project_id,
@@ -10,15 +10,15 @@ from .id_generator import (
     generate_asset_id,
     generate_event_id,
 )
-from .logging import get_logger, setup_logging
-from .mock_pdb import generate_mock_pdb
-from .sequence_validator import (
+from app.utils.logging import get_logger, setup_logging
+from app.utils.mock_pdb import generate_mock_pdb
+from app.utils.sequence_validator import (
     DEFAULT_SEQUENCE,
     SequenceValidationError,
     normalize_sequence,
     validate_amino_acid_sequence,
 )
-from .time_utils import get_timestamp_ms
+from app.utils.time_utils import get_timestamp_ms
 
 __all__ = [
     # ID generation

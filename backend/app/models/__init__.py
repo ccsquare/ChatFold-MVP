@@ -4,7 +4,7 @@ Workspace-related models are defined in the workspace module
 and re-exported from schemas.py for backward compatibility.
 """
 
-from .schemas import (
+from app.models.schemas import (
     # Core models
     StageType,
     StatusType,

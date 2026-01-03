@@ -10,7 +10,7 @@ import time
 import uuid
 from datetime import datetime
 
-from .models import (
+from app.components.workspace.models import (
     Folder,
     Asset,
     User,
@@ -19,7 +19,7 @@ from .models import (
     CreateFolderRequest,
     AddFolderInputRequest,
 )
-from .storage import workspace_storage
+from app.components.workspace.storage import workspace_storage
 
 
 # ID generators

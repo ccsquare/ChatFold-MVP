@@ -3,9 +3,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .api.v1.api import api_router as api_v1_router
-from .settings import settings
-from .utils.logging import setup_logging
+from app.api.v1.api import api_router as api_v1_router
+from app.settings import settings
+from app.utils.logging import setup_logging
 
 # Initialize logging
 logger = setup_logging("chatfold")

@@ -29,7 +29,7 @@ Usage:
     )
 """
 
-from .models import (
+from app.components.workspace.models import (
     Project,
     Folder,
     Asset,
@@ -38,8 +38,8 @@ from .models import (
     CreateFolderRequest,
     AddFolderInputRequest,
 )
-from .storage import workspace_storage, WorkspaceStorage
-from .service import (
+from app.components.workspace.storage import workspace_storage, WorkspaceStorage
+from app.components.workspace.service import (
     create_folder,
     get_folder,
     list_folders,

@@ -17,7 +17,7 @@ Usage:
         yield event
 """
 
-from .job import (
+from app.components.nanocc.job import (
     NanoCCJob,
     JobEvent,
     JobType,
@@ -27,8 +27,8 @@ from .job import (
     CreateJobRequest,
     RegisterSequenceRequest,
 )
-from .folding import generate_cot_events, generate_mock_cot_events
-from .legacy_mock import generate_step_events
+from app.components.nanocc.folding import generate_cot_events, generate_mock_cot_events
+from app.components.nanocc.legacy_mock import generate_step_events
 
 __all__ = [
     # Models
