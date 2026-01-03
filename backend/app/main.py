@@ -1,6 +1,5 @@
 """FastAPI application entry point."""
 
-import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -13,9 +12,6 @@ from app.services.filesystem import filesystem_service
 from app.settings import settings
 from app.utils.logging import setup_logging
 
-# Feature flag for MySQL (disabled by default for backward compatibility)
-USE_MYSQL = os.getenv("USE_MYSQL", "false").lower() in ("true", "1", "yes")
-
 # Initialize logging
 logger = setup_logging("chatfold")
 
@@ -26,19 +22,21 @@ async def lifespan(app: FastAPI):
     # Startup
     filesystem_service.initialize()
 
-    if USE_MYSQL:
+    # Initialize MySQL when not in memory-only mode
+    if not settings.use_memory_store:
         if check_db_connection():
             init_db()
             logger.info("MySQL database initialized")
         else:
             logger.warning("MySQL connection failed - running without database persistence")
 
-    logger.info("ChatFold API started successfully")
+    storage_mode = "memory" if settings.use_memory_store else "persistent"
+    logger.info(f"ChatFold API started successfully (storage: {storage_mode})")
 
     yield
 
     # Shutdown
-    if USE_MYSQL:
+    if not settings.use_memory_store:
         close_db()
         logger.info("MySQL connections closed")
 

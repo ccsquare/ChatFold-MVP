@@ -8,8 +8,8 @@ This module provides REST endpoints for NanoCC job management:
 
 Storage Integration:
 - Redis: Job state cache and SSE event queues (always enabled)
-- MySQL: Persistent storage (optional, enabled via USE_MYSQL env var)
-- Memory: Legacy in-memory storage (fallback)
+- MySQL + Filesystem: Persistent storage (default, use_memory_store=false)
+- Memory: In-memory only mode (use_memory_store=true)
 """
 
 import asyncio
@@ -32,6 +32,7 @@ from app.components.nanocc import (
 from app.services.job_state import job_state_service
 from app.services.memory_store import storage
 from app.services.sse_events import sse_events_service
+from app.settings import settings
 from app.utils import (
     DEFAULT_SEQUENCE,
     SequenceValidationError,
@@ -42,7 +43,6 @@ from app.utils import (
 
 # Feature flags
 USE_NANOCC = os.getenv("USE_NANOCC", "true").lower() in ("true", "1", "yes")
-USE_MYSQL = os.getenv("USE_MYSQL", "false").lower() in ("true", "1", "yes")
 
 router = APIRouter(tags=["Jobs"])
 
@@ -51,8 +51,8 @@ JOB_ID_PATTERN = re.compile(r"^job_[a-z0-9]+$")
 
 
 def _save_job_to_mysql(job: NanoCCJob) -> None:
-    """Save job to MySQL database (if enabled)."""
-    if not USE_MYSQL:
+    """Save job to MySQL database (if persistent mode enabled)."""
+    if settings.use_memory_store:
         return
 
     from app.db.mysql import get_db_session
@@ -62,8 +62,8 @@ def _save_job_to_mysql(job: NanoCCJob) -> None:
         with get_db_session() as db:
             job_repository.create(db, {
                 "id": job.id,
-                "user_id": "user_default",
-                "conversation_id": job.conversationId,
+                "user_id": None,  # MVP: no user auth yet
+                "conversation_id": None,  # MVP: conversations in memory
                 "job_type": "folding",
                 "status": job.status.value,
                 "stage": "QUEUED",
@@ -79,8 +79,8 @@ def _save_job_to_mysql(job: NanoCCJob) -> None:
 
 
 def _update_job_status_mysql(job_id: str, status: str, stage: str | None = None) -> None:
-    """Update job status in MySQL database (if enabled)."""
-    if not USE_MYSQL:
+    """Update job status in MySQL database (if persistent mode enabled)."""
+    if settings.use_memory_store:
         return
 
     from app.db.mysql import get_db_session

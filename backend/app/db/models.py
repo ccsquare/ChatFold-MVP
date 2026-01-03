@@ -187,7 +187,8 @@ class Job(Base):
     __tablename__ = "jobs"
 
     id = Column(String(64), primary_key=True)
-    user_id = Column(String(64), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    # MVP: user_id nullable until auth is implemented
+    user_id = Column(String(64), ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
     conversation_id = Column(
         String(64), ForeignKey("conversations.id", ondelete="SET NULL"), nullable=True
     )

@@ -11,10 +11,14 @@ Note: Data is lost on server restart. Future versions may replace
 this with a persistent database backend.
 """
 
-import threading
+from __future__ import annotations
 
-from app.components.nanocc import NanoCCJob
-from app.models.schemas import Conversation
+import threading
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from app.components.nanocc.job import NanoCCJob
+    from app.models.schemas import Conversation
 
 
 class MemoryStore:
@@ -26,8 +30,8 @@ class MemoryStore:
 
     def __init__(self):
         self._lock = threading.RLock()
-        self._conversations: dict[str, Conversation] = {}
-        self._jobs: dict[str, NanoCCJob] = {}
+        self._conversations: dict[str, Any] = {}  # Conversation objects
+        self._jobs: dict[str, Any] = {}  # NanoCCJob objects
         self._job_sequences: dict[str, str] = {}
         self._structure_cache: dict[str, str] = {}
         self._canceled_jobs: set[str] = set()  # Track canceled job IDs
