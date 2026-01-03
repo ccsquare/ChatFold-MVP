@@ -12,11 +12,14 @@ Key Features:
 """
 
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.components.nanocc.job import JobEvent
 from app.db.redis_cache import get_sse_events_cache
 from app.utils import get_logger
+
+if TYPE_CHECKING:
+    from app.db.redis_cache import RedisCache
 
 logger = get_logger(__name__)
 
@@ -41,8 +44,14 @@ class SSEEventsService:
     - TTL is refreshed on each push
     """
 
-    def __init__(self):
-        self._cache = get_sse_events_cache()
+    def __init__(self, cache: "RedisCache | None" = None):
+        """Initialize SSE events service.
+
+        Args:
+            cache: Optional RedisCache instance for dependency injection (testing).
+                   If not provided, uses the default singleton cache.
+        """
+        self._cache = cache if cache is not None else get_sse_events_cache()
 
     def _key(self, job_id: str) -> str:
         """Generate Redis key for job events queue."""

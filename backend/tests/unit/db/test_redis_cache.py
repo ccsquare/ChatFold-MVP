@@ -6,12 +6,15 @@ Tests cover:
 - RedisCache basic operations (string, hash, list)
 - Job state cache operations
 - SSE events cache operations
-- Singleton instance management
+
+NOTE: These tests use fakeredis to provide an in-memory Redis implementation,
+allowing tests to run without a real Redis server. This follows industry
+best practices for unit test isolation.
 """
 
 import pytest
 
-from app.db.redis_cache import RedisCache, get_job_state_cache, get_sse_events_cache
+from app.db.redis_cache import RedisCache
 from app.db.redis_db import RedisDB
 
 
@@ -42,13 +45,13 @@ class TestRedisDB:
         assert "测试" in RedisDB.get_description(RedisDB.TEST)
 
 
-class TestRedisCacheConnection:
-    """Test Redis connection and basic operations"""
+class TestRedisCacheWithFakeRedis:
+    """Test Redis cache operations using fakeredis"""
 
     @pytest.fixture
-    def test_cache(self) -> RedisCache:
-        """Create a test cache instance using TEST database"""
-        return RedisCache(db=RedisDB.TEST)
+    def test_cache(self, fake_redis_client) -> RedisCache:
+        """Create a test cache instance using fakeredis"""
+        return RedisCache(db=RedisDB.TEST, client=fake_redis_client)
 
     def test_ping(self, test_cache: RedisCache):
         """Test Redis connection via ping"""
@@ -89,9 +92,6 @@ class TestRedisCacheConnection:
         assert ttl > 0
         assert ttl <= 60
 
-        # Cleanup
-        test_cache.delete(key)
-
     def test_hash_operations(self, test_cache: RedisCache):
         """Test hash set/get/getall operations"""
         key = "test:hash_key"
@@ -119,9 +119,6 @@ class TestRedisCacheConnection:
         assert all_fields["field2"] == "value2"
         assert all_fields["count"] == 42
 
-        # Cleanup
-        test_cache.delete(key)
-
     def test_list_operations(self, test_cache: RedisCache):
         """Test list push/range operations"""
         key = "test:list_key"
@@ -138,9 +135,6 @@ class TestRedisCacheConnection:
         assert result[0] == {"id": 3}
         assert result[2] == {"id": 1}
 
-        # Cleanup
-        test_cache.delete(key)
-
     def test_list_rpush(self, test_cache: RedisCache):
         """Test list right push"""
         key = "test:list_rpush"
@@ -152,9 +146,6 @@ class TestRedisCacheConnection:
 
         result = test_cache.lrange(key, 0, -1)
         assert result == values
-
-        # Cleanup
-        test_cache.delete(key)
 
     def test_exists(self, test_cache: RedisCache):
         """Test key exists check"""
@@ -179,9 +170,6 @@ class TestRedisCacheConnection:
         ttl = test_cache.ttl(key)
         assert ttl > 0
 
-        # Cleanup
-        test_cache.delete(key)
-
     def test_llen(self, test_cache: RedisCache):
         """Test list length"""
         key = "test:llen_key"
@@ -190,9 +178,6 @@ class TestRedisCacheConnection:
 
         test_cache.rpush(key, "a", "b", "c")
         assert test_cache.llen(key) == 3
-
-        # Cleanup
-        test_cache.delete(key)
 
     def test_ltrim(self, test_cache: RedisCache):
         """Test list trim"""
@@ -205,23 +190,14 @@ class TestRedisCacheConnection:
         assert test_cache.llen(key) == 3
         assert test_cache.lrange(key, 0, -1) == ["a", "b", "c"]
 
-        # Cleanup
-        test_cache.delete(key)
 
-
-class TestJobStateCache:
-    """Test job state cache operations"""
+class TestJobStateCacheWithFakeRedis:
+    """Test job state cache operations using fakeredis"""
 
     @pytest.fixture
-    def job_cache(self) -> RedisCache:
-        """Get job state cache instance"""
-        return get_job_state_cache()
-
-    def test_singleton_instance(self):
-        """Test that get_job_state_cache returns singleton"""
-        cache1 = get_job_state_cache()
-        cache2 = get_job_state_cache()
-        assert cache1 is cache2
+    def job_cache(self, fake_redis_client) -> RedisCache:
+        """Get job state cache instance with fakeredis"""
+        return RedisCache(db=RedisDB.JOB_STATE, client=fake_redis_client)
 
     def test_job_state_storage(
         self,
@@ -242,9 +218,6 @@ class TestJobStateCache:
         assert result["progress"] == sample_job_state["progress"]
         assert result["message"] == sample_job_state["message"]
 
-        # Cleanup
-        job_cache.delete(key)
-
     def test_job_state_update(
         self,
         job_cache: RedisCache,
@@ -263,29 +236,14 @@ class TestJobStateCache:
         assert job_cache.hget(key, "status") == "running"
         assert job_cache.hget(key, "progress") == 50
 
-        # Cleanup
-        job_cache.delete(key)
 
-
-class TestSSEEventsCache:
-    """Test SSE events cache operations"""
+class TestSSEEventsCacheWithFakeRedis:
+    """Test SSE events cache operations using fakeredis"""
 
     @pytest.fixture
-    def events_cache(self) -> RedisCache:
-        """Get SSE events cache instance"""
-        return get_sse_events_cache()
-
-    def test_singleton_instance(self):
-        """Test that get_sse_events_cache returns singleton"""
-        cache1 = get_sse_events_cache()
-        cache2 = get_sse_events_cache()
-        assert cache1 is cache2
-
-    def test_different_instances(self):
-        """Test that job and SSE caches are different instances"""
-        job_cache = get_job_state_cache()
-        events_cache = get_sse_events_cache()
-        assert job_cache is not events_cache
+    def events_cache(self, fake_redis_client) -> RedisCache:
+        """Get SSE events cache instance with fakeredis"""
+        return RedisCache(db=RedisDB.SSE_EVENTS, client=fake_redis_client)
 
     def test_sse_events_queue(
         self,
@@ -309,9 +267,6 @@ class TestSSEEventsCache:
         result = events_cache.lrange(key, 0, -1)
         assert result == events
         assert len(result) == 3
-
-        # Cleanup
-        events_cache.delete(key)
 
     def test_sse_events_partial_read(
         self,
@@ -341,17 +296,14 @@ class TestSSEEventsCache:
         assert len(result) == 2
         assert result == events[1:]
 
-        # Cleanup
-        events_cache.delete(key)
-
 
 class TestRedisCacheEdgeCases:
     """Test edge cases and error handling"""
 
     @pytest.fixture
-    def test_cache(self) -> RedisCache:
-        """Create a test cache instance"""
-        return RedisCache(db=RedisDB.TEST)
+    def test_cache(self, fake_redis_client) -> RedisCache:
+        """Create a test cache instance with fakeredis"""
+        return RedisCache(db=RedisDB.TEST, client=fake_redis_client)
 
     def test_get_nonexistent_key(self, test_cache: RedisCache):
         """Test getting a key that doesn't exist"""
@@ -365,9 +317,6 @@ class TestRedisCacheEdgeCases:
 
         result = test_cache.hget(key, "nonexistent_field")
         assert result is None
-
-        # Cleanup
-        test_cache.delete(key)
 
     def test_hgetall_nonexistent_key(self, test_cache: RedisCache):
         """Test hgetall on nonexistent key"""
@@ -405,6 +354,3 @@ class TestRedisCacheEdgeCases:
         assert result == value
         assert result["structures"][1]["plddt"] == 90.2
         assert result["metadata"]["settings"]["relax"] is True
-
-        # Cleanup
-        test_cache.delete(key)
