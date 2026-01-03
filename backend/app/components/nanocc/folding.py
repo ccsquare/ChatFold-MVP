@@ -12,6 +12,11 @@ UI Integration (by EventType):
 Thinking Block Grouping:
 - THINKING events are grouped into blocks ending with THINKING_PDB
 - Each block shows the latest message in area 4 (1 line, double-click to expand)
+
+Storage:
+- Structures are saved via StructureStorageService
+- CHATFOLD_USE_MEMORY_STORE=false: saves to filesystem (default)
+- CHATFOLD_USE_MEMORY_STORE=true: saves to memory only (legacy)
 """
 
 import os
@@ -21,6 +26,7 @@ from pathlib import Path
 from app.components.nanocc.job import EventType, JobEvent, StageType, StatusType
 from app.components.nanocc.mock import MockNanoCCClient
 from app.components.workspace.models import StructureArtifact
+from app.services.structure_storage import structure_storage
 from app.utils import get_timestamp_ms
 
 # Configuration
@@ -194,6 +200,14 @@ async def generate_mock_cot_events(
                     # Determine filename extension based on actual file
                     filename_ext = Path(pdb_path).suffix or ".cif"
                     filename = f"{label}{filename_ext}"
+
+                    # Save structure to storage service (filesystem or memory)
+                    structure_storage.save_structure(
+                        structure_id=structure_id,
+                        pdb_data=pdb_data,
+                        job_id=job_id,
+                        filename=filename,
+                    )
 
                     event_num += 1
                     progress = min(95, 10 + int((current_msg_idx / total_messages) * 85))

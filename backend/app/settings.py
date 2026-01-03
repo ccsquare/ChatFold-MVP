@@ -101,6 +101,17 @@ class Settings(BaseSettings):
     http_timeout: float = 300
     nanocc_api_timeout: int = 600  # 蛋白质折叠可能需要较长时间
 
+    # ==================== 存储模式配置 ====================
+    # 统一存储模式控制
+    # false (默认): 持久化模式 - MySQL + Redis + 文件系统
+    #   - Jobs/Events 写入 MySQL
+    #   - 结构文件存储在文件系统
+    #   - Redis 用于缓存和 SSE 事件队列
+    # true: 内存模式 - 仅内存 + Redis（开发/测试用）
+    #   - 所有数据存储在内存中，重启丢失
+    #   - Redis 仍用于 SSE 事件队列
+    use_memory_store: bool = False
+
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE),
         env_file_encoding="utf-8",
