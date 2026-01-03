@@ -9,7 +9,6 @@ IMPORTANT:
 """
 
 from pathlib import Path
-from typing import List, Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -38,7 +37,7 @@ class Settings(BaseSettings):
     debug: bool = True
 
     # ==================== CORS 配置 ====================
-    cors_origins: List[str] = [
+    cors_origins: list[str] = [
         "http://localhost:3000",
         "http://localhost:3001",
         "http://127.0.0.1:3000",
@@ -60,7 +59,7 @@ class Settings(BaseSettings):
     redis_host: str = "localhost"
     redis_port: int = 6379
     redis_index: int = 0
-    redis_password: Optional[str] = None
+    redis_password: str | None = None
     redis_socket_timeout: int = 5
     redis_socket_connect_timeout: int = 5
 

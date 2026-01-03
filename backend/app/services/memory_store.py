@@ -13,8 +13,8 @@ this with a persistent database backend.
 
 import threading
 
-from app.models.schemas import Conversation
 from app.components.nanocc import NanoCCJob
+from app.models.schemas import Conversation
 
 
 class MemoryStore:

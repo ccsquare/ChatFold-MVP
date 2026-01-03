@@ -16,8 +16,8 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
 from app.components.nanocc import (
-    NanoCCJob,
     CreateJobRequest,
+    NanoCCJob,
     RegisterSequenceRequest,
     StatusType,
     generate_cot_events,
@@ -25,11 +25,11 @@ from app.components.nanocc import (
 )
 from app.services.memory_store import storage
 from app.utils import (
+    DEFAULT_SEQUENCE,
+    SequenceValidationError,
     generate_id,
     get_timestamp_ms,
     validate_amino_acid_sequence,
-    SequenceValidationError,
-    DEFAULT_SEQUENCE,
 )
 
 # NanoCC feature flag - can be disabled via environment variable

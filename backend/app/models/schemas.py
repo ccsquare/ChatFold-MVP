@@ -11,27 +11,16 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-# Re-export workspace models for backward compatibility
-from app.components.workspace.models import (
-    Project,
-    Folder,
-    Asset,
-    User,
-    UserPlan,
-    StructureArtifact,
-    CreateFolderRequest,
-    AddFolderInputRequest,
-)
-
 # Re-export nanocc models for backward compatibility
 from app.components.nanocc.job import (
-    NanoCCJob,
     JobEvent,
-    JobType,
-    StageType,
-    StatusType,
-    CreateJobRequest,
-    RegisterSequenceRequest,
+    NanoCCJob,
+)
+
+# Re-export workspace models for backward compatibility
+from app.components.workspace.models import (
+    Asset,
+    StructureArtifact,
 )
 
 # Aliases

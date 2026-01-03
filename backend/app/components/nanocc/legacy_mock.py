@@ -9,9 +9,9 @@ For CoT-based mock, use the main mock.py which reads from JSONL files.
 import random
 from collections.abc import Generator
 
+from app.components.nanocc.job import JobEvent, StageType, StatusType
 from app.components.workspace.models import StructureArtifact
 from app.utils import generate_mock_pdb, get_timestamp_ms
-from app.components.nanocc.job import JobEvent, StageType, StatusType
 
 # Chain-of-thought templates for each candidate structure
 COT_TEMPLATES = {
@@ -97,9 +97,7 @@ def generate_step_events(job_id: str, sequence: str) -> Generator[JobEvent, None
             event_num += 1
 
             # Determine status
-            if stage == StageType.DONE:
-                status = StatusType.complete
-            elif i == messages_count - 1 and stage_idx < len(stages) - 1:
+            if stage == StageType.DONE or i == messages_count - 1 and stage_idx < len(stages) - 1:
                 status = StatusType.complete
             else:
                 status = StatusType.running

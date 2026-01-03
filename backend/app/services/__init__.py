@@ -1,9 +1,12 @@
-from app.services.memory_store import storage
-
 # Re-export nanocc module for backward compatibility
-from app.components.nanocc import generate_cot_events, generate_mock_cot_events, generate_step_events
+from app.components.nanocc import (
+    generate_cot_events,
+    generate_mock_cot_events,
+    generate_step_events,
+)
+from app.components.nanocc.client import NanoCCClient, NanoCCEvent, NanoCCSession, nanocc_client
 from app.components.nanocc.mock import MockNanoCCClient, mock_nanocc_client
-from app.components.nanocc.client import nanocc_client, NanoCCClient, NanoCCEvent, NanoCCSession
+from app.services.memory_store import storage
 
 # Alias for backward compatibility
 generate_nanocc_step_events = generate_cot_events

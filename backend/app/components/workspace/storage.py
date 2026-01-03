@@ -8,7 +8,7 @@ Provides storage for:
 
 import threading
 
-from app.components.workspace.models import Folder, User, Project
+from app.components.workspace.models import Folder, Project, User
 
 
 class WorkspaceStorage:

@@ -64,29 +64,28 @@ class NanoCCClient:
 
     async def send_message(self, session_id: str, content: str) -> AsyncGenerator[NanoCCEvent, None]:
         """Send a message and stream the response."""
-        async with httpx.AsyncClient() as client:
-            async with client.stream(
-                "POST",
-                f"{self.base_url}/sessions/{session_id}/messages",
-                json={"content": content},
-                timeout=self.timeout
-            ) as response:
-                response.raise_for_status()
+        async with httpx.AsyncClient() as client, client.stream(
+            "POST",
+            f"{self.base_url}/sessions/{session_id}/messages",
+            json={"content": content},
+            timeout=self.timeout
+        ) as response:
+            response.raise_for_status()
 
-                event_type = ""
-                async for line in response.aiter_lines():
-                    line = line.strip()
-                    if not line:
+            event_type = ""
+            async for line in response.aiter_lines():
+                line = line.strip()
+                if not line:
+                    continue
+
+                if line.startswith("event:"):
+                    event_type = line[6:].strip()
+                elif line.startswith("data:"):
+                    try:
+                        data = json.loads(line[5:])
+                        yield NanoCCEvent(event_type=event_type, data=data)
+                    except json.JSONDecodeError:
                         continue
-
-                    if line.startswith("event:"):
-                        event_type = line[6:].strip()
-                    elif line.startswith("data:"):
-                        try:
-                            data = json.loads(line[5:])
-                            yield NanoCCEvent(event_type=event_type, data=data)
-                        except json.JSONDecodeError:
-                            continue
 
     async def delete_session(self, session_id: str) -> bool:
         """Delete a NanoCC session."""

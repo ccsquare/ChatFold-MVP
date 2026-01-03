@@ -11,16 +11,15 @@ import uuid
 from datetime import datetime
 
 from app.components.workspace.models import (
-    Folder,
+    AddFolderInputRequest,
     Asset,
+    CreateFolderRequest,
+    Folder,
+    Project,
     User,
     UserPlan,
-    Project,
-    CreateFolderRequest,
-    AddFolderInputRequest,
 )
 from app.components.workspace.storage import workspace_storage
-
 
 # ID generators
 
