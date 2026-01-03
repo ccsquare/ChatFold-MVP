@@ -64,7 +64,7 @@ backend/
 │   └── utils/
 │       ├── id_generator.py  # ID generation
 │       ├── fasta_parser.py  # FASTA parsing
-│       └── pdb_generator.py # Mock PDB generation
+│       └── mock_pdb.py      # Mock PDB generation
 ├── requirements.txt
 └── README.md
 ```

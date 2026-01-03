@@ -5,7 +5,7 @@ from fastapi.responses import Response
 
 from app.models.schemas import CachePDBRequest
 from app.services.memory_store import storage
-from app.utils.pdb_generator import generate_mock_pdb
+from app.utils.mock_pdb import generate_mock_pdb
 from app.utils.sequence_validator import DEFAULT_SEQUENCE
 
 router = APIRouter(tags=["Structures"])
