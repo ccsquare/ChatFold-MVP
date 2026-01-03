@@ -3,19 +3,19 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import StructureModel
+from app.db.models import Structure
 from app.repositories.base import BaseRepository
 from app.settings import DEFAULT_PROJECT_ID, DEFAULT_USER_ID
 from app.utils import generate_id, get_timestamp_ms
 
 
-class StructureRepository(BaseRepository[StructureModel]):
+class StructureRepository(BaseRepository[Structure]):
     """Repository for Structure entity operations."""
 
     def __init__(self):
-        super().__init__(StructureModel)
+        super().__init__(Structure)
 
-    def get_by_job(self, db: Session, job_id: str) -> list[StructureModel]:
+    def get_by_job(self, db: Session, job_id: str) -> list[Structure]:
         """Get structures for a job.
 
         Args:
@@ -26,9 +26,9 @@ class StructureRepository(BaseRepository[StructureModel]):
             List of structures
         """
         stmt = (
-            select(StructureModel)
-            .where(StructureModel.job_id == job_id)
-            .order_by(StructureModel.created_at.asc())
+            select(Structure)
+            .where(Structure.job_id == job_id)
+            .order_by(Structure.created_at.asc())
         )
         result = db.execute(stmt)
         return list(result.scalars().all())
@@ -40,7 +40,7 @@ class StructureRepository(BaseRepository[StructureModel]):
         project_id: str = DEFAULT_PROJECT_ID,
         skip: int = 0,
         limit: int = 100,
-    ) -> list[StructureModel]:
+    ) -> list[Structure]:
         """Get structures for a user's project.
 
         Args:
@@ -54,19 +54,19 @@ class StructureRepository(BaseRepository[StructureModel]):
             List of structures
         """
         stmt = (
-            select(StructureModel)
+            select(Structure)
             .where(
-                StructureModel.user_id == user_id,
-                StructureModel.project_id == project_id,
+                Structure.user_id == user_id,
+                Structure.project_id == project_id,
             )
-            .order_by(StructureModel.created_at.desc())
+            .order_by(Structure.created_at.desc())
             .offset(skip)
             .limit(limit)
         )
         result = db.execute(stmt)
         return list(result.scalars().all())
 
-    def get_final_by_job(self, db: Session, job_id: str) -> StructureModel | None:
+    def get_final_by_job(self, db: Session, job_id: str) -> Structure | None:
         """Get the final structure for a job.
 
         Args:
@@ -76,9 +76,9 @@ class StructureRepository(BaseRepository[StructureModel]):
         Returns:
             Final structure or None
         """
-        stmt = select(StructureModel).where(
-            StructureModel.job_id == job_id,
-            StructureModel.is_final == True,  # noqa: E712
+        stmt = select(Structure).where(
+            Structure.job_id == job_id,
+            Structure.is_final == True,  # noqa: E712
         )
         result = db.execute(stmt)
         return result.scalar_one_or_none()
@@ -94,7 +94,7 @@ class StructureRepository(BaseRepository[StructureModel]):
         project_id: str = DEFAULT_PROJECT_ID,
         plddt_score: int | None = None,
         is_final: bool = False,
-    ) -> StructureModel:
+    ) -> Structure:
         """Create a new structure record.
 
         Args:
@@ -125,7 +125,7 @@ class StructureRepository(BaseRepository[StructureModel]):
         }
         return self.create(db, structure_data)
 
-    def mark_as_final(self, db: Session, structure_id: str) -> StructureModel | None:
+    def mark_as_final(self, db: Session, structure_id: str) -> Structure | None:
         """Mark a structure as the final result.
 
         Args:
@@ -145,7 +145,7 @@ class StructureRepository(BaseRepository[StructureModel]):
         db: Session,
         structure_id: str,
         plddt_score: int,
-    ) -> StructureModel | None:
+    ) -> Structure | None:
         """Update structure pLDDT score.
 
         Args:

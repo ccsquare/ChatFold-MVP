@@ -8,7 +8,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.db.models import Base, UserModel
+from app.db.models import Base, Project, User
 from app.repositories.base import BaseRepository
 from app.repositories.job import JobRepository
 from app.repositories.structure import StructureRepository
@@ -45,7 +45,7 @@ class TestBaseRepository:
 
     def test_create_and_get(self, db_session: Session):
         """Create and retrieve entity."""
-        repo = BaseRepository(UserModel)
+        repo = BaseRepository(User)
 
         user_data = {
             "id": "user_test001",
@@ -67,13 +67,13 @@ class TestBaseRepository:
 
     def test_get_nonexistent(self, db_session: Session):
         """Get non-existent entity returns None."""
-        repo = BaseRepository(UserModel)
+        repo = BaseRepository(User)
         result = repo.get_by_id(db_session, "nonexistent")
         assert result is None
 
     def test_update(self, db_session: Session):
         """Update entity."""
-        repo = BaseRepository(UserModel)
+        repo = BaseRepository(User)
 
         # Create user
         user_data = {
@@ -93,7 +93,7 @@ class TestBaseRepository:
 
     def test_delete(self, db_session: Session):
         """Delete entity."""
-        repo = BaseRepository(UserModel)
+        repo = BaseRepository(User)
 
         # Create user
         user_data = {
@@ -114,13 +114,13 @@ class TestBaseRepository:
 
     def test_delete_nonexistent(self, db_session: Session):
         """Delete non-existent entity returns False."""
-        repo = BaseRepository(UserModel)
+        repo = BaseRepository(User)
         result = repo.delete(db_session, "nonexistent")
         assert result is False
 
     def test_exists(self, db_session: Session):
         """Check entity existence."""
-        repo = BaseRepository(UserModel)
+        repo = BaseRepository(User)
 
         assert repo.exists(db_session, "user_test004") is False
 
@@ -138,7 +138,7 @@ class TestBaseRepository:
 
     def test_get_all(self, db_session: Session):
         """Get all entities with pagination."""
-        repo = BaseRepository(UserModel)
+        repo = BaseRepository(User)
 
         # Create 5 users
         for i in range(5):
@@ -198,7 +198,7 @@ class TestJobRepository:
     @pytest.fixture
     def default_user(self, db_session: Session):
         """Create default user for job tests."""
-        repo = BaseRepository(UserModel)
+        repo = BaseRepository(User)
         user_data = {
             "id": "user_default",
             "name": "Default User",
@@ -291,7 +291,7 @@ class TestStructureRepository:
     def setup_data(self, db_session: Session):
         """Create default user and job for structure tests."""
         # Create user
-        user_repo = BaseRepository(UserModel)
+        user_repo = BaseRepository(User)
         user_data = {
             "id": "user_default",
             "name": "Default User",
@@ -302,8 +302,6 @@ class TestStructureRepository:
         user_repo.create(db_session, user_data)
 
         # Create project (required for structure foreign key)
-        from app.db.models import ProjectModel
-
         project_data = {
             "id": "project_default",
             "user_id": "user_default",
@@ -312,7 +310,7 @@ class TestStructureRepository:
             "created_at": get_timestamp_ms(),
             "updated_at": get_timestamp_ms(),
         }
-        db_session.add(ProjectModel(**project_data))
+        db_session.add(Project(**project_data))
         db_session.commit()
 
         # Create job

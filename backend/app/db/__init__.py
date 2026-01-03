@@ -8,15 +8,15 @@ Components:
 """
 
 from app.db.models import (
-    AssetModel,
+    Asset,
     Base,
-    ConversationModel,
-    FolderModel,
-    JobModel,
-    MessageModel,
-    ProjectModel,
-    StructureModel,
-    UserModel,
+    Conversation,
+    Folder,
+    Job,
+    Message,
+    Project,
+    Structure,
+    User,
 )
 from app.db.mysql import (
     SessionLocal,
@@ -50,12 +50,12 @@ __all__ = [
     "check_connection",
     # MySQL - Models
     "Base",
-    "UserModel",
-    "ProjectModel",
-    "FolderModel",
-    "AssetModel",
-    "ConversationModel",
-    "MessageModel",
-    "JobModel",
-    "StructureModel",
+    "User",
+    "Project",
+    "Folder",
+    "Asset",
+    "Conversation",
+    "Message",
+    "Job",
+    "Structure",
 ]
