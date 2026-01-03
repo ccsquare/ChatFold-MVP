@@ -3,17 +3,17 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import JobModel
+from app.db.models import Job
 from app.repositories.base import BaseRepository
 from app.settings import DEFAULT_USER_ID
 from app.utils import generate_id, get_timestamp_ms
 
 
-class JobRepository(BaseRepository[JobModel]):
+class JobRepository(BaseRepository[Job]):
     """Repository for Job entity operations."""
 
     def __init__(self):
-        super().__init__(JobModel)
+        super().__init__(Job)
 
     def get_by_user(
         self,
@@ -21,7 +21,7 @@ class JobRepository(BaseRepository[JobModel]):
         user_id: str = DEFAULT_USER_ID,
         skip: int = 0,
         limit: int = 100,
-    ) -> list[JobModel]:
+    ) -> list[Job]:
         """Get jobs for a user.
 
         Args:
@@ -34,9 +34,9 @@ class JobRepository(BaseRepository[JobModel]):
             List of jobs
         """
         stmt = (
-            select(JobModel)
-            .where(JobModel.user_id == user_id)
-            .order_by(JobModel.created_at.desc())
+            select(Job)
+            .where(Job.user_id == user_id)
+            .order_by(Job.created_at.desc())
             .offset(skip)
             .limit(limit)
         )
@@ -48,7 +48,7 @@ class JobRepository(BaseRepository[JobModel]):
         db: Session,
         status: str,
         user_id: str = DEFAULT_USER_ID,
-    ) -> list[JobModel]:
+    ) -> list[Job]:
         """Get jobs by status.
 
         Args:
@@ -60,14 +60,14 @@ class JobRepository(BaseRepository[JobModel]):
             List of jobs with the given status
         """
         stmt = (
-            select(JobModel)
-            .where(JobModel.user_id == user_id, JobModel.status == status)
-            .order_by(JobModel.created_at.desc())
+            select(Job)
+            .where(Job.user_id == user_id, Job.status == status)
+            .order_by(Job.created_at.desc())
         )
         result = db.execute(stmt)
         return list(result.scalars().all())
 
-    def get_by_conversation(self, db: Session, conversation_id: str) -> list[JobModel]:
+    def get_by_conversation(self, db: Session, conversation_id: str) -> list[Job]:
         """Get jobs for a conversation.
 
         Args:
@@ -78,9 +78,9 @@ class JobRepository(BaseRepository[JobModel]):
             List of jobs
         """
         stmt = (
-            select(JobModel)
-            .where(JobModel.conversation_id == conversation_id)
-            .order_by(JobModel.created_at.desc())
+            select(Job)
+            .where(Job.conversation_id == conversation_id)
+            .order_by(Job.created_at.desc())
         )
         result = db.execute(stmt)
         return list(result.scalars().all())
@@ -92,7 +92,7 @@ class JobRepository(BaseRepository[JobModel]):
         user_id: str = DEFAULT_USER_ID,
         conversation_id: str | None = None,
         job_type: str = "folding",
-    ) -> JobModel:
+    ) -> Job:
         """Create a new folding job.
 
         Args:
@@ -125,7 +125,7 @@ class JobRepository(BaseRepository[JobModel]):
         job_id: str,
         status: str,
         stage: str | None = None,
-    ) -> JobModel | None:
+    ) -> Job | None:
         """Update job status.
 
         Args:
@@ -151,7 +151,7 @@ class JobRepository(BaseRepository[JobModel]):
 
         return self.update(db, job, updates)
 
-    def mark_complete(self, db: Session, job_id: str) -> JobModel | None:
+    def mark_complete(self, db: Session, job_id: str) -> Job | None:
         """Mark job as complete.
 
         Args:
@@ -163,7 +163,7 @@ class JobRepository(BaseRepository[JobModel]):
         """
         return self.update_status(db, job_id, status="complete", stage="DONE")
 
-    def mark_failed(self, db: Session, job_id: str) -> JobModel | None:
+    def mark_failed(self, db: Session, job_id: str) -> Job | None:
         """Mark job as failed.
 
         Args:
@@ -175,7 +175,7 @@ class JobRepository(BaseRepository[JobModel]):
         """
         return self.update_status(db, job_id, status="failed", stage="ERROR")
 
-    def set_file_path(self, db: Session, job_id: str, file_path: str) -> JobModel | None:
+    def set_file_path(self, db: Session, job_id: str, file_path: str) -> Job | None:
         """Set job file path.
 
         Args:

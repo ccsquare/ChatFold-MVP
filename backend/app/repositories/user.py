@@ -3,19 +3,19 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import UserModel
+from app.db.models import User
 from app.repositories.base import BaseRepository
 from app.settings import DEFAULT_USER_ID
 from app.utils import generate_id, get_timestamp_ms
 
 
-class UserRepository(BaseRepository[UserModel]):
+class UserRepository(BaseRepository[User]):
     """Repository for User entity operations."""
 
     def __init__(self):
-        super().__init__(UserModel)
+        super().__init__(User)
 
-    def get_by_email(self, db: Session, email: str) -> UserModel | None:
+    def get_by_email(self, db: Session, email: str) -> User | None:
         """Get user by email.
 
         Args:
@@ -25,11 +25,11 @@ class UserRepository(BaseRepository[UserModel]):
         Returns:
             User or None if not found
         """
-        stmt = select(UserModel).where(UserModel.email == email)
+        stmt = select(User).where(User.email == email)
         result = db.execute(stmt)
         return result.scalar_one_or_none()
 
-    def get_or_create_default(self, db: Session) -> UserModel:
+    def get_or_create_default(self, db: Session) -> User:
         """Get or create the default user (for MVP).
 
         Args:
@@ -58,7 +58,7 @@ class UserRepository(BaseRepository[UserModel]):
         name: str,
         email: str,
         plan: str = "free",
-    ) -> UserModel:
+    ) -> User:
         """Create a new user.
 
         Args:

@@ -29,8 +29,8 @@ class Base(DeclarativeBase):
     pass
 
 
-class UserModel(Base):
-    """User account model.
+class User(Base):
+    """User account.
 
     MVP Note: Uses DEFAULT_USER_ID ("user_default") for all operations.
     """
@@ -44,15 +44,15 @@ class UserModel(Base):
     created_at = Column(BigInteger, nullable=False)
 
     # Relationships
-    projects = relationship("ProjectModel", back_populates="user", cascade="all, delete-orphan")
-    jobs = relationship("JobModel", back_populates="user", cascade="all, delete-orphan")
+    projects = relationship("Project", back_populates="user", cascade="all, delete-orphan")
+    jobs = relationship("Job", back_populates="user", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:
         return f"<User(id={self.id}, name={self.name})>"
 
 
-class ProjectModel(Base):
-    """Project model - top-level organization unit for users.
+class Project(Base):
+    """Project - top-level organization unit for users.
 
     MVP Note: Uses DEFAULT_PROJECT_ID ("project_default") for all operations.
     """
@@ -67,10 +67,10 @@ class ProjectModel(Base):
     updated_at = Column(BigInteger, nullable=False)
 
     # Relationships
-    user = relationship("UserModel", back_populates="projects")
-    folders = relationship("FolderModel", back_populates="project", cascade="all, delete-orphan")
+    user = relationship("User", back_populates="projects")
+    folders = relationship("Folder", back_populates="project", cascade="all, delete-orphan")
     structures = relationship(
-        "StructureModel", back_populates="project", cascade="all, delete-orphan"
+        "Structure", back_populates="project", cascade="all, delete-orphan"
     )
 
     # Indexes
@@ -80,8 +80,8 @@ class ProjectModel(Base):
         return f"<Project(id={self.id}, name={self.name})>"
 
 
-class FolderModel(Base):
-    """Folder model - working directory containing inputs and outputs."""
+class Folder(Base):
+    """Folder - working directory containing inputs and outputs."""
 
     __tablename__ = "folders"
 
@@ -95,8 +95,8 @@ class FolderModel(Base):
     updated_at = Column(BigInteger, nullable=False)
 
     # Relationships
-    project = relationship("ProjectModel", back_populates="folders")
-    assets = relationship("AssetModel", back_populates="folder", cascade="all, delete-orphan")
+    project = relationship("Project", back_populates="folders")
+    assets = relationship("Asset", back_populates="folder", cascade="all, delete-orphan")
 
     # Indexes
     __table_args__ = (
@@ -108,8 +108,8 @@ class FolderModel(Base):
         return f"<Folder(id={self.id}, name={self.name})>"
 
 
-class AssetModel(Base):
-    """Asset model - user uploaded files (FASTA, PDB, etc.)."""
+class Asset(Base):
+    """Asset - user uploaded files (FASTA, PDB, etc.)."""
 
     __tablename__ = "assets"
 
@@ -122,7 +122,7 @@ class AssetModel(Base):
     uploaded_at = Column(BigInteger, nullable=False)
 
     # Relationships
-    folder = relationship("FolderModel", back_populates="assets")
+    folder = relationship("Folder", back_populates="assets")
 
     # Indexes
     __table_args__ = (Index("idx_assets_folder_id", "folder_id"),)
@@ -131,8 +131,8 @@ class AssetModel(Base):
         return f"<Asset(id={self.id}, name={self.name})>"
 
 
-class ConversationModel(Base):
-    """Conversation model - chat session associated with a folder."""
+class Conversation(Base):
+    """Conversation - chat session associated with a folder."""
 
     __tablename__ = "conversations"
 
@@ -144,9 +144,9 @@ class ConversationModel(Base):
 
     # Relationships
     messages = relationship(
-        "MessageModel", back_populates="conversation", cascade="all, delete-orphan"
+        "Message", back_populates="conversation", cascade="all, delete-orphan"
     )
-    jobs = relationship("JobModel", back_populates="conversation")
+    jobs = relationship("Job", back_populates="conversation")
 
     # Indexes
     __table_args__ = (Index("idx_conversations_folder_id", "folder_id"),)
@@ -155,8 +155,8 @@ class ConversationModel(Base):
         return f"<Conversation(id={self.id}, title={self.title})>"
 
 
-class MessageModel(Base):
-    """Message model - single message in a conversation."""
+class Message(Base):
+    """Message - single message in a conversation."""
 
     __tablename__ = "messages"
 
@@ -169,7 +169,7 @@ class MessageModel(Base):
     created_at = Column(BigInteger, nullable=False)
 
     # Relationships
-    conversation = relationship("ConversationModel", back_populates="messages")
+    conversation = relationship("Conversation", back_populates="messages")
 
     # Indexes
     __table_args__ = (
@@ -181,8 +181,8 @@ class MessageModel(Base):
         return f"<Message(id={self.id}, role={self.role})>"
 
 
-class JobModel(Base):
-    """Job model - protein folding task."""
+class Job(Base):
+    """Job - protein folding task."""
 
     __tablename__ = "jobs"
 
@@ -206,9 +206,9 @@ class JobModel(Base):
     completed_at = Column(BigInteger, nullable=True)
 
     # Relationships
-    user = relationship("UserModel", back_populates="jobs")
-    conversation = relationship("ConversationModel", back_populates="jobs")
-    structures = relationship("StructureModel", back_populates="job", cascade="all, delete-orphan")
+    user = relationship("User", back_populates="jobs")
+    conversation = relationship("Conversation", back_populates="jobs")
+    structures = relationship("Structure", back_populates="job", cascade="all, delete-orphan")
 
     # Indexes
     __table_args__ = (
@@ -221,8 +221,8 @@ class JobModel(Base):
         return f"<Job(id={self.id}, status={self.status})>"
 
 
-class StructureModel(Base):
-    """Structure model - generated PDB structure from a job."""
+class Structure(Base):
+    """Structure - generated PDB structure from a job."""
 
     __tablename__ = "structures"
 
@@ -238,8 +238,8 @@ class StructureModel(Base):
     created_at = Column(BigInteger, nullable=False)
 
     # Relationships
-    job = relationship("JobModel", back_populates="structures")
-    project = relationship("ProjectModel", back_populates="structures")
+    job = relationship("Job", back_populates="structures")
+    project = relationship("Project", back_populates="structures")
 
     # Indexes
     __table_args__ = (
