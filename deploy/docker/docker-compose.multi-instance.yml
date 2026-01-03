@@ -1,0 +1,173 @@
+# Multi-Instance Docker Compose for ChatFold
+# Use for testing multi-instance scenarios locally
+#
+# Usage:
+#   docker compose -f deploy/docker/docker-compose.multi-instance.yml up --build
+#
+# This configuration:
+#   - Starts 2 backend instances (ports 8001, 8002)
+#   - Starts shared Redis (port 6379)
+#   - Starts shared MySQL (port 3306)
+#   - Enables testing of cross-instance operations
+
+services:
+  # ===========================================
+  # Infrastructure Services
+  # ===========================================
+
+  redis:
+    image: redis:7-alpine
+    container_name: chatfold-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - redis-data:/data
+    networks:
+      - chatfold-network
+
+  mysql:
+    image: mysql:8.0
+    container_name: chatfold-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: chatfold
+      MYSQL_USER: chatfold
+      MYSQL_PASSWORD: chatfold123
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - chatfold-network
+
+  # ===========================================
+  # Backend Instance 1
+  # ===========================================
+
+  backend1:
+    build:
+      context: ../../backend
+      dockerfile: ../deploy/docker/Dockerfile.backend
+    container_name: chatfold-backend-1
+    ports:
+      - "8001:8000"
+    environment:
+      # Instance identification
+      CHATFOLD_INSTANCE_ID: backend-1
+
+      # Database
+      CHATFOLD_DATABASE_URL: mysql+pymysql://chatfold:chatfold123@mysql:3306/chatfold
+
+      # Redis (shared across instances)
+      CHATFOLD_REDIS_HOST: redis
+      CHATFOLD_REDIS_PORT: 6379
+
+      # Mock NanoCC for testing
+      CHATFOLD_USE_MOCK_NANOCC: "true"
+      CHATFOLD_USE_NANOCC: "true"
+
+      # Storage mode
+      CHATFOLD_USE_MEMORY_STORE: "false"
+
+      # Debug
+      CHATFOLD_DEBUG: "true"
+      CHATFOLD_ENVIRONMENT: local-dev
+    depends_on:
+      redis:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - workspace-data:/app/chatfold-workspace
+    networks:
+      - chatfold-network
+
+  # ===========================================
+  # Backend Instance 2
+  # ===========================================
+
+  backend2:
+    build:
+      context: ../../backend
+      dockerfile: ../deploy/docker/Dockerfile.backend
+    container_name: chatfold-backend-2
+    ports:
+      - "8002:8000"
+    environment:
+      # Instance identification
+      CHATFOLD_INSTANCE_ID: backend-2
+
+      # Database (same as instance 1)
+      CHATFOLD_DATABASE_URL: mysql+pymysql://chatfold:chatfold123@mysql:3306/chatfold
+
+      # Redis (shared across instances)
+      CHATFOLD_REDIS_HOST: redis
+      CHATFOLD_REDIS_PORT: 6379
+
+      # Mock NanoCC for testing
+      CHATFOLD_USE_MOCK_NANOCC: "true"
+      CHATFOLD_USE_NANOCC: "true"
+
+      # Storage mode
+      CHATFOLD_USE_MEMORY_STORE: "false"
+
+      # Debug
+      CHATFOLD_DEBUG: "true"
+      CHATFOLD_ENVIRONMENT: local-dev
+    depends_on:
+      redis:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - workspace-data:/app/chatfold-workspace
+    networks:
+      - chatfold-network
+
+  # ===========================================
+  # Load Balancer (Optional - for realistic testing)
+  # ===========================================
+
+  nginx:
+    image: nginx:alpine
+    container_name: chatfold-lb
+    ports:
+      - "8000:80"
+    volumes:
+      - ./nginx-lb.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend1
+      - backend2
+    networks:
+      - chatfold-network
+    profiles:
+      - with-lb
+
+volumes:
+  redis-data:
+  mysql-data:
+  workspace-data:
+
+networks:
+  chatfold-network:
+    driver: bridge

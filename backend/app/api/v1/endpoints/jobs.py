@@ -46,6 +46,25 @@ USE_NANOCC = os.getenv("USE_NANOCC", "true").lower() in ("true", "1", "yes")
 
 router = APIRouter(tags=["Jobs"])
 
+
+def _is_job_canceled(job_id: str) -> bool:
+    """Check if job has been canceled.
+
+    Checks both Redis (for multi-instance support) and memory store
+    (for backward compatibility).
+
+    Args:
+        job_id: Job ID to check
+
+    Returns:
+        True if job is canceled
+    """
+    # Check Redis first (shared across instances)
+    if job_state_service.is_canceled(job_id):
+        return True
+    # Fallback to memory store
+    return storage.is_job_canceled(job_id)
+
 # Job ID pattern
 JOB_ID_PATTERN = re.compile(r"^job_[a-z0-9]+$")
 
@@ -116,12 +135,17 @@ async def create_job(request: CreateJobRequest):
     storage.save_job(job)
     storage.save_job_sequence(job.id, sequence)
 
-    # Create job state in Redis (always enabled)
+    # Create job state and metadata in Redis (always enabled, multi-instance support)
     job_state_service.create_state(
         job.id,
         status=StatusType.queued,
         stage=StageType.QUEUED,
         message="Job created and queued for processing",
+    )
+    job_state_service.save_job_meta(
+        job.id,
+        sequence=sequence,
+        conversation_id=job.conversationId,
     )
 
     # Save to MySQL (if enabled)
@@ -154,6 +178,10 @@ async def register_sequence(job_id: str, request: RegisterSequenceRequest):
     except SequenceValidationError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
+    # Save to Redis for multi-instance access
+    job_state_service.save_job_meta(job_id, sequence=sequence)
+
+    # Also save to memory store for backward compatibility
     storage.save_job_sequence(job_id, sequence)
 
     return {"ok": True}
@@ -161,22 +189,40 @@ async def register_sequence(job_id: str, request: RegisterSequenceRequest):
 
 @router.post("/{job_id}/cancel")
 async def cancel_job(job_id: str):
-    """Cancel a running job."""
+    """Cancel a running job.
+
+    This endpoint marks the job as canceled in Redis, which is shared
+    across all application instances. The SSE stream will detect this
+    status and terminate gracefully.
+    """
     if not JOB_ID_PATTERN.match(job_id):
         raise HTTPException(status_code=400, detail="Invalid job ID")
 
-    job = storage.get_job(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
+    # Check job state in Redis (shared across instances)
+    state = job_state_service.get_state(job_id)
+    if not state:
+        # Fallback to memory store for backward compatibility
+        job = storage.get_job(job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+        current_status = job.status.value
+    else:
+        current_status = state.get("status", "unknown")
 
     # Check if job is still running
-    if job.status not in [StatusType.queued, StatusType.running]:
-        return {"ok": False, "message": "Job is not running", "status": job.status.value}
+    if current_status not in [StatusType.queued.value, StatusType.running.value]:
+        return {"ok": False, "message": "Job is not running", "status": current_status}
 
-    # Mark as canceled
-    success = storage.cancel_job(job_id)
+    # Mark as canceled in Redis (visible to all instances)
+    success = job_state_service.mark_canceled(job_id)
 
-    return {"ok": success, "jobId": job_id, "status": "canceled" if success else job.status.value}
+    # Also mark in memory store for backward compatibility
+    storage.cancel_job(job_id)
+
+    # Update MySQL if enabled
+    _update_job_status_mysql(job_id, "canceled", "ERROR")
+
+    return {"ok": success, "jobId": job_id, "status": "canceled" if success else current_status}
 
 
 @router.get("/{job_id}/stream")
@@ -196,8 +242,8 @@ async def stream_job(
     if not JOB_ID_PATTERN.match(job_id):
         raise HTTPException(status_code=400, detail="Invalid job ID")
 
-    # Get sequence from query params or stored data
-    raw_sequence = sequence or storage.get_job_sequence(job_id)
+    # Get sequence from query params or Redis (multi-instance) or memory store (fallback)
+    raw_sequence = sequence or job_state_service.get_job_sequence(job_id) or storage.get_job_sequence(job_id)
 
     if raw_sequence:
         try:
@@ -225,9 +271,9 @@ async def stream_job(
         if enable_nanocc:
             # Use NanoCC-powered async generator
             async for event in generate_cot_events(job_id, final_sequence):
-                # Check if job was canceled before each event
-                if storage.is_job_canceled(job_id):
-                    job_state_service.mark_failed(job_id, "Job canceled by user")
+                # Check if job was canceled before each event (Redis + memory)
+                if _is_job_canceled(job_id):
+                    job_state_service.mark_canceled(job_id, "Job canceled by user")
                     _update_job_status_mysql(job_id, "canceled", "ERROR")
                     yield f'event: canceled\ndata: {{"jobId": "{job_id}", "message": "Job canceled by user"}}\n\n'
                     return
@@ -250,9 +296,9 @@ async def stream_job(
         else:
             # Use synchronous mock generator (legacy mode)
             for event in generate_step_events(job_id, final_sequence):
-                # Check if job was canceled before each event
-                if storage.is_job_canceled(job_id):
-                    job_state_service.mark_failed(job_id, "Job canceled by user")
+                # Check if job was canceled before each event (Redis + memory)
+                if _is_job_canceled(job_id):
+                    job_state_service.mark_canceled(job_id, "Job canceled by user")
                     _update_job_status_mysql(job_id, "canceled", "ERROR")
                     yield f'event: canceled\ndata: {{"jobId": "{job_id}", "message": "Job canceled by user"}}\n\n'
                     return
@@ -275,15 +321,15 @@ async def stream_job(
 
                 # Simulate processing time, split into smaller chunks for faster cancellation detection
                 for _ in range(5):
-                    if storage.is_job_canceled(job_id):
-                        job_state_service.mark_failed(job_id, "Job canceled by user")
+                    if _is_job_canceled(job_id):
+                        job_state_service.mark_canceled(job_id, "Job canceled by user")
                         _update_job_status_mysql(job_id, "canceled", "ERROR")
                         yield f'event: canceled\ndata: {{"jobId": "{job_id}", "message": "Job canceled by user"}}\n\n'
                         return
                     await asyncio.sleep(0.1 + random.random() * 0.14)
 
         # Send done event only if not canceled
-        if not storage.is_job_canceled(job_id):
+        if not _is_job_canceled(job_id):
             job_state_service.mark_complete(job_id, "Job completed successfully")
             sse_events_service.set_completion_ttl(job_id)
             _update_job_status_mysql(job_id, "complete", "DONE")
