@@ -20,8 +20,8 @@ from pathlib import Path
 
 from app.components.workspace.models import StructureArtifact
 from app.utils import get_timestamp_ms
-from .job import JobEvent, EventType, StageType, StatusType
-from .mock import MockNanoCCClient
+from app.components.nanocc.job import JobEvent, EventType, StageType, StatusType
+from app.components.nanocc.mock import MockNanoCCClient
 
 # Configuration
 USE_MOCK_NANOCC = os.getenv("USE_MOCK_NANOCC", "true").lower() in ("true", "1", "yes")

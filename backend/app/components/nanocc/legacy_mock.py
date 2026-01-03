@@ -11,7 +11,7 @@ from collections.abc import Generator
 
 from app.components.workspace.models import StructureArtifact
 from app.utils import generate_mock_pdb, get_timestamp_ms
-from .job import JobEvent, StageType, StatusType
+from app.components.nanocc.job import JobEvent, StageType, StatusType
 
 # Chain-of-thought templates for each candidate structure
 COT_TEMPLATES = {

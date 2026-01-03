@@ -255,6 +255,27 @@ Benefits:
 - **错误处理**: 使用 try-except 捕获和记录异常
 - **日志记录**: 使用 `logging` 模块，避免使用 `print()`
 
+### Python 导入规范
+
+**必须使用绝对导入** (PEP 8 推荐)
+
+```python
+# ✅ 正确：绝对导入
+from app.utils.id_generator import generate_id
+from app.components.nanocc import NanoCCJob
+from app.models.schemas import Conversation
+
+# ❌ 错误：相对导入
+from .id_generator import generate_id
+from ..models.schemas import Conversation
+```
+
+**原因**:
+
+- 可读性：一眼看出模块来源
+- 可重构性：移动文件时 IDE 自动更新
+- 一致性：避免混合风格
+
 ### 文档命名规范
 
 **项目文档**: `lowercase_with_underscores.md`
