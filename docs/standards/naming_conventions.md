@@ -217,4 +217,176 @@ app/
 
 ---
 
+## 9. 三层架构职责说明
+
+### 架构概览
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        API 请求/响应                             │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Pydantic Schema                               │
+│                    (数据验证 & 序列化)                            │
+│  UserCreate, UserUpdate, UserPublic                              │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Repository                                    │
+│                    (数据访问抽象)                                 │
+│  UserRepository.create(), .get_by_id(), .update()               │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    ORM Entity                                    │
+│                    (数据库映射)                                   │
+│  User, Job, Structure                                            │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Database (MySQL)                              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 9.1 ORM Entity (SQLAlchemy)
+
+**职责**: 数据库表结构映射
+
+```python
+# app/db/models.py
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(String(64), primary_key=True)
+    name = Column(String(255), nullable=False)
+    email = Column(String(255), unique=True)
+    password_hash = Column(String(255))  # 敏感字段
+    created_at = Column(BigInteger)
+
+    # 关系定义
+    jobs = relationship("Job", back_populates="user")
+```
+
+**特点**:
+- 1:1 对应数据库表
+- 定义字段类型、约束、索引
+- 定义表间关系 (relationship)
+- **包含所有字段**，包括敏感数据
+
+### 9.2 Pydantic Schema
+
+**职责**: API 边界的数据验证和序列化
+
+```python
+# app/schemas/user.py
+
+class UserBase(BaseModel):
+    """共享字段"""
+    name: str
+    email: EmailStr
+
+class UserCreate(UserBase):
+    """创建请求 - 需要密码"""
+    password: str  # 明文密码，后端会哈希
+
+class UserUpdate(BaseModel):
+    """更新请求 - 所有字段可选"""
+    name: str | None = None
+    email: EmailStr | None = None
+
+class UserPublic(UserBase):
+    """API 响应 - 不含敏感信息"""
+    id: str
+    created_at: int
+    # 注意：没有 password_hash
+```
+
+**特点**:
+- 输入验证（类型、格式、范围）
+- 控制暴露哪些字段（安全）
+- 不同场景用不同 Schema
+- **不包含敏感数据**（如 password_hash）
+
+### 9.3 Repository
+
+**职责**: 封装数据访问逻辑，隔离业务层和数据库
+
+```python
+# app/repositories/user.py
+class UserRepository(BaseRepository[User]):
+
+    def get_by_email(self, db: Session, email: str) -> User | None:
+        """按邮箱查询"""
+        return db.query(User).filter(User.email == email).first()
+
+    def create_user(self, db: Session, name: str, email: str, password: str) -> User:
+        """创建用户（含密码哈希）"""
+        user = User(
+            id=generate_id("user"),
+            name=name,
+            email=email,
+            password_hash=hash_password(password),  # 业务逻辑
+            created_at=get_timestamp_ms(),
+        )
+        db.add(user)
+        db.commit()
+        return user
+```
+
+**特点**:
+- 封装 SQL 查询逻辑
+- 提供语义化方法（`get_by_email` vs 原始 SQL）
+- 可包含简单业务逻辑（如密码哈希）
+- 便于测试（可 mock）
+- 便于切换数据库实现
+
+### 9.4 职责对比
+
+| 层 | 职责 | 面向 | 示例 |
+|----|------|------|------|
+| **ORM Entity** | 数据库映射 | 数据库 | `User` 类定义表结构 |
+| **Pydantic Schema** | 验证 & 序列化 | API 客户端 | `UserCreate` 验证输入 |
+| **Repository** | 数据访问抽象 | 业务层 | `user_repo.get_by_email()` |
+
+### 9.5 数据流示例
+
+```python
+# POST /api/v1/users - 创建用户
+
+@router.post("/users", response_model=UserPublic)
+def create_user(request: UserCreate, db: Session = Depends(get_db)):
+    # 1. Pydantic Schema: 验证输入
+    #    request.name, request.email, request.password 已验证
+
+    # 2. Repository: 执行数据库操作
+    user = user_repository.create_user(
+        db,
+        name=request.name,
+        email=request.email,
+        password=request.password,
+    )
+    # user 是 ORM Entity (User)
+
+    # 3. Pydantic Schema: 序列化响应
+    #    UserPublic 自动过滤掉 password_hash
+    return user
+```
+
+### 9.6 为什么需要三层？
+
+| 问题 | 解决方案 |
+|------|---------|
+| 直接暴露 ORM 会泄露敏感字段 | Schema 控制输出 |
+| 输入数据需要验证 | Schema 自动验证 |
+| SQL 逻辑散落各处难维护 | Repository 集中管理 |
+| 难以测试数据库操作 | Repository 可 mock |
+| 切换数据库改动大 | Repository 隔离变化 |
+
+---
+
 **最后更新**: 2026-01-03
