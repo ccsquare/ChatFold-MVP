@@ -39,6 +39,7 @@ DevOps 实践和部署
 
 可复用的通用开发协作准则
 
+- **[naming_conventions.md](./standards/naming_conventions.md)** - 命名规范 (ORM/Schema/Repository)
 - **[coding.md](./standards/coding.md)** - 编码规范
 - **[gitflow.md](./standards/gitflow.md)** - Git 分支策略
 
