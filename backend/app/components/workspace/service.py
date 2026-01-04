@@ -6,6 +6,7 @@ Provides service functions for:
 - Project management (future)
 """
 
+import logging
 import time
 import uuid
 from datetime import datetime
@@ -19,7 +20,9 @@ from app.components.workspace.models import (
     User,
     UserPlan,
 )
-from app.components.workspace.storage import workspace_storage
+from app.components.workspace.storage_provider import get_workspace_storage
+
+logger = logging.getLogger(__name__)
 
 # ID generators
 
@@ -68,9 +71,20 @@ DEFAULT_PROJECT = Project(
     updatedAt=int(time.time() * 1000),
 )
 
-# Initialize storage with defaults
-workspace_storage.save_user(DEFAULT_USER)
-workspace_storage.save_project(DEFAULT_PROJECT)
+
+def _ensure_defaults_initialized() -> None:
+    """Ensure default user and project are initialized in storage.
+
+    This is called lazily to avoid issues with module import order
+    and to support both memory and Redis storage backends.
+    """
+    storage = get_workspace_storage()
+    if storage.get_user(DEFAULT_USER.id) is None:
+        storage.save_user(DEFAULT_USER)
+        logger.info(f"Initialized default user: {DEFAULT_USER.id}")
+    if storage.get_project(DEFAULT_PROJECT.id) is None:
+        storage.save_project(DEFAULT_PROJECT)
+        logger.info(f"Initialized default project: {DEFAULT_PROJECT.id}")
 
 
 # Folder service functions
@@ -84,6 +98,8 @@ def create_folder(request: CreateFolderRequest) -> Folder:
     Returns:
         The created folder
     """
+    _ensure_defaults_initialized()
+
     now = int(time.time() * 1000)
     folder_id = generate_folder_id()
 
@@ -99,23 +115,23 @@ def create_folder(request: CreateFolderRequest) -> Folder:
         conversationId=request.conversationId,
     )
 
-    workspace_storage.save_folder(folder)
+    get_workspace_storage().save_folder(folder)
     return folder
 
 
 def get_folder(folder_id: str) -> Folder | None:
     """Get a folder by ID."""
-    return workspace_storage.get_folder(folder_id)
+    return get_workspace_storage().get_folder(folder_id)
 
 
 def list_folders() -> list[Folder]:
     """List all folders, sorted by creation time (newest first)."""
-    return workspace_storage.list_folders()
+    return get_workspace_storage().list_folders()
 
 
 def delete_folder(folder_id: str) -> bool:
     """Delete a folder. Returns True if deleted, False if not found."""
-    return workspace_storage.delete_folder(folder_id)
+    return get_workspace_storage().delete_folder(folder_id)
 
 
 def update_folder(
@@ -133,7 +149,8 @@ def update_folder(
     Returns:
         The updated folder or None if not found
     """
-    folder = workspace_storage.get_folder(folder_id)
+    storage = get_workspace_storage()
+    folder = storage.get_folder(folder_id)
     if not folder:
         return None
 
@@ -143,7 +160,7 @@ def update_folder(
         folder.isExpanded = isExpanded
 
     folder.updatedAt = int(time.time() * 1000)
-    workspace_storage.save_folder(folder)
+    storage.save_folder(folder)
     return folder
 
 
@@ -157,7 +174,8 @@ def add_folder_input(folder_id: str, request: AddFolderInputRequest) -> Asset | 
     Returns:
         The created asset or None if folder not found
     """
-    folder = workspace_storage.get_folder(folder_id)
+    storage = get_workspace_storage()
+    folder = storage.get_folder(folder_id)
     if not folder:
         return None
 
@@ -180,7 +198,7 @@ def add_folder_input(folder_id: str, request: AddFolderInputRequest) -> Asset | 
 
     folder.inputs.append(asset)
     folder.updatedAt = now
-    workspace_storage.save_folder(folder)
+    storage.save_folder(folder)
 
     return asset
 
@@ -194,7 +212,7 @@ def list_folder_inputs(folder_id: str) -> list[Asset] | None:
     Returns:
         List of input assets or None if folder not found
     """
-    folder = workspace_storage.get_folder(folder_id)
+    folder = get_workspace_storage().get_folder(folder_id)
     if not folder:
         return None
     return folder.inputs
@@ -210,13 +228,14 @@ def link_folder_conversation(folder_id: str, conversation_id: str) -> Folder | N
     Returns:
         The updated folder or None if not found
     """
-    folder = workspace_storage.get_folder(folder_id)
+    storage = get_workspace_storage()
+    folder = storage.get_folder(folder_id)
     if not folder:
         return None
 
     folder.conversationId = conversation_id
     folder.updatedAt = int(time.time() * 1000)
-    workspace_storage.save_folder(folder)
+    storage.save_folder(folder)
 
     return folder
 
@@ -229,12 +248,13 @@ def get_current_user() -> User:
     For MVP, returns the default user.
     In future, this will return the authenticated user.
     """
+    _ensure_defaults_initialized()
     return DEFAULT_USER
 
 
 def get_user(user_id: str) -> User | None:
     """Get a user by ID."""
-    return workspace_storage.get_user(user_id)
+    return get_workspace_storage().get_user(user_id)
 
 
 def update_current_user(name: str | None = None, email: str | None = None) -> User:
@@ -247,10 +267,18 @@ def update_current_user(name: str | None = None, email: str | None = None) -> Us
     Returns:
         The updated user
     """
-    if name is not None:
-        DEFAULT_USER.name = name
-    if email is not None:
-        DEFAULT_USER.email = email
+    _ensure_defaults_initialized()
+    storage = get_workspace_storage()
 
-    workspace_storage.save_user(DEFAULT_USER)
-    return DEFAULT_USER
+    # Get the current user from storage (may have been updated elsewhere)
+    current = storage.get_user(DEFAULT_USER.id)
+    if current is None:
+        current = DEFAULT_USER
+
+    if name is not None:
+        current.name = name
+    if email is not None:
+        current.email = email
+
+    storage.save_user(current)
+    return current

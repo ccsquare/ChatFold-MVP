@@ -22,6 +22,14 @@ async def lifespan(app: FastAPI):
     # Startup
     filesystem_service.initialize()
 
+    # CRITICAL WARNING: Memory store is not safe for multi-instance deployment
+    if settings.use_memory_store and settings.environment != "local-dev":
+        logger.warning(
+            "⚠️  CRITICAL: use_memory_store=true is NOT recommended for non-local environments! "
+            "Each instance has its own memory - data will be lost across instances. "
+            "Set CHATFOLD_USE_MEMORY_STORE=false for multi-instance deployment."
+        )
+
     # Initialize MySQL when not in memory-only mode
     if not settings.use_memory_store:
         if check_db_connection():
@@ -31,7 +39,8 @@ async def lifespan(app: FastAPI):
             logger.warning("MySQL connection failed - running without database persistence")
 
     storage_mode = "memory" if settings.use_memory_store else "persistent"
-    logger.info(f"ChatFold API started successfully (storage: {storage_mode})")
+    instance_info = f", instance: {settings.instance_id}" if settings.instance_id != "default" else ""
+    logger.info(f"ChatFold API started successfully (storage: {storage_mode}{instance_info})")
 
     yield
 

@@ -4,8 +4,14 @@ This service handles:
 - Directory initialization on application startup
 - User/project/folder directory management
 - File read/write operations for uploads, structures, and job artifacts
+
+Concurrency Safety:
+- Atomic writes use temp file + rename pattern to prevent partial writes
+- Safe for multi-instance deployments with shared filesystem
 """
 
+import os
+import tempfile
 from pathlib import Path
 
 from app.settings import DEFAULT_PROJECT_ID, DEFAULT_USER_ID, settings
@@ -170,29 +176,105 @@ class FileSystemService:
         path: Path,
         content: str | bytes,
         encoding: str = "utf-8",
+        atomic: bool = True,
     ) -> int:
         """Write content to a file.
 
         Creates parent directories if they don't exist.
+        Uses atomic write by default to prevent partial writes in concurrent scenarios.
 
         Args:
             path: Path to the file
             content: Content to write (string or bytes)
             encoding: Encoding for string content (default: utf-8)
+            atomic: Use atomic write (temp file + rename). Default True.
 
         Returns:
             File size in bytes
         """
         path.parent.mkdir(parents=True, exist_ok=True)
 
-        if isinstance(content, str):
-            path.write_text(content, encoding=encoding)
+        if atomic:
+            return self._write_file_atomic(path, content, encoding)
         else:
-            path.write_bytes(content)
+            # Direct write (legacy, not recommended for shared filesystems)
+            if isinstance(content, str):
+                path.write_text(content, encoding=encoding)
+            else:
+                path.write_bytes(content)
 
-        size = path.stat().st_size
-        logger.debug(f"Wrote file: {path} ({size} bytes)")
-        return size
+            size = path.stat().st_size
+            logger.debug(f"Wrote file: {path} ({size} bytes)")
+            return size
+
+    def _write_file_atomic(
+        self,
+        path: Path,
+        content: str | bytes,
+        encoding: str = "utf-8",
+    ) -> int:
+        """Write content atomically using temp file + rename.
+
+        This prevents partial writes when:
+        - Multiple processes write to the same file
+        - Process crashes during write
+        - Filesystem runs out of space during write
+
+        The rename operation is atomic on POSIX systems when source and
+        destination are on the same filesystem.
+
+        Args:
+            path: Path to the file
+            content: Content to write (string or bytes)
+            encoding: Encoding for string content
+
+        Returns:
+            File size in bytes
+        """
+        dir_path = path.parent
+
+        # Create temp file in same directory (ensures same filesystem for atomic rename)
+        fd = None
+        tmp_path = None
+
+        try:
+            fd, tmp_path_str = tempfile.mkstemp(
+                dir=dir_path,
+                suffix=".tmp",
+                prefix=f".{path.name}.",
+            )
+            tmp_path = Path(tmp_path_str)
+
+            # Write content to temp file
+            if isinstance(content, str):
+                os.write(fd, content.encode(encoding))
+            else:
+                os.write(fd, content)
+
+            os.close(fd)
+            fd = None  # Mark as closed
+
+            # Atomic rename (overwrites existing file)
+            tmp_path.rename(path)
+
+            size = path.stat().st_size
+            logger.debug(f"Wrote file atomically: {path} ({size} bytes)")
+            return size
+
+        except Exception as e:
+            # Clean up temp file on failure
+            if fd is not None:
+                try:
+                    os.close(fd)
+                except OSError:
+                    pass
+            if tmp_path and tmp_path.exists():
+                try:
+                    tmp_path.unlink()
+                except OSError:
+                    pass
+            logger.error(f"Atomic write failed for {path}: {e}")
+            raise
 
     def read_file(
         self,

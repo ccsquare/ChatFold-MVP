@@ -4,31 +4,43 @@ Redis-based distributed cache for multi-replica deployments
 This module provides a Redis-backed cache implementation that solves
 the multi-replica deployment issues with in-memory caching.
 
+Architecture (Single DB + Key Prefix Pattern):
+- 所有数据使用 db=0，通过 Key 前缀实现业务隔离
+- Redis Cluster 兼容 (Cluster 只支持 db=0)
+- 事务支持: 同一 DB 内可执行完整 MULTI/EXEC 事务
+- 统一连接池管理
+
 Benefits:
 - Shared across all backend pods
 - Auto-expiry with TTL
 - High cache hit rate
 - No data staleness issues
+- Redis Cluster compatible
 
 Usage:
-    from app.db.redis_cache import RedisCache
-    from app.db.redis_db import RedisDB
+    from app.db.redis_cache import get_redis_cache
+    from app.db.redis_db import RedisKeyPrefix
 
-    # Create cache instance for specific database
-    cache = RedisCache(db=RedisDB.JOB_STATE)
+    # Get singleton cache instance (always db=0)
+    cache = get_redis_cache()
+
+    # Use key prefix helpers for proper namespacing
+    key = RedisKeyPrefix.job_state_key("job_abc123")
+    # Result: "chatfold:job:state:job_abc123"
 
     # Basic operations
-    cache.set("job:123:state", {"status": "running"}, expire_seconds=3600)
-    data = cache.get("job:123:state")
-    cache.delete("job:123:state")
+    cache.set(key, {"status": "running"}, expire_seconds=3600)
+    data = cache.get(key)
+    cache.delete(key)
 
     # Hash operations (for job state)
-    cache.hset("job:123:state", {"status": "running", "progress": 50})
-    state = cache.hgetall("job:123:state")
+    cache.hset(key, {"status": "running", "progress": 50})
+    state = cache.hgetall(key)
 
     # List operations (for SSE events)
-    cache.lpush("job:123:events", {"eventId": "evt_1", "stage": "MSA"})
-    events = cache.lrange("job:123:events", 0, -1)
+    events_key = RedisKeyPrefix.job_events_key("job_abc123")
+    cache.lpush(events_key, {"eventId": "evt_1", "stage": "MSA"})
+    events = cache.lrange(events_key, 0, -1)
 """
 
 import json
@@ -45,39 +57,56 @@ logger = logging.getLogger(__name__)
 
 class RedisCache:
     """
-    Redis-based distributed cache
+    Redis-based distributed cache (Single DB + Key Prefix Pattern)
 
     Designed for multi-replica deployments where cache must be shared
     across all backend pods.
+
+    Architecture:
+    - 使用单一 db=0，通过 Key 前缀实现业务隔离
+    - 符合 Redis Cluster 兼容性要求 (Cluster 只支持 db=0)
+    - 同一 DB 内支持完整 MULTI/EXEC 事务
 
     Features:
     - Distributed: All pods share the same cache
     - TTL support: Auto-expiry with Redis SETEX
     - JSON serialization: Handles complex data structures
-    - Connection pooling: Efficient Redis connections
+    - Connection pooling: Efficient Redis connections via shared pool
     - Hash/List support: For job state and SSE events
+    - Redis Cluster compatible: Single DB design
     """
 
-    def __init__(self, db: RedisDB, client: redis.Redis | None = None):
+    # 默认使用 db=0，符合 Redis Cluster 要求
+    DEFAULT_DB = 0
+
+    def __init__(self, db: RedisDB | int = 0, client: redis.Redis | None = None):
         """
-        Initialize Redis cache with specific database
+        Initialize Redis cache
 
         Args:
-            db: RedisDB enum value specifying which database to use
+            db: Database index (default: 0 for Redis Cluster compatibility).
+                Accepts RedisDB enum for backward compatibility, but all values
+                map to db=0 in the new architecture.
             client: Optional pre-configured Redis client (for testing with fakeredis)
         """
-        self.db = db
+        # 新架构: 所有 DB 都使用 db=0
+        if isinstance(db, RedisDB):
+            self.db = self.DEFAULT_DB  # RedisDB 现在都映射到 0
+            self._db_enum = db
+        else:
+            self.db = db if db == 0 else self.DEFAULT_DB
+            self._db_enum = None
+
         self._client: redis.Redis | None = client
-        self._db_description = RedisDB.get_description(db)
 
     @property
     def client(self) -> redis.Redis:
-        """Lazy initialization of Redis client"""
+        """Lazy initialization of Redis client with shared connection pool"""
         if self._client is None:
             redis_config = {
                 "host": settings.redis_host,
                 "port": settings.redis_port,
-                "db": self.db.value,
+                "db": self.db,  # Always 0 for Redis Cluster compatibility
                 "socket_connect_timeout": settings.redis_socket_connect_timeout,
                 "socket_timeout": settings.redis_socket_timeout,
                 "decode_responses": True,  # Auto-decode bytes to str
@@ -86,7 +115,7 @@ class RedisCache:
                 redis_config["password"] = settings.redis_password
 
             self._client = redis.Redis(**redis_config)
-            logger.info(f"RedisCache initialized: DB {self.db.value} ({self._db_description})")
+            logger.info(f"RedisCache initialized: db={self.db} (single DB + key prefix pattern)")
 
         return self._client
 
@@ -366,18 +395,47 @@ class RedisCache:
         if self._client:
             self._client.close()
             self._client = None
-            logger.info(f"RedisCache closed: DB {self.db.value}")
+            logger.info(f"RedisCache closed: db={self.db}")
 
 
-# ==================== Singleton Instances ====================
-# Pre-configured cache instances for common use cases
+# ==================== Singleton Instance ====================
+# Single cache instance for all operations (Single DB + Key Prefix Pattern)
+
+_redis_cache: RedisCache | None = None
+
+
+def get_redis_cache() -> RedisCache:
+    """Get singleton Redis cache instance (db=0).
+
+    This is the primary way to access Redis in the new architecture.
+    Use RedisKeyPrefix helpers to generate properly namespaced keys.
+
+    Example:
+        cache = get_redis_cache()
+        key = RedisKeyPrefix.job_state_key("job_abc123")
+        cache.hset(key, {"status": "running"})
+    """
+    global _redis_cache
+    if _redis_cache is None:
+        _redis_cache = RedisCache()
+    return _redis_cache
+
+
+# ==================== Backward Compatibility ====================
+# These functions are deprecated but maintained for gradual migration
 
 _job_state_cache: RedisCache | None = None
 _sse_events_cache: RedisCache | None = None
 
 
 def get_job_state_cache() -> RedisCache:
-    """Get singleton cache instance for job state"""
+    """Get cache instance for job state.
+
+    DEPRECATED: Use get_redis_cache() with RedisKeyPrefix.job_state_key() instead.
+
+    This function now returns the same shared cache instance (db=0).
+    The old multi-DB pattern has been replaced with single DB + key prefix.
+    """
     global _job_state_cache
     if _job_state_cache is None:
         _job_state_cache = RedisCache(db=RedisDB.JOB_STATE)
@@ -385,7 +443,13 @@ def get_job_state_cache() -> RedisCache:
 
 
 def get_sse_events_cache() -> RedisCache:
-    """Get singleton cache instance for SSE events"""
+    """Get cache instance for SSE events.
+
+    DEPRECATED: Use get_redis_cache() with RedisKeyPrefix.job_events_key() instead.
+
+    This function now returns the same shared cache instance (db=0).
+    The old multi-DB pattern has been replaced with single DB + key prefix.
+    """
     global _sse_events_cache
     if _sse_events_cache is None:
         _sse_events_cache = RedisCache(db=RedisDB.SSE_EVENTS)

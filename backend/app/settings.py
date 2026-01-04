@@ -110,7 +110,13 @@ class Settings(BaseSettings):
     # true: 内存模式 - 仅内存 + Redis（开发/测试用）
     #   - 所有数据存储在内存中，重启丢失
     #   - Redis 仍用于 SSE 事件队列
+    # WARNING: use_memory_store=true is NOT safe for multi-instance deployment!
+    #   - Each instance has its own memory, data will be lost across instances
+    #   - Use use_memory_store=false for production (multi-instance) environments
     use_memory_store: bool = False
+
+    # Instance identifier (for debugging multi-instance issues)
+    instance_id: str = "default"
 
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE),
