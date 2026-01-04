@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import 'molstar/build/viewer/molstar.css';
 import { ThemeProvider } from '@/components/ThemeProvider';
+import { CrossTabSyncProvider } from '@/components/CrossTabSyncProvider';
 import { Toaster } from 'sonner';
 
 export const metadata: Metadata = {
@@ -21,7 +22,9 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased">
         <ThemeProvider>
-          {children}
+          <CrossTabSyncProvider>
+            {children}
+          </CrossTabSyncProvider>
           <Toaster
             position="top-center"
             richColors
