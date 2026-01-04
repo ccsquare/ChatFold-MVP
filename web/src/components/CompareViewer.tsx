@@ -353,7 +353,7 @@ function StructurePanel({
   isCurrent?: boolean;
 }) {
   // Detect format from filename extension
-  const getFormat = (): 'pdb' | 'mmcif' | 'cif' => {
+  const getFormat = (): 'pdb' | 'mmcif' => {
     const lowerFilename = filename.toLowerCase();
     if (lowerFilename.endsWith('.cif') || lowerFilename.endsWith('.mmcif')) {
       return 'mmcif';
@@ -432,7 +432,7 @@ function SuperposedViewer({
   currentFilename,
 }: SuperposedViewerProps) {
   // Detect format from filename extension
-  const getFormat = (filename: string): 'pdb' | 'mmcif' | 'cif' => {
+  const getFormat = (filename: string): 'pdb' | 'mmcif' => {
     const lowerFilename = filename.toLowerCase();
     if (lowerFilename.endsWith('.cif') || lowerFilename.endsWith('.mmcif')) {
       return 'mmcif';
@@ -575,7 +575,7 @@ function SuperposedViewer({
         await new Promise(resolve => setTimeout(resolve, 200));
 
         // Load both structures
-        const loadStructure = async (pdbData: string, label: string, format: 'pdb' | 'mmcif' | 'cif') => {
+        const loadStructure = async (pdbData: string, label: string, format: 'pdb' | 'mmcif') => {
           const dataObj = await plugin.builders.data.rawData({ data: pdbData, label });
           const trajectory = await plugin.builders.structure.parseTrajectory(dataObj, format);
           const model = await plugin.builders.structure.createModel(trajectory);

@@ -41,6 +41,7 @@ class JobStateDict(TypedDict):
     progress: int
     message: str
     updated_at: int
+    version: int  # Optimistic locking version number
 
 
 class JobStateService:
@@ -99,6 +100,7 @@ class JobStateService:
             "progress": "0",
             "message": message,
             "updated_at": str(get_timestamp_ms()),
+            "version": "1",  # Initial version for optimistic locking
         }
 
         result = self._cache.hset(key, state)
@@ -128,6 +130,7 @@ class JobStateService:
             "progress": int(data.get("progress", 0)),
             "message": data.get("message", ""),
             "updated_at": int(data.get("updated_at", 0)),
+            "version": int(data.get("version", 1)),
         }
 
     def set_state(
@@ -339,6 +342,121 @@ class JobStateService:
         """
         return self._cache.expire(self._key(job_id), ttl)
 
+    # ==================== Optimistic Locking Support ====================
+
+    def set_state_with_version(
+        self,
+        job_id: str,
+        expected_version: int,
+        status: StatusType | None = None,
+        stage: StageType | None = None,
+        progress: int | None = None,
+        message: str | None = None,
+    ) -> tuple[bool, int]:
+        """Update job state with optimistic locking.
+
+        Uses Redis WATCH/MULTI/EXEC to ensure atomic update with version check.
+        If the current version doesn't match expected_version, the update fails.
+
+        Args:
+            job_id: Job ID
+            expected_version: Expected current version number
+            status: Optional new status
+            stage: Optional new stage
+            progress: Optional new progress (0-100)
+            message: Optional new message
+
+        Returns:
+            Tuple of (success: bool, new_version: int)
+            - (True, new_version) if update succeeded
+            - (False, current_version) if version mismatch (another instance updated)
+            - (False, 0) if job state doesn't exist
+        """
+        import redis
+
+        key = self._key(job_id)
+        client = self._cache.client
+
+        try:
+            # Use pipeline with WATCH for optimistic locking
+            with client.pipeline() as pipe:
+                while True:
+                    try:
+                        # Watch the key for changes
+                        pipe.watch(key)
+
+                        # Get current state (need to use client directly after watch)
+                        current = client.hgetall(key)
+                        if not current:
+                            pipe.unwatch()
+                            return (False, 0)
+
+                        # Decode bytes to str if needed (redis-py returns bytes)
+                        def decode_val(v: bytes | str) -> str:
+                            return v.decode() if isinstance(v, bytes) else v
+
+                        current_version = int(decode_val(current.get(b"version", current.get("version", b"1"))))
+
+                        # Version mismatch - another instance updated
+                        if current_version != expected_version:
+                            pipe.unwatch()
+                            logger.debug(
+                                f"Version mismatch for job {job_id}: "
+                                f"expected={expected_version}, current={current_version}"
+                            )
+                            return (False, current_version)
+
+                        # Build updates
+                        new_version = current_version + 1
+                        updates: dict[str, str] = {
+                            "version": str(new_version),
+                            "updated_at": str(get_timestamp_ms()),
+                        }
+                        if status is not None:
+                            updates["status"] = status.value
+                        if stage is not None:
+                            updates["stage"] = stage.value
+                        if progress is not None:
+                            updates["progress"] = str(min(100, max(0, progress)))
+                        if message is not None:
+                            updates["message"] = message
+
+                        # Execute atomic update
+                        pipe.multi()
+                        pipe.hset(key, mapping=updates)
+                        pipe.execute()
+
+                        logger.debug(
+                            f"Updated job state with version: {job_id}, "
+                            f"version={expected_version}->{new_version}"
+                        )
+                        return (True, new_version)
+
+                    except redis.WatchError:
+                        # Key was modified by another client, retry
+                        logger.debug(
+                            f"WatchError for job {job_id}, retrying optimistic lock"
+                        )
+                        continue
+
+        except redis.RedisError as e:
+            logger.error(f"Redis error in set_state_with_version: {e}")
+            return (False, 0)
+
+    def get_version(self, job_id: str) -> int:
+        """Get current version number for job state.
+
+        Args:
+            job_id: Job ID
+
+        Returns:
+            Current version number, or 0 if not found
+        """
+        version = self._cache.client.hget(self._key(job_id), "version")
+        if version is None:
+            return 0
+        return int(version)
+
     # ==================== Job Metadata (Multi-instance support) ====================
 
     def _meta_key(self, job_id: str) -> str:
@@ -440,6 +558,204 @@ class JobStateService:
             True if job exists
         """
         return self.exists(job_id) or self._cache.exists(self._meta_key(job_id))
+
+    # ==================== Orphan Cleanup ====================
+
+    def cleanup_orphan_metadata(
+        self,
+        max_age_hours: int = 48,
+        batch_size: int = 100,
+    ) -> tuple[int, int]:
+        """Clean up orphan job metadata entries.
+
+        Orphan metadata entries are those where:
+        - The job state no longer exists (job completed/cleaned up)
+        - The metadata is older than max_age_hours
+
+        This helps prevent slow memory growth from accumulated metadata
+        of completed jobs.
+
+        Args:
+            max_age_hours: Maximum age in hours for orphan metadata
+            batch_size: Number of keys to scan per iteration
+
+        Returns:
+            Tuple of (scanned_count, deleted_count)
+        """
+        import time
+
+        client = self._cache.client
+        meta_prefix = "chatfold:job:meta:*"
+        state_prefix = "chatfold:job:state:"
+        max_age_ms = max_age_hours * 60 * 60 * 1000
+        current_time_ms = get_timestamp_ms()
+
+        scanned = 0
+        deleted = 0
+        cursor = 0
+
+        try:
+            while True:
+                # Scan for metadata keys
+                cursor, keys = client.scan(
+                    cursor=cursor,
+                    match=meta_prefix,
+                    count=batch_size,
+                )
+
+                for key in keys:
+                    scanned += 1
+                    # Decode key if bytes
+                    key_str = key.decode() if isinstance(key, bytes) else key
+
+                    # Extract job_id from key
+                    # Format: chatfold:job:meta:{job_id}
+                    job_id = key_str.replace("chatfold:job:meta:", "")
+
+                    # Check if corresponding state exists
+                    state_key = f"{state_prefix}{job_id}"
+                    if client.exists(state_key):
+                        continue  # Job still active, skip
+
+                    # Check metadata age
+                    meta = client.hgetall(key)
+                    if not meta:
+                        continue
+
+                    # Get created_at from metadata
+                    created_at_raw = meta.get(b"created_at", meta.get("created_at"))
+                    if created_at_raw:
+                        created_at = int(
+                            created_at_raw.decode()
+                            if isinstance(created_at_raw, bytes)
+                            else created_at_raw
+                        )
+                        age_ms = current_time_ms - created_at
+
+                        if age_ms > max_age_ms:
+                            # Delete orphan metadata
+                            client.delete(key)
+                            deleted += 1
+                            logger.debug(
+                                f"Deleted orphan metadata: {job_id}, "
+                                f"age={age_ms / 3600000:.1f}h"
+                            )
+
+                # Exit when scan complete
+                if cursor == 0:
+                    break
+
+            if deleted > 0:
+                logger.info(
+                    f"Orphan cleanup complete: scanned={scanned}, deleted={deleted}"
+                )
+
+            return (scanned, deleted)
+
+        except Exception as e:
+            logger.error(f"Error during orphan cleanup: {e}")
+            return (scanned, deleted)
+
+    def cleanup_stale_job_states(
+        self,
+        max_age_hours: int = 72,
+        terminal_only: bool = True,
+        batch_size: int = 100,
+    ) -> tuple[int, int]:
+        """Clean up stale job state entries.
+
+        Removes job states that:
+        - Are older than max_age_hours
+        - Are in terminal states (complete, failed, canceled) if terminal_only=True
+
+        Args:
+            max_age_hours: Maximum age in hours
+            terminal_only: Only delete terminal states (safer)
+            batch_size: Number of keys to scan per iteration
+
+        Returns:
+            Tuple of (scanned_count, deleted_count)
+        """
+        client = self._cache.client
+        state_prefix = "chatfold:job:state:*"
+        max_age_ms = max_age_hours * 60 * 60 * 1000
+        current_time_ms = get_timestamp_ms()
+
+        terminal_statuses = {
+            StatusType.complete.value,
+            StatusType.failed.value,
+            StatusType.canceled.value,
+        }
+
+        scanned = 0
+        deleted = 0
+        cursor = 0
+
+        try:
+            while True:
+                cursor, keys = client.scan(
+                    cursor=cursor,
+                    match=state_prefix,
+                    count=batch_size,
+                )
+
+                for key in keys:
+                    scanned += 1
+                    state = client.hgetall(key)
+                    if not state:
+                        continue
+
+                    # Check status if terminal_only
+                    if terminal_only:
+                        status_raw = state.get(b"status", state.get("status"))
+                        if status_raw:
+                            status = (
+                                status_raw.decode()
+                                if isinstance(status_raw, bytes)
+                                else status_raw
+                            )
+                            if status not in terminal_statuses:
+                                continue  # Skip non-terminal jobs
+
+                    # Check age
+                    updated_at_raw = state.get(b"updated_at", state.get("updated_at"))
+                    if updated_at_raw:
+                        updated_at = int(
+                            updated_at_raw.decode()
+                            if isinstance(updated_at_raw, bytes)
+                            else updated_at_raw
+                        )
+                        age_ms = current_time_ms - updated_at
+
+                        if age_ms > max_age_ms:
+                            # Extract job_id and delete both state and metadata
+                            key_str = key.decode() if isinstance(key, bytes) else key
+                            job_id = key_str.replace("chatfold:job:state:", "")
+
+                            # Delete state
+                            client.delete(key)
+                            # Also delete metadata if exists
+                            meta_key = f"chatfold:job:meta:{job_id}"
+                            client.delete(meta_key)
+
+                            deleted += 1
+                            logger.debug(
+                                f"Deleted stale job: {job_id}, age={age_ms / 3600000:.1f}h"
+                            )
+
+                if cursor == 0:
+                    break
+
+            if deleted > 0:
+                logger.info(
+                    f"Stale job cleanup complete: scanned={scanned}, deleted={deleted}"
+                )
+
+            return (scanned, deleted)
+
+        except Exception as e:
+            logger.error(f"Error during stale job cleanup: {e}")
+            return (scanned, deleted)
 
 
 # Singleton instance
