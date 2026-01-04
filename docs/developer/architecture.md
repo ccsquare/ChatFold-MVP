@@ -64,8 +64,11 @@
 | 存储 | 用途 |
 |------|------|
 | MySQL | 持久化数据（用户、任务、结构元数据） |
-| Redis | 运行时状态、SSE 事件队列 |
+| Redis | 运行时状态、SSE 事件队列（单一 DB + Key 前缀模式） |
 | FileSystem | PDB 文件、用户上传文件 |
+
+> **Redis 架构**: 采用单一 db=0 + Key 前缀模式，符合 Redis Cluster 兼容性要求。
+> 详细规范请参考 [Redis 使用规范](./redis_usage.md)。
 
 ## 核心模块
 

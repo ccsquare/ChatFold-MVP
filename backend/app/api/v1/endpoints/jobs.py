@@ -10,9 +10,15 @@ Storage Integration:
 - Redis: Job state cache and SSE event queues (always enabled)
 - MySQL + Filesystem: Persistent storage (default, use_memory_store=false)
 - Memory: In-memory only mode (use_memory_store=true)
+
+Concurrency Safety:
+- MySQL writes are performed first (source of truth)
+- Redis is updated after MySQL (cache layer)
+- If Redis fails after MySQL success, cache can be rebuilt on read
 """
 
 import asyncio
+import logging
 import os
 import random
 import re
@@ -41,6 +47,8 @@ from app.utils import (
     validate_amino_acid_sequence,
 )
 
+logger = logging.getLogger(__name__)
+
 # Feature flags
 USE_NANOCC = os.getenv("USE_NANOCC", "true").lower() in ("true", "1", "yes")
 
@@ -50,8 +58,8 @@ router = APIRouter(tags=["Jobs"])
 def _is_job_canceled(job_id: str) -> bool:
     """Check if job has been canceled.
 
-    Checks both Redis (for multi-instance support) and memory store
-    (for backward compatibility).
+    Uses Redis only for multi-instance consistency.
+    Memory store fallback is removed to prevent cross-instance issues.
 
     Args:
         job_id: Job ID to check
@@ -59,20 +67,21 @@ def _is_job_canceled(job_id: str) -> bool:
     Returns:
         True if job is canceled
     """
-    # Check Redis first (shared across instances)
-    if job_state_service.is_canceled(job_id):
-        return True
-    # Fallback to memory store
-    return storage.is_job_canceled(job_id)
+    # Redis only - shared across all instances
+    return job_state_service.is_canceled(job_id)
 
 # Job ID pattern
 JOB_ID_PATTERN = re.compile(r"^job_[a-z0-9]+$")
 
 
-def _save_job_to_mysql(job: NanoCCJob) -> None:
-    """Save job to MySQL database (if persistent mode enabled)."""
+def _save_job_to_mysql(job: NanoCCJob) -> bool:
+    """Save job to MySQL database (if persistent mode enabled).
+
+    Returns:
+        True if saved successfully (or memory mode), False if failed
+    """
     if settings.use_memory_store:
-        return
+        return True
 
     from app.db.mysql import get_db_session
     from app.repositories import job_repository
@@ -91,16 +100,21 @@ def _save_job_to_mysql(job: NanoCCJob) -> None:
                 "created_at": job.createdAt,
                 "completed_at": None,
             })
+            db.commit()  # Explicit commit for clarity
+        return True
     except Exception as e:
-        # Log but don't fail - MySQL is optional
-        import logging
-        logging.getLogger(__name__).warning(f"Failed to save job to MySQL: {e}")
+        logger.error(f"Failed to save job to MySQL: {e}")
+        return False
 
 
-def _update_job_status_mysql(job_id: str, status: str, stage: str | None = None) -> None:
-    """Update job status in MySQL database (if persistent mode enabled)."""
+def _update_job_status_mysql(job_id: str, status: str, stage: str | None = None) -> bool:
+    """Update job status in MySQL database (if persistent mode enabled).
+
+    Returns:
+        True if updated successfully (or memory mode), False if failed
+    """
     if settings.use_memory_store:
-        return
+        return True
 
     from app.db.mysql import get_db_session
     from app.repositories import job_repository
@@ -108,14 +122,22 @@ def _update_job_status_mysql(job_id: str, status: str, stage: str | None = None)
     try:
         with get_db_session() as db:
             job_repository.update_status(db, job_id, status, stage)
+            db.commit()
+        return True
     except Exception as e:
-        import logging
-        logging.getLogger(__name__).warning(f"Failed to update job status in MySQL: {e}")
+        logger.warning(f"Failed to update job status in MySQL: {e}")
+        return False
 
 
 @router.post("")
 async def create_job(request: CreateJobRequest):
-    """Create a new protein folding job."""
+    """Create a new protein folding job.
+
+    Storage order (MySQL-first for consistency):
+    1. MySQL (source of truth) - fails fast if DB is unavailable
+    2. Redis (cache layer) - for multi-instance state sharing
+    3. Memory store (legacy fallback) - for backward compatibility
+    """
     try:
         sequence = request.get_validated_sequence()
     except ValueError as e:
@@ -131,25 +153,36 @@ async def create_job(request: CreateJobRequest):
         structures=[],
     )
 
-    # Save to memory store (legacy fallback)
+    # Step 1: Save to MySQL first (source of truth for persistent mode)
+    if not _save_job_to_mysql(job):
+        # MySQL failed in persistent mode - this is a critical error
+        if not settings.use_memory_store:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to create job: database error"
+            )
+
+    # Step 2: Create job state and metadata in Redis (multi-instance support)
+    # If this fails after MySQL success, cache can be rebuilt on read
+    try:
+        job_state_service.create_state(
+            job.id,
+            status=StatusType.queued,
+            stage=StageType.QUEUED,
+            message="Job created and queued for processing",
+        )
+        job_state_service.save_job_meta(
+            job.id,
+            sequence=sequence,
+            conversation_id=job.conversationId,
+        )
+    except Exception as e:
+        logger.warning(f"Redis cache update failed (job {job.id}): {e}")
+        # Don't fail - MySQL has the data, Redis can be rebuilt
+
+    # Step 3: Save to memory store (legacy fallback for backward compatibility)
     storage.save_job(job)
     storage.save_job_sequence(job.id, sequence)
-
-    # Create job state and metadata in Redis (always enabled, multi-instance support)
-    job_state_service.create_state(
-        job.id,
-        status=StatusType.queued,
-        stage=StageType.QUEUED,
-        message="Job created and queued for processing",
-    )
-    job_state_service.save_job_meta(
-        job.id,
-        sequence=sequence,
-        conversation_id=job.conversationId,
-    )
-
-    # Save to MySQL (if enabled)
-    _save_job_to_mysql(job)
 
     return {"jobId": job.id, "job": job.model_dump()}
 

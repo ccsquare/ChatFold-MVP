@@ -4,17 +4,24 @@ This service provides a high-level interface for managing job state in Redis,
 supporting the three-layer storage architecture where Redis serves as the
 runtime state cache.
 
+Architecture (Single DB + Key Prefix Pattern):
+- 使用单一 db=0，符合 Redis Cluster 兼容性要求
+- 通过 RedisKeyPrefix 生成规范化的 Key
+- Key 格式: chatfold:job:state:{job_id}, chatfold:job:meta:{job_id}
+
 Key Features:
 - Fast job state reads/writes via Redis hash
 - Progress tracking and updates
 - Status transitions
 - Optional TTL for automatic cleanup
+- Redis Cluster compatible
 """
 
 from typing import TYPE_CHECKING, TypedDict
 
 from app.components.nanocc.job import StageType, StatusType
-from app.db.redis_cache import get_job_state_cache
+from app.db.redis_cache import get_redis_cache
+from app.db.redis_db import RedisKeyPrefix
 from app.utils import get_logger, get_timestamp_ms
 
 if TYPE_CHECKING:
@@ -59,11 +66,11 @@ class JobStateService:
             cache: Optional RedisCache instance for dependency injection (testing).
                    If not provided, uses the default singleton cache.
         """
-        self._cache = cache if cache is not None else get_job_state_cache()
+        self._cache = cache if cache is not None else get_redis_cache()
 
     def _key(self, job_id: str) -> str:
-        """Generate Redis key for job state."""
-        return f"job:{job_id}:state"
+        """Generate Redis key for job state using RedisKeyPrefix."""
+        return RedisKeyPrefix.job_state_key(job_id)
 
     def create_state(
         self,
@@ -335,8 +342,8 @@ class JobStateService:
     # ==================== Job Metadata (Multi-instance support) ====================
 
     def _meta_key(self, job_id: str) -> str:
-        """Generate Redis key for job metadata."""
-        return f"job:{job_id}:meta"
+        """Generate Redis key for job metadata using RedisKeyPrefix."""
+        return RedisKeyPrefix.job_meta_key(job_id)
 
     def save_job_meta(
         self,

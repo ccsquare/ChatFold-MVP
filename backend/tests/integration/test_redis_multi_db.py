@@ -1,163 +1,169 @@
-"""Integration tests for Redis multi-DB isolation.
+"""Integration tests for Redis Key Prefix isolation.
+
+Architecture: Single DB + Key Prefix Pattern
+- All data uses db=0 (Redis Cluster compatible)
+- Key prefixes provide namespace isolation
+- Pattern: chatfold:{domain}:{type}:{id}
 
 Test cases for:
-- DB 0 (JOB_STATE) and DB 3 (SSE_EVENTS) are isolated
-- Data written to one DB is not visible in another
+- Key prefix isolation between different domains
+- Job state and SSE events use correct prefixes
+- Services correctly generate namespaced keys
 """
 
 import time
 
 import pytest
 
-from app.db.redis_cache import RedisCache, RedisDB
+from app.db.redis_cache import RedisCache, get_redis_cache
+from app.db.redis_db import RedisDB, RedisKeyPrefix
 
 
-def _make_test_key() -> str:
-    """Generate a unique test key."""
-    return f"test_key_{int(time.time() * 1000)}"
+def _make_test_id() -> str:
+    """Generate a unique test ID."""
+    return f"test_{int(time.time() * 1000)}"
 
 
-class TestRedisMultiDBIsolation:
-    """Test Redis multi-database isolation."""
+class TestRedisKeyPrefixArchitecture:
+    """Test Redis single DB + key prefix architecture."""
 
     @pytest.fixture(autouse=True)
-    def setup_caches(self):
-        """Set up Redis caches for different DBs."""
-        self.job_state_cache = RedisCache(RedisDB.JOB_STATE)
-        self.sse_events_cache = RedisCache(RedisDB.SSE_EVENTS)
+    def setup_cache(self):
+        """Set up Redis cache (single instance for all operations)."""
+        self.cache = get_redis_cache()
         yield
         # No cleanup needed - test keys will expire or be deleted
 
-    def test_db_values_are_different(self):
-        """Verify DB enum values are different."""
+    def test_all_db_values_are_zero(self):
+        """Verify all RedisDB enum values map to db=0 (Cluster compatible)."""
+        assert RedisDB.DEFAULT.value == 0
         assert RedisDB.JOB_STATE.value == 0
-        assert RedisDB.SSE_EVENTS.value == 3
-        assert RedisDB.JOB_STATE.value != RedisDB.SSE_EVENTS.value
+        assert RedisDB.SSE_EVENTS.value == 0
+        assert RedisDB.WORKSPACE.value == 0
+        # All values should be 0 for Redis Cluster compatibility
+        for db in RedisDB:
+            assert db.value == 0, f"RedisDB.{db.name} should be 0, got {db.value}"
 
-    def test_string_isolation(self):
-        """Data written to DB 0 is not visible in DB 3."""
-        test_key = _make_test_key()
-        test_value = "job_state_data"
+    def test_cache_uses_single_db(self):
+        """Verify RedisCache uses db=0 regardless of constructor argument."""
+        cache_with_old_enum = RedisCache(db=RedisDB.SSE_EVENTS)
+        assert cache_with_old_enum.db == 0
 
-        # Write to JOB_STATE (DB 0)
-        self.job_state_cache.set(test_key, test_value, expire_seconds=60)
+        cache_with_default = RedisCache()
+        assert cache_with_default.db == 0
 
-        # Verify it exists in DB 0
-        assert self.job_state_cache.get(test_key) == test_value
+    def test_key_prefix_format(self):
+        """Verify key prefix format follows the pattern."""
+        job_id = "job_abc123"
+        folder_id = "folder_xyz789"
 
-        # Verify it does NOT exist in DB 3
-        assert self.sse_events_cache.get(test_key) is None
+        # Job related keys
+        assert RedisKeyPrefix.job_state_key(job_id) == "chatfold:job:state:job_abc123"
+        assert RedisKeyPrefix.job_meta_key(job_id) == "chatfold:job:meta:job_abc123"
+        assert RedisKeyPrefix.job_events_key(job_id) == "chatfold:job:events:job_abc123"
 
-        # Cleanup
-        self.job_state_cache.delete(test_key)
+        # Workspace related keys
+        assert RedisKeyPrefix.folder_key(folder_id) == "chatfold:workspace:folder:folder_xyz789"
+        assert RedisKeyPrefix.folder_index_key() == "chatfold:workspace:index:folders"
 
-    def test_hash_isolation(self):
-        """Hash data is isolated between databases."""
-        test_key = _make_test_key()
-        # Values may be serialized/deserialized (integers become int)
-        test_data = {"status": "running", "progress": 50}
 
-        # Write hash to JOB_STATE (DB 0)
-        self.job_state_cache.hset(test_key, test_data)
-        self.job_state_cache.expire(test_key, 60)
+class TestRedisKeyPrefixIsolation:
+    """Test isolation via key prefixes instead of multiple DBs."""
 
-        # Verify it exists in DB 0
-        result = self.job_state_cache.hgetall(test_key)
-        assert result is not None
-        assert result.get("status") == "running"
-        assert result.get("progress") == 50
+    @pytest.fixture(autouse=True)
+    def setup_cache(self):
+        """Set up Redis cache."""
+        self.cache = get_redis_cache()
+        self.test_id = _make_test_id()
+        yield
+        # Cleanup test keys
+        self.cache.delete(RedisKeyPrefix.job_state_key(self.test_id))
+        self.cache.delete(RedisKeyPrefix.job_events_key(self.test_id))
+        self.cache.delete(RedisKeyPrefix.folder_key(self.test_id))
 
-        # Verify it does NOT exist in DB 3 (returns None or empty)
-        result_db3 = self.sse_events_cache.hgetall(test_key)
-        assert result_db3 is None or result_db3 == {}
+    def test_job_state_isolation(self):
+        """Job state and job events use different key prefixes."""
+        # Write to job state prefix
+        state_key = RedisKeyPrefix.job_state_key(self.test_id)
+        self.cache.hset(state_key, {"status": "running", "progress": 50})
+        self.cache.expire(state_key, 60)
 
-        # Cleanup
-        self.job_state_cache.delete(test_key)
+        # Write to job events prefix
+        events_key = RedisKeyPrefix.job_events_key(self.test_id)
+        self.cache.rpush(events_key, {"eventId": "evt_1", "message": "test"})
+        self.cache.expire(events_key, 60)
 
-    def test_list_isolation(self):
-        """List data is isolated between databases."""
-        test_key = _make_test_key()
-        test_events = ["event1", "event2", "event3"]
+        # Verify data is isolated by prefix
+        state_result = self.cache.hgetall(state_key)
+        assert state_result is not None
+        assert state_result.get("status") == "running"
 
-        # Write list to SSE_EVENTS (DB 3)
-        for event in test_events:
-            self.sse_events_cache.rpush(test_key, event)
-        self.sse_events_cache.expire(test_key, 60)
+        events_result = self.cache.lrange(events_key, 0, -1)
+        assert len(events_result) == 1
+        assert events_result[0]["eventId"] == "evt_1"
 
-        # Verify it exists in DB 3
-        result = self.sse_events_cache.lrange(test_key, 0, -1)
-        assert result == test_events
+        # Verify keys don't cross-pollute
+        # Trying to read state key as list should return empty
+        assert self.cache.lrange(state_key, 0, -1) == []
+        # Trying to read events key as hash should return None
+        assert self.cache.hgetall(events_key) is None
 
-        # Verify it does NOT exist in DB 0
-        result_db0 = self.job_state_cache.lrange(test_key, 0, -1)
-        assert result_db0 == []
+    def test_workspace_isolation(self):
+        """Workspace entities use different key prefixes."""
+        folder_key = RedisKeyPrefix.folder_key(self.test_id)
+        user_key = RedisKeyPrefix.user_key(self.test_id)
 
-        # Cleanup
-        self.sse_events_cache.delete(test_key)
+        # Write different data
+        self.cache.set(folder_key, {"id": self.test_id, "name": "Test Folder"}, expire_seconds=60)
+        self.cache.set(user_key, {"id": self.test_id, "name": "Test User"}, expire_seconds=60)
 
-    def test_same_key_different_data(self):
-        """Same key can have different data in different DBs."""
-        test_key = _make_test_key()
+        # Verify isolation
+        folder_data = self.cache.get(folder_key)
+        user_data = self.cache.get(user_key)
 
-        # Write different data to each DB
-        self.job_state_cache.set(test_key, "db0_data", expire_seconds=60)
-        self.sse_events_cache.set(test_key, "db3_data", expire_seconds=60)
-
-        # Verify each DB has its own data
-        assert self.job_state_cache.get(test_key) == "db0_data"
-        assert self.sse_events_cache.get(test_key) == "db3_data"
-
-        # Delete from one DB doesn't affect the other
-        self.job_state_cache.delete(test_key)
-        assert self.job_state_cache.get(test_key) is None
-        assert self.sse_events_cache.get(test_key) == "db3_data"
-
-        # Cleanup
-        self.sse_events_cache.delete(test_key)
-
-    def test_exists_isolation(self):
-        """Exists check is isolated between databases."""
-        test_key = _make_test_key()
-
-        # Write to DB 0 only
-        self.job_state_cache.set(test_key, "exists_test", expire_seconds=60)
-
-        # Check exists
-        assert self.job_state_cache.exists(test_key) is True
-        assert self.sse_events_cache.exists(test_key) is False
+        assert folder_data["name"] == "Test Folder"
+        assert user_data["name"] == "Test User"
 
         # Cleanup
-        self.job_state_cache.delete(test_key)
+        self.cache.delete(folder_key)
+        self.cache.delete(user_key)
 
-    def test_job_state_uses_db0(self):
-        """Verify job state service uses DB 0."""
+
+class TestServiceKeyPrefixUsage:
+    """Test that services correctly use key prefixes."""
+
+    @pytest.fixture(autouse=True)
+    def setup_cache(self):
+        """Set up Redis cache."""
+        self.cache = get_redis_cache()
+        yield
+
+    def test_job_state_service_uses_correct_prefix(self):
+        """Verify job state service uses chatfold:job:state prefix."""
         from app.services.job_state import job_state_service
 
-        job_id = f"job_test_{int(time.time() * 1000)}"
+        job_id = f"job_{_make_test_id()}"
 
         # Create job state
         job_state_service.create_state(job_id)
 
-        # Check it exists using direct DB 0 cache
-        key = f"job:{job_id}:state"
-        result = self.job_state_cache.hgetall(key)
+        # Verify it uses the correct key prefix
+        expected_key = RedisKeyPrefix.job_state_key(job_id)
+        result = self.cache.hgetall(expected_key)
+
         assert result is not None
         assert result.get("status") == "queued"
-
-        # Check it does NOT exist in DB 3 (returns None or empty)
-        result_db3 = self.sse_events_cache.hgetall(key)
-        assert result_db3 is None or result_db3 == {}
 
         # Cleanup
         job_state_service.delete_state(job_id)
 
-    def test_sse_events_uses_db3(self):
-        """Verify SSE events service uses DB 3."""
+    def test_sse_events_service_uses_correct_prefix(self):
+        """Verify SSE events service uses chatfold:job:events prefix."""
         from app.components.nanocc.job import EventType, JobEvent, StageType, StatusType
         from app.services.sse_events import sse_events_service
         from app.utils import get_timestamp_ms
 
-        job_id = f"job_test_{int(time.time() * 1000)}"
+        job_id = f"job_{_make_test_id()}"
 
         # Push an event
         event = JobEvent(
@@ -172,14 +178,57 @@ class TestRedisMultiDBIsolation:
         )
         sse_events_service.push_event(event)
 
-        # Check it exists using direct DB 3 cache
-        key = f"job:{job_id}:events"
-        result = self.sse_events_cache.lrange(key, 0, -1)
-        assert len(result) == 1
+        # Verify it uses the correct key prefix
+        expected_key = RedisKeyPrefix.job_events_key(job_id)
+        result = self.cache.lrange(expected_key, 0, -1)
 
-        # Check it does NOT exist in DB 0
-        result_db0 = self.job_state_cache.lrange(key, 0, -1)
-        assert result_db0 == []
+        assert len(result) == 1
 
         # Cleanup
         sse_events_service.delete_events(job_id)
+
+    def test_job_meta_uses_correct_prefix(self):
+        """Verify job meta uses chatfold:job:meta prefix."""
+        from app.services.job_state import job_state_service
+
+        job_id = f"job_{_make_test_id()}"
+        sequence = "MKTVRQERLKSIVRILERSKEPVSGAQLAEELSVSRQVIVQDIAYLRSLGYNIVATPRGYVLAGG"
+
+        # Save job meta
+        job_state_service.save_job_meta(job_id, sequence=sequence)
+
+        # Verify it uses the correct key prefix
+        expected_key = RedisKeyPrefix.job_meta_key(job_id)
+        result = self.cache.hgetall(expected_key)
+
+        assert result is not None
+        assert result.get("sequence") == sequence
+
+        # Cleanup
+        job_state_service.delete_job_meta(job_id)
+
+
+class TestRedisClusterCompatibility:
+    """Test Redis Cluster compatibility features."""
+
+    def test_single_db_requirement(self):
+        """Verify all operations use db=0 for Cluster compatibility."""
+        cache = get_redis_cache()
+        assert cache.db == 0, "Redis cache must use db=0 for Cluster compatibility"
+
+    def test_key_prefixes_enable_cluster_sharding(self):
+        """Verify key prefix pattern enables proper Cluster sharding.
+
+        In Redis Cluster, keys are sharded based on their hash slot.
+        By using consistent prefixes (chatfold:...), we enable predictable
+        key distribution across cluster nodes.
+        """
+        # All ChatFold keys start with the same prefix
+        keys = [
+            RedisKeyPrefix.job_state_key("job_1"),
+            RedisKeyPrefix.job_events_key("job_1"),
+            RedisKeyPrefix.folder_key("folder_1"),
+        ]
+
+        for key in keys:
+            assert key.startswith("chatfold:"), f"Key {key} should start with 'chatfold:'"

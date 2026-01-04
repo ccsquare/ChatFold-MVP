@@ -4,18 +4,31 @@ This service provides a high-level interface for managing SSE event queues
 in Redis, supporting the three-layer storage architecture where Redis serves
 as the event streaming cache.
 
+Architecture (Single DB + Key Prefix Pattern):
+- 使用单一 db=0，符合 Redis Cluster 兼容性要求
+- 通过 RedisKeyPrefix 生成规范化的 Key
+- Key 格式: chatfold:job:events:{job_id}
+
 Key Features:
 - Event queue management for SSE streaming
 - Efficient event retrieval with pagination
 - TTL-based automatic cleanup
 - Support for replaying events
+- Redis Cluster compatible
+
+Concurrency Safety:
+- Uses Redis Pipeline for atomic multi-command operations
+- Prevents race conditions in push + expire + trim operations
 """
 
 import json
 from typing import TYPE_CHECKING, Any
 
+import redis
+
 from app.components.nanocc.job import JobEvent
-from app.db.redis_cache import get_sse_events_cache
+from app.db.redis_cache import get_redis_cache
+from app.db.redis_db import RedisKeyPrefix
 from app.utils import get_logger
 
 if TYPE_CHECKING:
@@ -51,14 +64,20 @@ class SSEEventsService:
             cache: Optional RedisCache instance for dependency injection (testing).
                    If not provided, uses the default singleton cache.
         """
-        self._cache = cache if cache is not None else get_sse_events_cache()
+        self._cache = cache if cache is not None else get_redis_cache()
 
     def _key(self, job_id: str) -> str:
-        """Generate Redis key for job events queue."""
-        return f"job:{job_id}:events"
+        """Generate Redis key for job events queue using RedisKeyPrefix."""
+        return RedisKeyPrefix.job_events_key(job_id)
 
     def push_event(self, event: JobEvent, ttl: int = SSE_EVENTS_TTL) -> int:
         """Push an event to the job's event queue.
+
+        Uses Redis Pipeline for atomic operations to ensure:
+        - Event is pushed
+        - TTL is set/refreshed
+        - Queue is trimmed if needed
+        All happen atomically, preventing race conditions in multi-instance deployment.
 
         Args:
             event: JobEvent to push
@@ -68,21 +87,33 @@ class SSEEventsService:
             Total number of events in the queue after push
         """
         key = self._key(event.jobId)
-
-        # Serialize event to JSON
         data = event.model_dump_json()
-        count = self._cache.rpush(key, data)
 
-        # Refresh TTL
-        self._cache.expire(key, ttl)
+        try:
+            # Use pipeline for atomic operations
+            pipe = self._cache.client.pipeline()
+            pipe.rpush(key, data)
+            pipe.expire(key, ttl)
+            pipe.llen(key)
+            results = pipe.execute()
 
-        # Trim to max events if needed
-        if count > MAX_EVENTS_PER_JOB:
-            self._cache.ltrim(key, -MAX_EVENTS_PER_JOB, -1)
-            count = MAX_EVENTS_PER_JOB
+            # Results: [rpush_result, expire_result, llen_result]
+            count = results[2] if len(results) > 2 else results[0]
 
-        logger.debug(f"Pushed event to queue: {event.jobId}, eventId={event.eventId}")
-        return count
+            # Trim if needed (separate operation, but trimming is idempotent)
+            if count > MAX_EVENTS_PER_JOB:
+                self._cache.ltrim(key, -MAX_EVENTS_PER_JOB, -1)
+                count = MAX_EVENTS_PER_JOB
+
+            logger.debug(f"Pushed event to queue: {event.jobId}, eventId={event.eventId}")
+            return count
+
+        except redis.RedisError as e:
+            logger.error(f"Failed to push event to queue {event.jobId}: {e}")
+            # Fallback to non-pipeline approach
+            count = self._cache.rpush(key, data)
+            self._cache.expire(key, ttl)
+            return count
 
     def push_event_dict(
         self,
@@ -92,7 +123,7 @@ class SSEEventsService:
     ) -> int:
         """Push a raw event dict to the job's event queue.
 
-        Useful when you don't have a JobEvent object but need to push events.
+        Uses Redis Pipeline for atomic operations.
 
         Args:
             job_id: Job ID
@@ -104,19 +135,30 @@ class SSEEventsService:
         """
         key = self._key(job_id)
 
-        # Push event
-        count = self._cache.rpush(key, event_data)
+        try:
+            # Use pipeline for atomic operations
+            pipe = self._cache.client.pipeline()
+            pipe.rpush(key, json.dumps(event_data))
+            pipe.expire(key, ttl)
+            pipe.llen(key)
+            results = pipe.execute()
 
-        # Refresh TTL
-        self._cache.expire(key, ttl)
+            count = results[2] if len(results) > 2 else results[0]
 
-        # Trim if needed
-        if count > MAX_EVENTS_PER_JOB:
-            self._cache.ltrim(key, -MAX_EVENTS_PER_JOB, -1)
-            count = MAX_EVENTS_PER_JOB
+            # Trim if needed
+            if count > MAX_EVENTS_PER_JOB:
+                self._cache.ltrim(key, -MAX_EVENTS_PER_JOB, -1)
+                count = MAX_EVENTS_PER_JOB
 
-        logger.debug(f"Pushed raw event to queue: {job_id}")
-        return count
+            logger.debug(f"Pushed raw event to queue: {job_id}")
+            return count
+
+        except redis.RedisError as e:
+            logger.error(f"Failed to push raw event to queue {job_id}: {e}")
+            # Fallback
+            count = self._cache.rpush(key, event_data)
+            self._cache.expire(key, ttl)
+            return count
 
     def get_events(
         self,

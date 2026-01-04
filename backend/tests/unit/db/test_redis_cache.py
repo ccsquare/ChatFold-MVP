@@ -3,6 +3,7 @@
 Unit tests for Redis cache module
 
 Tests cover:
+- RedisKeyPrefix key generation
 - RedisCache basic operations (string, hash, list)
 - Job state cache operations
 - SSE events cache operations
@@ -10,39 +11,93 @@ Tests cover:
 NOTE: These tests use fakeredis to provide an in-memory Redis implementation,
 allowing tests to run without a real Redis server. This follows industry
 best practices for unit test isolation.
+
+Architecture: Single DB + Key Prefix Pattern
+- All tests use db=0 (Redis Cluster compatible)
+- Key prefixes provide namespace isolation
 """
 
 import pytest
 
 from app.db.redis_cache import RedisCache
-from app.db.redis_db import RedisDB
+from app.db.redis_db import RedisDB, RedisKeyPrefix
+
+
+class TestRedisKeyPrefix:
+    """Test suite for RedisKeyPrefix enum and key generation"""
+
+    def test_key_prefix_values(self):
+        """Test that RedisKeyPrefix has correct prefix values"""
+        assert RedisKeyPrefix.JOB_STATE.value == "chatfold:job:state"
+        assert RedisKeyPrefix.JOB_META.value == "chatfold:job:meta"
+        assert RedisKeyPrefix.JOB_EVENTS.value == "chatfold:job:events"
+        assert RedisKeyPrefix.WORKSPACE_FOLDER.value == "chatfold:workspace:folder"
+        assert RedisKeyPrefix.WORKSPACE_USER.value == "chatfold:workspace:user"
+        assert RedisKeyPrefix.WORKSPACE_PROJECT.value == "chatfold:workspace:project"
+
+    def test_job_state_key(self):
+        """Test job state key generation"""
+        key = RedisKeyPrefix.job_state_key("job_abc123")
+        assert key == "chatfold:job:state:job_abc123"
+
+    def test_job_meta_key(self):
+        """Test job meta key generation"""
+        key = RedisKeyPrefix.job_meta_key("job_abc123")
+        assert key == "chatfold:job:meta:job_abc123"
+
+    def test_job_events_key(self):
+        """Test job events key generation"""
+        key = RedisKeyPrefix.job_events_key("job_abc123")
+        assert key == "chatfold:job:events:job_abc123"
+
+    def test_folder_key(self):
+        """Test folder key generation"""
+        key = RedisKeyPrefix.folder_key("folder_xyz789")
+        assert key == "chatfold:workspace:folder:folder_xyz789"
+
+    def test_user_key(self):
+        """Test user key generation"""
+        key = RedisKeyPrefix.user_key("user_default")
+        assert key == "chatfold:workspace:user:user_default"
+
+    def test_index_keys(self):
+        """Test index key generation"""
+        assert RedisKeyPrefix.folder_index_key() == "chatfold:workspace:index:folders"
+        assert RedisKeyPrefix.user_index_key() == "chatfold:workspace:index:users"
+        assert RedisKeyPrefix.project_index_key() == "chatfold:workspace:index:projects"
+
+    def test_list_all(self):
+        """Test listing all key prefixes"""
+        all_prefixes = RedisKeyPrefix.list_all()
+        assert "JOB_STATE" in all_prefixes
+        assert all_prefixes["JOB_STATE"]["prefix"] == "chatfold:job:state"
 
 
 class TestRedisDB:
-    """Test suite for RedisDB enum"""
+    """Test suite for RedisDB enum (deprecated, for backward compatibility)"""
 
-    def test_redis_db_values(self):
-        """Test that RedisDB enum has correct values"""
+    def test_redis_db_values_all_zero(self):
+        """Test that all RedisDB values now map to 0 (single DB pattern)"""
+        # All databases now use db=0 for Redis Cluster compatibility
+        assert RedisDB.DEFAULT == 0
         assert RedisDB.JOB_STATE == 0
-        assert RedisDB.SESSION_STORE == 1
-        assert RedisDB.RATE_LIMITER == 2
-        assert RedisDB.SSE_EVENTS == 3
-        assert RedisDB.FILE_CACHE == 4
-        assert RedisDB.STRUCTURE_CACHE == 5
-        assert RedisDB.TEMP_DATA == 14
-        assert RedisDB.TEST == 15
+        assert RedisDB.SESSION_STORE == 0
+        assert RedisDB.WORKSPACE == 0
+        assert RedisDB.SSE_EVENTS == 0
+        assert RedisDB.FILE_CACHE == 0
+        assert RedisDB.STRUCTURE_CACHE == 0
+        assert RedisDB.TEMP_DATA == 0
+        assert RedisDB.TEST == 0
 
-    def test_redis_db_descriptions(self):
-        """Test that all RedisDB values have valid descriptions"""
-        for db in RedisDB:
-            assert isinstance(db.value, int)
-            assert 0 <= db.value <= 15
-
-    def test_get_description(self):
-        """Test RedisDB.get_description method"""
-        # Descriptions are in Chinese
-        assert "状态" in RedisDB.get_description(RedisDB.JOB_STATE)
-        assert "测试" in RedisDB.get_description(RedisDB.TEST)
+    def test_redis_db_deprecated_warning(self):
+        """Test that RedisDB.get_description emits deprecation warning"""
+        import warnings
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            RedisDB.get_description(RedisDB.JOB_STATE)
+            assert len(w) == 1
+            assert issubclass(w[0].category, DeprecationWarning)
+            assert "deprecated" in str(w[0].message).lower()
 
 
 class TestRedisCacheWithFakeRedis:

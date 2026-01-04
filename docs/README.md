@@ -12,6 +12,7 @@
 - **[architecture.md](./developer/architecture.md)** - 系统架构设计和技术栈
 - **[local_setup.md](./developer/local_setup.md)** - 本地开发环境搭建
 - **[data_model.md](./developer/data_model.md)** - 数据模型设计
+- **[redis_usage.md](./developer/redis_usage.md)** - Redis 使用规范（单一 DB + Key 前缀）
 
 ### 工作流程文档 ([workflow/](./workflow/))
 
