@@ -169,11 +169,11 @@ export function TimelineRenderer({
               {!isStreaming && conclusionContent && (
                 <ConclusionBubble text={conclusionContent} isCompact={isCompact} />
               )}
-              {/* Show Best Block after conclusion - the final/best structure */}
-              {!isStreaming && group.artifacts.length > 0 && (
+              {/* Show Best Block after conclusion - use the last artifact from the entire timeline */}
+              {!isStreaming && allArtifacts.length > 0 && (
                 <BestBlock
-                  artifact={group.artifacts[group.artifacts.length - 1].data}
-                  timestamp={group.artifacts[group.artifacts.length - 1].timestamp}
+                  artifact={allArtifacts[allArtifacts.length - 1].data}
+                  timestamp={allArtifacts[allArtifacts.length - 1].timestamp}
                 />
               )}
             </React.Fragment>
@@ -310,20 +310,10 @@ function BestBlock({
       {/* Container with green left border */}
       <div className="rounded-lg border-l-4 border-l-cf-success bg-cf-bg-secondary/50 overflow-hidden">
         {/* Header - "Folding Completed." */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-cf-success/20 bg-cf-success/10">
+        <div className="flex items-center justify-between px-4 py-3 bg-cf-success/10">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-cf-success flex-shrink-0" />
             <span className="text-sm font-semibold text-cf-text">Folding Completed.</span>
-          </div>
-        </div>
-
-        {/* Quality description */}
-        <div className="px-4 py-2 border-b border-cf-border/30">
-          <div className="flex items-center gap-2">
-            <Sparkle className="w-4 h-4 text-cf-accent flex-shrink-0" />
-            <p className="text-sm text-cf-text-secondary truncate">
-              All quality metrics passed. Structure ready for downstream analysis.
-            </p>
           </div>
         </div>
 
@@ -546,19 +536,52 @@ function ArtifactGroup({
   // Header expand state for thinking summary
   const [headerExpanded, setHeaderExpanded] = useState(false);
 
+  // Blinking icon state for header (same as ThinkingBubble)
+  const [showHeaderSparkles, setShowHeaderSparkles] = useState(false);
+
+  // Blinking effect for header icon when streaming
+  useEffect(() => {
+    if (!isStreaming) {
+      setShowHeaderSparkles(true); // Show Sparkles when done (but we'll show CheckCircle2)
+      return;
+    }
+
+    // Toggle between Sparkle and Sparkles every 500ms
+    const interval = setInterval(() => {
+      setShowHeaderSparkles(prev => !prev);
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [isStreaming]);
+
   return (
     <div className="pb-4">
-      {/* Container wrapper with border - always green left border */}
-      <div className="rounded-lg border-l-4 border-l-cf-success bg-cf-bg-secondary/50 overflow-hidden transition-all duration-300">
+      {/* Container wrapper with border - green when complete, accent when streaming */}
+      <div className={cn(
+        "rounded-lg border-l-4 bg-cf-bg-secondary/50 overflow-hidden transition-all duration-300",
+        isStreaming ? "border-l-cf-accent" : "border-l-cf-success"
+      )}>
         {/* Header - thinking summary with 2-line display, expandable */}
-        {/* Always green background to match left border */}
         <div
-          className="flex items-start gap-2 px-4 py-3 border-b border-cf-success/20 bg-cf-success/10 cursor-pointer"
+          className={cn(
+            "flex items-start gap-2 px-4 py-3 border-b cursor-pointer",
+            isStreaming
+              ? "border-cf-accent/20 bg-cf-accent/10"
+              : "border-cf-success/20 bg-cf-success/10"
+          )}
           onClick={() => setHeaderExpanded(!headerExpanded)}
         >
-          {/* Left: Status indicator - always green CheckCircle2 */}
+          {/* Left: Status indicator - blinking Sparkle/Sparkles when streaming, CheckCircle2 when done */}
           <div className="flex-shrink-0 pt-0.5">
-            <CheckCircle2 className="w-4 h-4 text-cf-success" />
+            {isStreaming ? (
+              showHeaderSparkles ? (
+                <Sparkles className="w-4 h-4 text-cf-accent" />
+              ) : (
+                <Sparkle className="w-4 h-4 text-cf-accent" />
+              )
+            ) : (
+              <CheckCircle2 className="w-4 h-4 text-cf-success" />
+            )}
           </div>
 
           {/* Middle: Thinking text - scrolling container showing latest 2 lines */}

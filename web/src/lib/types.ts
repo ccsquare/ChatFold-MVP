@@ -71,6 +71,7 @@ export interface MentionableFile {
   path: string;         // Full path for disambiguation
   type: string;         // File type: 'fasta', 'pdb', 'structure', etc.
   source?: 'project' | 'conversation' | 'job';  // Optional context
+  content?: string;     // File content (for fasta files to expand on send)
 }
 
 // Folder contains input sequences and output structures

@@ -94,16 +94,6 @@ export function ChatInputBase({
     }
   }, [showFileMentions]);
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      if (value.trim() && !disabled && !isSending) {
-        onSend(value, mentionedFiles.length > 0 ? mentionedFiles : undefined);
-        setMentionedFiles([]); // Clear mentioned files after send
-      }
-    }
-  };
-
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
@@ -202,9 +192,33 @@ export function ChatInputBase({
   );
 
   const handleSubmit = () => {
-    if (value.trim() && !disabled && !isSending) {
-      onSend(value, mentionedFiles.length > 0 ? mentionedFiles : undefined);
-      setMentionedFiles([]); // Clear mentioned files after send
+    if (!disabled && !isSending) {
+      // Check for fasta files to expand content as query prefix
+      const fastaFiles = mentionedFiles.filter(
+        f => f.type === 'fasta' && f.content
+      );
+
+      let finalQuery = value.trim();
+
+      if (fastaFiles.length > 0) {
+        // Expand fasta file contents as query prefix
+        const fastaContents = fastaFiles.map(f => f.content).join('\n\n');
+        finalQuery = fastaContents + (finalQuery ? '\n\n' + finalQuery : '');
+      }
+
+      if (finalQuery) {
+        // Filter out fasta files from mentioned files (already expanded)
+        const nonFastaFiles = mentionedFiles.filter(f => f.type !== 'fasta');
+        onSend(finalQuery, nonFastaFiles.length > 0 ? nonFastaFiles : undefined);
+        setMentionedFiles([]); // Clear mentioned files after send
+      }
+    }
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
     }
   };
 
@@ -417,12 +431,12 @@ export function ChatInputBase({
                     "h-8 w-8",
                     isSending
                       ? "bg-red-500/10 hover:bg-red-500/20 text-red-500"
-                      : value.trim()
+                      : (value.trim() || mentionedFiles.some(f => f.type === 'fasta' && f.content))
                         ? "bg-cf-highlight hover:bg-cf-highlight-strong text-cf-text"
                         : "text-cf-text-muted"
                   )}
                   onClick={isSending ? onStop : handleSubmit}
-                  disabled={!isSending && (!value.trim() || disabled)}
+                  disabled={!isSending && (!(value.trim() || mentionedFiles.some(f => f.type === 'fasta' && f.content)) || disabled)}
                 >
                   {isSending ? (
                     <Square className="w-4 h-4 fill-current" />
