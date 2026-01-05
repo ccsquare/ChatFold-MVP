@@ -73,8 +73,28 @@ function getThreeLetterCode(aa: string): string {
   return codes[aa] || 'UNK';
 }
 
-// Parse FASTA and extract sequence
-export function parseFasta(content: string): { header: string; sequence: string } | null {
+// Valid amino acid characters (standard 20 amino acids)
+const VALID_AMINO_ACIDS = /^[ACDEFGHIKLMNPQRSTVWY]+$/i;
+
+// Validate sequence and return invalid characters if any
+export function validateSequence(sequence: string): { valid: boolean; invalidChars?: string[] } {
+  // Remove whitespace for validation
+  const cleanSeq = sequence.replace(/\s/g, '');
+
+  if (VALID_AMINO_ACIDS.test(cleanSeq)) {
+    return { valid: true };
+  }
+
+  // Find all invalid characters
+  const invalidChars = [...new Set(
+    cleanSeq.split('').filter(char => !/[ACDEFGHIKLMNPQRSTVWY]/i.test(char))
+  )];
+
+  return { valid: false, invalidChars };
+}
+
+// Parse FASTA and extract sequence (preserves original characters for validation)
+export function parseFasta(content: string): { header: string; sequence: string; rawSequence: string } | null {
   const lines = content.trim().split('\n');
   if (lines.length === 0) return null;
 
@@ -86,14 +106,18 @@ export function parseFasta(content: string): { header: string; sequence: string 
     if (trimmed.startsWith('>')) {
       header = trimmed.slice(1);
     } else if (trimmed && !trimmed.startsWith(';')) {
-      seqLines.push(trimmed.replace(/[^A-Za-z]/g, '').toUpperCase());
+      // Keep the raw sequence line (just remove whitespace)
+      seqLines.push(trimmed.replace(/\s/g, ''));
     }
   }
 
-  const sequence = seqLines.join('');
-  if (!sequence) return null;
+  const rawSequence = seqLines.join('');
+  if (!rawSequence) return null;
 
-  return { header, sequence };
+  // Clean sequence (only valid amino acids, uppercase)
+  const sequence = rawSequence.replace(/[^A-Za-z]/g, '').toUpperCase();
+
+  return { header, sequence, rawSequence };
 }
 
 // Generate step events for a folding job

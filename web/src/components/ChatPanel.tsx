@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { useAppStore } from '@/lib/store';
-import { parseFasta } from '@/lib/mock/generators';
+import { parseFasta, validateSequence } from '@/lib/mock/generators';
 import { MentionableFile } from '@/lib/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -85,11 +85,19 @@ export function ChatPanel() {
         const sequenceMatch = userMessage.match(/^[ACDEFGHIKLMNPQRSTVWY]+$/i);
 
         if (fastaMatch || sequenceMatch) {
-          const sequence = fastaMatch
-            ? parseFasta(userMessage)?.sequence || ''
-            : sequenceMatch
-              ? sequenceMatch[0]
-              : '';
+          const parsed = fastaMatch ? parseFasta(userMessage) : null;
+          const sequence = parsed?.sequence || (sequenceMatch ? sequenceMatch[0] : '');
+          const rawSequence = parsed?.rawSequence || sequence;
+
+          // Validate sequence for invalid characters
+          const validation = validateSequence(rawSequence);
+          if (!validation.valid && validation.invalidChars) {
+            addMessage(convId, {
+              role: 'assistant',
+              content: `Invalid sequence: contains non-standard amino acid characters: ${validation.invalidChars.map(c => `"${c}"`).join(', ')}. Please use only standard amino acid letters (A, C, D, E, F, G, H, I, K, L, M, N, P, Q, R, S, T, V, W, Y).`,
+            });
+            return;
+          }
 
           if (sequence.length >= 10) {
             // Use the folder created above (or create if not yet)
@@ -209,9 +217,16 @@ export function ChatPanel() {
           return;
         }
 
-        // Ensure we have an active folder
-        let fId = activeFolderId;
-        if (!fId) {
+        // Get fresh state to check if current conversation has messages
+        const storeState = useAppStore.getState();
+        const currentConvId = storeState.activeConversationId;
+        const currentConversation = storeState.conversations.find(c => c.id === currentConvId);
+        const hasMessages = currentConversation && currentConversation.messages.length > 0;
+
+        // Determine folder: create new if conversation has messages, otherwise reuse
+        let fId = storeState.activeFolderId;
+        if (hasMessages || !fId) {
+          // Create new folder for new round or if no active folder
           fId = createFolder();
         }
 
@@ -232,16 +247,17 @@ export function ChatPanel() {
         });
 
         // Get the folder to construct the MentionableFile path
-        const folder = folders.find(f => f.id === fId);
+        const folder = useAppStore.getState().folders.find(f => f.id === fId);
         const folderName = folder?.name || fId;
 
-        // Return MentionableFile for auto-mention
+        // Return MentionableFile for auto-mention (include content for fasta files)
         const mentionableFile: MentionableFile = {
           id: `${fId}/${file.name}`,
           name: file.name,
           path: `${folderName}/${file.name}`,
           type: fileType,
           source: 'project',
+          content: fileType === 'fasta' ? content : undefined,
         };
 
         resolve(mentionableFile);
@@ -253,7 +269,7 @@ export function ChatPanel() {
 
       reader.readAsText(file);
     });
-  }, [activeFolderId, createFolder, addFolderInput, folders]);
+  }, [createFolder, addFolderInput]);
 
   return (
     <TooltipProvider delayDuration={300}>
