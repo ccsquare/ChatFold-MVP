@@ -231,15 +231,15 @@ uv run uvicorn app.main:app --reload
 **API 测试**:
 ```bash
 # 健康检查
-curl http://localhost:8000/api/v1/health
+curl http://localhost:28000/api/v1/health
 
 # 创建任务
-curl -X POST http://localhost:8000/api/v1/tasks \
+curl -X POST http://localhost:28000/api/v1/tasks \
   -H "Content-Type: application/json" \
   -d '{"sequence":"MKTAYIAKQRQISFVKSHFSRQLEERLGLIEVQAPILSRVGDGTQDNLSGAEKAVQVKVKALPDAQFEVVHSLAKWKRQQIA","conversationId":"conv_test"}'
 
 # 监听 SSE
-curl -N http://localhost:8000/api/v1/tasks/{taskId}/stream
+curl -N http://localhost:28000/api/v1/tasks/{taskId}/stream
 ```
 
 **开发建议**:
@@ -270,10 +270,10 @@ curl -N http://localhost:8000/api/v1/tasks/{taskId}/stream
 ```bash
 # 步骤 1: 启动后端
 cd backend
-uv run uvicorn app.main:app --reload --port 8000
+uv run uvicorn app.main:app --reload --port 28000
 
 # 步骤 2: 验证后端
-curl http://localhost:8000/api/v1/health
+curl http://localhost:28000/api/v1/health
 # 期望: {"status":"ok","environment":"local-dev"}
 
 # 步骤 3: 启动前端
@@ -281,7 +281,7 @@ cd web
 npm run dev
 
 # 步骤 4: 浏览器测试
-open http://localhost:3000
+open http://localhost:23000
 ```
 
 ### 4.3 常见问题排查

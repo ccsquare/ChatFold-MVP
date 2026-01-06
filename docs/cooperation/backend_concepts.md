@@ -400,7 +400,7 @@ interface JobState {
 - [前端上手指南](./frontend_onboarding.md)
 - [协作流程](./collaboration_workflow.md)
 - [工作项清单](./work_items.md)
-- [API 文档](http://localhost:8000/docs)
+- [API 文档](http://localhost:28000/docs)
 
 ---
 
