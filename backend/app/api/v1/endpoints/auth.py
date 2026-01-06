@@ -105,9 +105,7 @@ async def send_code(request: Request, body: SendCodeRequest):
     # In debug/test mode, return the code for auto-fill
     from app.settings import settings
 
-    return SendCodeResponse(
-        message="Verification code sent to your email", code=code if settings.debug else None
-    )
+    return SendCodeResponse(message="Verification code sent to your email", code=code if settings.debug else None)
 
 
 @router.post("/register", response_model=UserResponse)
