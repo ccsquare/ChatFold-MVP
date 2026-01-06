@@ -81,10 +81,14 @@ export function useConversationTimeline(options: TimelineOptions = {}) {
       });
     }
 
-    // 2. Priority 1: Add artifacts from activeJob.steps (live streaming)
+    // 2. Priority 1: Add step events and artifacts from activeJob.steps (live streaming)
     // Only include if this job belongs to the current conversation
     if (includeStreaming && activeJob?.steps && activeJob.conversationId === conversationId) {
       activeJob.steps.forEach(step => {
+        // Add the step event itself
+        items.push({ type: 'step', data: step });
+
+        // Add artifacts from this step
         step.artifacts?.forEach(artifact => {
           if (!seenStructureIds.has(artifact.structureId)) {
             seenStructureIds.add(artifact.structureId);
