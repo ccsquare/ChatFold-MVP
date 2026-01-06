@@ -11,6 +11,7 @@ export interface SendCodeRequest {
 
 export interface SendCodeResponse {
   message: string;
+  code?: string; // Only present in debug/test mode for auto-fill
 }
 
 export interface RegisterRequest {

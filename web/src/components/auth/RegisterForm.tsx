@@ -30,9 +30,16 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
 
     setSendingCode(true);
     try {
-      await sendCode(email);
+      const response = await sendCode(email);
       setCodeSent(true);
-      toast.success('Verification code sent to your email!');
+
+      // Auto-fill verification code if returned (debug/test mode)
+      if (response.code) {
+        setVerificationCode(response.code);
+        toast.success('Verification code auto-filled (test mode)');
+      } else {
+        toast.success('Verification code sent to your email!');
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to send code';
       toast.error(message);
