@@ -5,9 +5,14 @@
       "command": "npx",
       "args": [
         "-y",
-        "@playwright/mcp"
+        "@playwright/mcp",
+        "--cdp-endpoint",
+        "http://127.0.0.1:9224"
       ],
-      "env": {}
+      "env": {
+        "NO_PROXY": "127.0.0.1,localhost",
+        "no_proxy": "127.0.0.1,localhost"
+      }
     },
     "figma-desktop": {
       "type": "http",
