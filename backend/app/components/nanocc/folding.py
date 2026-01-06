@@ -27,6 +27,7 @@ from app.components.nanocc.job import EventType, JobEvent, StageType, StatusType
 from app.components.nanocc.mock import MockNanoCCClient
 from app.components.workspace.models import StructureArtifact
 from app.services.structure_storage import structure_storage
+from app.settings import settings
 from app.utils import get_timestamp_ms
 
 # Configuration
@@ -39,12 +40,17 @@ def _read_pdb_file(pdb_path: str) -> str | None:
     """Read PDB/CIF file content if it exists.
 
     Args:
-        pdb_path: Path to the PDB or CIF file
+        pdb_path: Path to the PDB or CIF file (can be relative to project root or absolute)
 
     Returns:
         File content as string, or None if file doesn't exist
     """
     path = Path(pdb_path)
+
+    # If path is not absolute, resolve relative to project root
+    if not path.is_absolute():
+        path = settings.get_project_root() / pdb_path
+
     if path.exists():
         try:
             return path.read_text(encoding="utf-8")
