@@ -34,23 +34,39 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# Check if a port is in use
+# Check if a port is in use (supports both IPv4 and IPv6)
 check_port() {
     local port=$1
-    if lsof -i :$port > /dev/null 2>&1; then
+    if ss -tlnp 2>/dev/null | grep -q ":$port " || lsof -i :$port > /dev/null 2>&1; then
         return 0  # Port is in use
     else
         return 1  # Port is free
     fi
 }
 
-# Kill process on port
+# Kill process on port (supports both IPv4 and IPv6)
 kill_port() {
     local port=$1
-    if check_port $port; then
-        log_warn "Port $port is in use, killing existing process..."
-        lsof -ti :$port | xargs kill -9 2>/dev/null || true
-        sleep 1
+    log_info "Checking port $port..."
+
+    # Try multiple methods to find and kill processes
+    # Method 1: lsof
+    local pids=$(lsof -ti :$port 2>/dev/null)
+
+    # Method 2: ss + grep (for IPv6 listeners)
+    if [ -z "$pids" ]; then
+        pids=$(ss -tlnp 2>/dev/null | grep ":$port " | sed -n 's/.*pid=\([0-9]*\).*/\1/p' | sort -u)
+    fi
+
+    # Method 3: netstat fallback
+    if [ -z "$pids" ]; then
+        pids=$(netstat -tlnp 2>/dev/null | grep ":$port " | awk '{print $7}' | cut -d'/' -f1 | sort -u)
+    fi
+
+    if [ -n "$pids" ]; then
+        log_warn "Port $port is in use (PIDs: $pids), killing..."
+        echo "$pids" | xargs kill -9 2>/dev/null || true
+        sleep 2
     fi
 }
 
