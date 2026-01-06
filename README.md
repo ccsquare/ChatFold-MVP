@@ -1,104 +1,104 @@
 # ChatFold MVP
 
-A ChatGPT-style protein folding workbench with three-column layout, real-time SSE streaming, and 3D structure visualization.
+ChatGPT 风格的蛋白质折叠工作台，支持三栏布局、实时 SSE 流式进度和 3D 结构可视化。
 
-## Features
+## 功能特性
 
-- **Three-column layout**: Sidebar (files/chats) | Canvas (3D viewer) | Console (steps/chat)
-- **File upload**: Drag & drop FASTA/PDB files
-- **Structure tabs**: Multiple PDB files open in tabs
-- **SSE streaming**: Real-time folding progress with step events
-- **3D visualization**: Mol\* protein structure rendering
-- **Quality metrics**: pLDDT and PAE scores display
-- **Dark/light theme**: Figma-aligned design system
+- **三栏布局**: 侧边栏（文件/对话）| 画布（3D 查看器）| 控制台（步骤/聊天）
+- **文件上传**: 拖拽上传 FASTA/PDB 文件
+- **结构标签页**: 多个 PDB 文件可同时打开
+- **SSE 流式**: 实时折叠进度和步骤事件
+- **3D 可视化**: Mol* 蛋白质结构渲染
+- **质量指标**: pLDDT 和 PAE 分数展示
+- **深色/浅色主题**: Figma 对齐的设计系统
 
-## Quick Start
+## 快速开始
 
-### Zero-Dependency Mode (Recommended for Local Development)
+### 零依赖模式（推荐本地开发）
 
-**No Docker required! Uses SQLite + FakeRedis for instant startup.**
+**无需 Docker！使用 SQLite + FakeRedis 即时启动。**
 
 ```bash
-# 1. Backend (port 8000) - starts in ~1 second
+# 1. 后端 (端口 8000) - 约 1 秒启动
 cd backend
-uv sync                           # Install dependencies
+uv sync                           # 安装依赖
 uv run uvicorn app.main:app --reload
 
-# 2. Frontend (port 3000)
+# 2. 前端 (端口 3000)
 cd web
 npm install
 npm run dev
 ```
 
-Open http://localhost:3000
+打开 http://localhost:3000
 
-### Production Simulation Mode
+### 生产模拟模式
 
-**Uses MySQL + Redis containers for full production environment.**
+**使用 MySQL + Redis 容器模拟完整生产环境。**
 
 ```bash
-# 1. Start infrastructure
-./scripts/local-dev/start.sh     # Starts MySQL + Redis containers
+# 1. 启动基础设施
+./scripts/local-dev/start.sh     # 启动 MySQL + Redis 容器
 
-# 2. Backend (port 8000)
+# 2. 后端 (端口 8000)
 cd backend
 uv sync
 uv run uvicorn app.main:app --reload
 
-# 3. Frontend (port 3000)
+# 3. 前端 (端口 3000)
 cd web
 npm install
 npm run dev
 ```
 
-See [database_setup.md](docs/developer/database_setup.md) for detailed configuration.
+详细配置请参阅 [database_setup.md](docs/developer/database_setup.md)。
 
-## Architecture
+## 系统架构
 
 ```
-  User Browser
+  用户浏览器
   ┌────────────────────────────────────────────────────────┐
-  │     Sidebar      │      Canvas       │   Chat Panel    │
-  │     File Mgmt    │     Mol* 3D       │    Dialogue     │
+  │     侧边栏      │      画布         │   聊天面板       │
+  │     文件管理    │     Mol* 3D       │    对话交互      │
   └────────────────────────────────────────────────────────┘
                               │
                               ▼
                     ┌─────────────────────┐
-                    │   Next.js Frontend  │
-                    │    (Port 3000)      │
+                    │   Next.js 前端      │
+                    │    (端口 3000)      │
                     └─────────────────────┘
                               │ REST API / SSE
                               ▼
                     ┌─────────────────────┐
-                    │   FastAPI Backend   │
-                    │    (Port 8000)      │
+                    │   FastAPI 后端      │
+                    │    (端口 8000)      │
                     └─────────────────────┘
                               │
           ┌───────────────────┼───────────────────┐
           ▼                   ▼                   ▼
     ┌───────────┐       ┌───────────┐       ┌───────────┐
-    │  MySQL/   │       │  Redis/   │       │ Folding   │
+    │  MySQL/   │       │  Redis/   │       │ 折叠      │
     │  SQLite   │       │ FakeRedis │       │ GPU       │
-    │ (Persist) │       │  (Cache)  │       │ (Optional)│
+    │ (持久化)  │       │  (缓存)   │       │ (可选)    │
     └───────────┘       └───────────┘       └───────────┘
 ```
 
-**Development Modes:**
+**开发模式:**
 
-- **Zero-Dependency**: SQLite + FakeRedis (no Docker)
-- **Production Sim**: MySQL + Redis (Docker containers)
+- **零依赖模式**: SQLite + FakeRedis（无需 Docker）
+- **生产模拟模式**: MySQL + Redis（Docker 容器）
 
-## API Endpoints
+## API 端点
 
-| Method   | Endpoint                    | Description         |
-| -------- | --------------------------- | ------------------- |
-| GET      | `/api/v1/health`            | Health check        |
-| POST/GET | `/api/v1/conversations`     | Conversation CRUD   |
-| POST/GET | `/api/v1/tasks`             | Task management     |
-| GET      | `/api/v1/tasks/{id}/stream` | SSE progress stream |
-| GET      | `/api/v1/structures/{id}`   | Download PDB file   |
+| 方法     | 端点                        | 描述              |
+| -------- | --------------------------- | ----------------- |
+| GET      | `/api/v1/health`            | 健康检查          |
+| POST/GET | `/api/v1/conversations`     | 对话 CRUD         |
+| POST/GET | `/api/v1/tasks`             | 任务管理          |
+| GET      | `/api/v1/tasks/{id}/stream` | SSE 进度流        |
+| GET      | `/api/v1/structures/{id}`   | 下载 PDB 文件     |
 
-## SSE Events
+## SSE 事件格式
 
 ```typescript
 event: step
@@ -108,97 +108,97 @@ data: {
   "stage": "MSA" | "MODEL" | "RELAX" | "QA" | "DONE" | "ERROR",
   "status": "queued" | "running" | "partial" | "complete" | "failed",
   "progress": 0-100,
-  "message": "Human readable status",
+  "message": "人类可读的状态信息",
   "artifacts": [{ "structureId": "str_001", "metrics": { "plddtAvg": 85.5 }}]
 }
 ```
 
-## Project Structure
+## 项目结构
 
 ```
 ChatFold-MVP/
-├── web/                    # Next.js 14 frontend
+├── web/                    # Next.js 14 前端
 │   └── src/
-│       ├── app/            # App Router pages
-│       ├── components/     # React components (36 files)
+│       ├── app/            # App Router 页面
+│       ├── components/     # React 组件 (36 个文件)
 │       ├── hooks/          # useFoldingTask, useResizable
 │       └── lib/            # store.ts, types.ts, utils
 │
-├── backend/                # FastAPI backend
+├── backend/                # FastAPI 后端
 │   └── app/
-│       ├── api/v1/         # Versioned endpoints
+│       ├── api/v1/         # 版本化端点
 │       ├── services/       # storage, mock_folding
 │       └── models/         # Pydantic schemas
 │
-└── docs/                   # Documentation
+└── docs/                   # 文档
 ```
 
-## Tech Stack
+## 技术栈
 
-**Frontend**
+**前端**
 
 - Next.js 14 (App Router) / React 18 / TypeScript
 - TailwindCSS / shadcn/ui (Radix UI)
-- Zustand (state management with persistence)
-- Mol\* 4.5.0 (3D visualization)
+- Zustand (状态管理，支持持久化)
+- Mol* 4.5.0 (3D 可视化)
 
-**Backend**
+**后端**
 
-- Python 3.10+ / FastAPI / uv (package manager)
-- Pydantic 2.0+ (data validation)
-- Uvicorn (ASGI server)
+- Python 3.10+ / FastAPI / uv (包管理器)
+- Pydantic 2.0+ (数据验证)
+- Uvicorn (ASGI 服务器)
 
-**Storage**
+**存储**
 
-- **Database**: SQLite (local dev) / MySQL 8.0+ (production)
-- **Cache**: FakeRedis (local dev) / Redis 5.0+ (production)
-- **Files**: Local filesystem / S3-compatible storage
+- **数据库**: SQLite (本地开发) / MySQL 8.0+ (生产环境)
+- **缓存**: FakeRedis (本地开发) / Redis 5.0+ (生产环境)
+- **文件**: 本地文件系统 / S3 兼容存储
 
-## Test Data
+## 测试数据
 
-Sample files in `web/tests/fixtures/`:
+示例文件位于 `web/tests/fixtures/`:
 
-- `9CG9_HMGB1.fasta` - Sample FASTA sequence
-- `9CG9_HMGB1.pdb` - Reference PDB structure (Git LFS)
+- `9CG9_HMGB1.fasta` - 示例 FASTA 序列
+- `9CG9_HMGB1.pdb` - 参考 PDB 结构 (Git LFS)
 
-## Usage
+## 使用方法
 
-1. **Start conversation**: Click "+" or upload a FASTA file
-2. **Submit sequence**: Paste FASTA in chat or drag-drop file
-3. **Watch progress**: Steps panel shows real-time folding stages
-4. **View structures**: Click "Open" on generated structures
-5. **Download**: Use toolbar or step card download buttons
+1. **开始对话**: 点击 "+" 或上传 FASTA 文件
+2. **提交序列**: 在聊天中粘贴 FASTA 或拖拽文件
+3. **查看进度**: 步骤面板实时显示折叠阶段
+4. **查看结构**: 点击生成结构的 "打开"
+5. **下载**: 使用工具栏或步骤卡片的下载按钮
 
-## Design
+## 设计规范
 
-- **Theme**: Dark mode with `#1e1e1e` background
-- **Fonts**: Karla, PingFang SC
-- **Colors**: See `tailwind.config.ts` for palette
+- **主题**: 深色模式，背景色 `#1e1e1e`
+- **字体**: Karla, PingFang SC
+- **颜色**: 详见 `tailwind.config.ts` 调色板
 
-## Configuration
+## 配置
 
-### Environment Variables
+### 环境变量
 
-Create a `.env` file in the project root:
+在项目根目录创建 `.env` 文件:
 
 ```bash
-# Database type: sqlite | mysql
+# 数据库类型: sqlite | mysql
 CHATFOLD_DATABASE_TYPE=sqlite
 
-# Redis type: fake | docker
+# Redis 类型: fake | docker
 CHATFOLD_REDIS_TYPE=fake
 
-# Storage mode: true (memory) | false (persistent)
+# 存储模式: true (内存) | false (持久化)
 CHATFOLD_USE_MEMORY_STORE=true
 ```
 
-See [.env.example](.env.example) for all available options.
+查看 [.env.example](.env.example) 获取所有可用选项。
 
-### Documentation
+### 文档
 
-- **Quick Start**: [getting_started.md](docs/developer/getting_started.md)
-- **Database Setup**: [database_setup.md](docs/developer/database_setup.md)
-- **Architecture**: [architecture.md](docs/developer/architecture.md)
-- **Contributing**: [contributing.md](docs/workflow/contributing.md)
+- **快速入门**: [getting_started.md](docs/developer/getting_started.md)
+- **数据库配置**: [database_setup.md](docs/developer/database_setup.md)
+- **系统架构**: [architecture.md](docs/developer/architecture.md)
+- **贡献指南**: [contributing.md](docs/workflow/contributing.md)
 
-Full documentation: [docs/README.md](docs/README.md)
+完整文档: [docs/README.md](docs/README.md)

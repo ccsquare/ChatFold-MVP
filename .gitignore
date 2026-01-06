@@ -71,12 +71,7 @@ logs/
 tmp/
 
 # local-dev storage(for test)
-chatfold-workspace/outputs/
-chatfold-workspace/logs/
-chatfold-workspace/databases/*.db
-chatfold-workspace/databases/*.db-shm
-chatfold-workspace/databases/*.db-wal
-!chatfold-workspace/databases/.gitkeep
+chatfold-workspace/
 
 # Playwright
 /test-results/
