@@ -4,6 +4,9 @@
 // Set via NEXT_PUBLIC_BASE_PATH environment variable
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
+// Backend URL for API proxy (default: http://localhost:28000)
+const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:28000';
+
 const nextConfig = {
   reactStrictMode: false, // Temporarily disabled to debug SSE issues
   transpilePackages: ['molstar'],
@@ -23,7 +26,7 @@ const nextConfig = {
     return [
       {
         source: '/api/v1/:path*',
-        destination: 'http://localhost:8000/api/v1/:path*',
+        destination: `${backendUrl}/api/v1/:path*`,
       },
     ];
   },
