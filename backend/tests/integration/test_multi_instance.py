@@ -12,7 +12,7 @@ import asyncio
 
 import pytest
 
-from app.components.nanocc import StatusType, StageType
+from app.components.nanocc import StatusType
 from app.db.redis_cache import RedisCache
 from app.db.redis_db import RedisDB
 from app.services.job_state import JobStateService
@@ -39,9 +39,7 @@ class TestMultiInstanceJobCancel:
         cache = RedisCache(db=RedisDB.JOB_STATE, client=fake_redis_client)
         return JobStateService(cache=cache)
 
-    def test_cancel_from_different_instance(
-        self, instance1_memory, instance2_memory, shared_job_state
-    ):
+    def test_cancel_from_different_instance(self, instance1_memory, instance2_memory, shared_job_state):
         """Test: Instance 2 cancels a job created on Instance 1.
 
         Scenario:
@@ -85,9 +83,7 @@ class TestMultiInstanceJobCancel:
         # Instance 1 should see cancellation via Redis
         assert is_job_canceled(job_id, shared_job_state, instance1_memory)
 
-    def test_sequence_retrieval_cross_instance(
-        self, instance1_memory, instance2_memory, shared_job_state
-    ):
+    def test_sequence_retrieval_cross_instance(self, instance1_memory, instance2_memory, shared_job_state):
         """Test: Instance 2 retrieves sequence registered on Instance 1.
 
         Scenario:
@@ -114,10 +110,7 @@ class TestMultiInstanceJobCancel:
         # Simulate the fallback logic from stream_job endpoint
         def get_sequence(job_id: str, job_state_svc, memory_store) -> str | None:
             """Simulate sequence retrieval logic from jobs.py."""
-            return (
-                job_state_svc.get_job_sequence(job_id)
-                or memory_store.get_job_sequence(job_id)
-            )
+            return job_state_svc.get_job_sequence(job_id) or memory_store.get_job_sequence(job_id)
 
         # Instance 2 can get sequence via Redis fallback
         assert get_sequence(job_id, shared_job_state, instance2_memory) == sequence
@@ -149,10 +142,7 @@ class TestMultiInstanceConcurrentOperations:
             return progress
 
         # Simulate 5 instances updating progress concurrently
-        tasks = [
-            update_progress(i, i * 20)
-            for i in range(1, 6)
-        ]
+        tasks = [update_progress(i, i * 20) for i in range(1, 6)]
         results = await asyncio.gather(*tasks)
 
         # All updates should complete
@@ -169,6 +159,7 @@ class TestMultiInstanceConcurrentOperations:
 
         Each job should get a unique ID (ULID guarantees this).
         """
+
         async def create_job(instance_id: int):
             """Simulate job creation from an instance."""
             job_id = generate_id("job")
@@ -244,6 +235,7 @@ class TestMultiInstanceWithRealRedis:
     def real_job_state(self):
         """Use real Redis connection."""
         from app.db.redis_cache import get_job_state_cache
+
         cache = get_job_state_cache()
         # Test connection
         try:

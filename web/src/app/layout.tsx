@@ -3,6 +3,7 @@ import './globals.css';
 import 'molstar/build/viewer/molstar.css';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { CrossTabSyncProvider } from '@/components/CrossTabSyncProvider';
+import { AuthProvider } from '@/components/AuthProvider';
 import { Toaster } from 'sonner';
 
 export const metadata: Metadata = {
@@ -22,9 +23,9 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased">
         <ThemeProvider>
-          <CrossTabSyncProvider>
-            {children}
-          </CrossTabSyncProvider>
+          <AuthProvider>
+            <CrossTabSyncProvider>{children}</CrossTabSyncProvider>
+          </AuthProvider>
           <Toaster
             position="top-center"
             richColors

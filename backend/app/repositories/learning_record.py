@@ -75,10 +75,7 @@ class LearningRecordRepository(BaseRepository[LearningRecord]):
         """
         stmt = (
             select(LearningRecord)
-            .where(
-                (LearningRecord.user_rating.isnot(None))
-                | (LearningRecord.user_selected_structure_id.isnot(None))
-            )
+            .where((LearningRecord.user_rating.isnot(None)) | (LearningRecord.user_selected_structure_id.isnot(None)))
             .order_by(LearningRecord.created_at.desc())
             .offset(skip)
             .limit(limit)
@@ -117,11 +114,7 @@ class LearningRecordRepository(BaseRepository[LearningRecord]):
         Returns:
             Number of unexported records
         """
-        stmt = (
-            select(func.count())
-            .select_from(LearningRecord)
-            .where(LearningRecord.exported_at.is_(None))
-        )
+        stmt = select(func.count()).select_from(LearningRecord).where(LearningRecord.exported_at.is_(None))
         result = db.execute(stmt)
         return result.scalar() or 0
 

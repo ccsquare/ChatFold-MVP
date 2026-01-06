@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 # ID generators
 
+
 def generate_folder_id() -> str:
     """Generate a unique folder ID."""
     return f"folder_{uuid.uuid4().hex[:12]}"
@@ -88,6 +89,7 @@ def _ensure_defaults_initialized() -> None:
 
 
 # Folder service functions
+
 
 def create_folder(request: CreateFolderRequest) -> Folder:
     """Create a new folder.
@@ -241,6 +243,7 @@ def link_folder_conversation(folder_id: str, conversation_id: str) -> Folder | N
 
 
 # User service functions
+
 
 def get_current_user() -> User:
     """Get the current user.

@@ -39,13 +39,23 @@ class User(Base):
 
     id = Column(String(64), primary_key=True)
     name = Column(String(255), nullable=False)
+    username = Column(String(255), nullable=True, unique=True)  # Added for auth
     email = Column(String(255), nullable=False, unique=True)
+    hashed_password = Column(String(255), nullable=True)  # Added for auth
     plan = Column(Enum("free", "pro", name="user_plan"), default="free")
+    onboarding_completed = Column(Boolean, default=False)  # Added for auth
     created_at = Column(BigInteger, nullable=False)
+    updated_at = Column(BigInteger, nullable=True)  # Added for auth
 
     # Relationships
     projects = relationship("Project", back_populates="user", cascade="all, delete-orphan")
     jobs = relationship("Job", back_populates="user", cascade="all, delete-orphan")
+
+    # Indexes
+    __table_args__ = (
+        Index("idx_users_email", "email"),
+        Index("idx_users_username", "username"),
+    )
 
     def __repr__(self) -> str:
         return f"<User(id={self.id}, name={self.name})>"
@@ -69,9 +79,7 @@ class Project(Base):
     # Relationships
     user = relationship("User", back_populates="projects")
     folders = relationship("Folder", back_populates="project", cascade="all, delete-orphan")
-    structures = relationship(
-        "Structure", back_populates="project", cascade="all, delete-orphan"
-    )
+    structures = relationship("Structure", back_populates="project", cascade="all, delete-orphan")
 
     # Indexes
     __table_args__ = (Index("idx_projects_user_id", "user_id"),)
@@ -143,9 +151,7 @@ class Conversation(Base):
     updated_at = Column(BigInteger, nullable=False)
 
     # Relationships
-    messages = relationship(
-        "Message", back_populates="conversation", cascade="all, delete-orphan"
-    )
+    messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan")
     jobs = relationship("Job", back_populates="conversation")
 
     # Indexes
@@ -161,9 +167,7 @@ class Message(Base):
     __tablename__ = "messages"
 
     id = Column(String(64), primary_key=True)
-    conversation_id = Column(
-        String(64), ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False
-    )
+    conversation_id = Column(String(64), ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False)
     role = Column(Enum("user", "assistant", "system", name="message_role"), nullable=False)
     content = Column(Text, nullable=False)
     created_at = Column(BigInteger, nullable=False)
@@ -189,12 +193,8 @@ class Job(Base):
     id = Column(String(64), primary_key=True)
     # MVP: user_id nullable until auth is implemented
     user_id = Column(String(64), ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
-    conversation_id = Column(
-        String(64), ForeignKey("conversations.id", ondelete="SET NULL"), nullable=True
-    )
-    job_type = Column(
-        Enum("folding", "relaxation", name="job_type_enum"), default="folding", nullable=False
-    )
+    conversation_id = Column(String(64), ForeignKey("conversations.id", ondelete="SET NULL"), nullable=True)
+    job_type = Column(Enum("folding", "relaxation", name="job_type_enum"), default="folding", nullable=False)
     status = Column(
         Enum("queued", "running", "partial", "complete", "failed", "canceled", name="job_status"),
         default="queued",
@@ -241,10 +241,7 @@ class JobEvent(Base):
     id = Column(String(64), primary_key=True)
     job_id = Column(String(64), ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False)
     event_type = Column(
-        Enum(
-            "PROLOGUE", "ANNOTATION", "THINKING_TEXT", "THINKING_PDB", "CONCLUSION",
-            name="event_type_enum"
-        ),
+        Enum("PROLOGUE", "ANNOTATION", "THINKING_TEXT", "THINKING_PDB", "CONCLUSION", name="event_type_enum"),
         nullable=False,
     )
     stage = Column(String(32), nullable=False)

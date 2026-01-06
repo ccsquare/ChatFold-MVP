@@ -25,50 +25,60 @@ logger = get_logger(__name__)
 
 
 def _build_database_url() -> str:
-    """Build MySQL connection URL from settings.
+    """Build database connection URL from settings.
+
+    Supports both SQLite and MySQL based on settings.database_type.
 
     Returns:
-        MySQL connection URL in SQLAlchemy format
+        Database connection URL in SQLAlchemy format
     """
-    if settings.database_url:
-        # Use explicit database URL if provided
-        url = settings.database_url
-        # Convert mysql:// to mysql+pymysql:// if needed
-        if url.startswith("mysql://"):
-            url = url.replace("mysql://", "mysql+pymysql://", 1)
-        return url
+    # Use auto-generated URL from settings
+    url = settings.get_database_url_auto()
 
-    # Build URL from individual components (for local development)
-    # Default values for local development using Docker
-    host = getattr(settings, "mysql_host", "localhost")
-    port = getattr(settings, "mysql_port", 3306)
-    user = getattr(settings, "mysql_user", "chatfold")
-    password = getattr(settings, "mysql_password", "chatfold_dev")
-    database = getattr(settings, "mysql_database", "chatfold")
+    # Convert mysql:// to mysql+pymysql:// if needed
+    if url.startswith("mysql://"):
+        url = url.replace("mysql://", "mysql+pymysql://", 1)
 
-    return f"mysql+pymysql://{user}:{password}@{host}:{port}/{database}?charset=utf8mb4"
+    return url
 
 
 # Create engine with connection pool
 _database_url = _build_database_url()
 
-engine: Engine = create_engine(
-    _database_url,
-    pool_size=settings.mysql_pool_size,
-    max_overflow=settings.mysql_max_overflow,
-    pool_pre_ping=settings.mysql_pool_pre_ping,
-    pool_recycle=3600,  # Recycle connections after 1 hour
-    echo=settings.debug and settings.environment == "local-dev",  # Log SQL in debug mode
-)
+# SQLite-specific configuration
+_is_sqlite = _database_url.startswith("sqlite")
+_engine_kwargs = {
+    "echo": settings.debug and settings.environment == "local-dev",  # Log SQL in debug mode
+}
+
+if _is_sqlite:
+    # SQLite configuration
+    _engine_kwargs["connect_args"] = {"check_same_thread": False}
+    logger.info(f"Using SQLite database: {_database_url}")
+else:
+    # MySQL configuration
+    _engine_kwargs.update(
+        {
+            "pool_size": settings.mysql_pool_size,
+            "max_overflow": settings.mysql_max_overflow,
+            "pool_pre_ping": settings.mysql_pool_pre_ping,
+            "pool_recycle": 3600,  # Recycle connections after 1 hour
+        }
+    )
+    logger.info(f"Using MySQL database: {_database_url.split('@')[1] if '@' in _database_url else 'unknown'}")
+
+engine: Engine = create_engine(_database_url, **_engine_kwargs)
 
 
-# Set connection timeout
-@event.listens_for(engine, "connect")
-def set_connection_timeout(dbapi_connection, connection_record):
-    """Set connection timeout for MySQL."""
-    cursor = dbapi_connection.cursor()
-    cursor.execute("SET SESSION wait_timeout = 28800")  # 8 hours
-    cursor.close()
+# Set connection timeout (MySQL only)
+if not _is_sqlite:
+
+    @event.listens_for(engine, "connect")
+    def set_connection_timeout(dbapi_connection, connection_record):
+        """Set connection timeout for MySQL."""
+        cursor = dbapi_connection.cursor()
+        cursor.execute("SET SESSION wait_timeout = 28800")  # 8 hours
+        cursor.close()
 
 
 # Create session factory

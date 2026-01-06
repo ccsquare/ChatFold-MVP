@@ -29,13 +29,13 @@ git checkout -b feat/your-feature-name
 
 分支命名规范：
 
-| 前缀 | 用途 | 示例 |
-|------|------|------|
-| `feat/` | 新功能 | `feat/dark-mode` |
-| `fix/` | Bug 修复 | `fix/login-error` |
-| `docs/` | 文档更新 | `docs/api-guide` |
-| `refactor/` | 重构 | `refactor/auth-module` |
-| `test/` | 测试 | `test/api-coverage` |
+| 前缀        | 用途     | 示例                   |
+| ----------- | -------- | ---------------------- |
+| `feat/`     | 新功能   | `feat/dark-mode`       |
+| `fix/`      | Bug 修复 | `fix/login-error`      |
+| `docs/`     | 文档更新 | `docs/api-guide`       |
+| `refactor/` | 重构     | `refactor/auth-module` |
+| `test/`     | 测试     | `test/api-coverage`    |
 
 ### 3. 开发和测试
 
@@ -74,17 +74,17 @@ Benefits:
 
 ### Type 类型
 
-| 类型 | 说明 |
-|------|------|
-| `feat` | 新功能 |
-| `fix` | Bug 修复 |
-| `docs` | 文档更新 |
-| `style` | 代码格式（不影响功能） |
+| 类型       | 说明                         |
+| ---------- | ---------------------------- |
+| `feat`     | 新功能                       |
+| `fix`      | Bug 修复                     |
+| `docs`     | 文档更新                     |
+| `style`    | 代码格式（不影响功能）       |
 | `refactor` | 重构（不新增功能或修复 bug） |
-| `perf` | 性能优化 |
-| `test` | 测试相关 |
-| `build` | 构建系统或依赖 |
-| `chore` | 其他杂项 |
+| `perf`     | 性能优化                     |
+| `test`     | 测试相关                     |
+| `build`    | 构建系统或依赖               |
+| `chore`    | 其他杂项                     |
 
 ### 示例
 
@@ -121,6 +121,7 @@ uv run ruff check . --fix
 ```
 
 关键规范：
+
 - 使用 type hints
 - Pydantic 模型用于数据验证
 - 异步函数使用 `async/await`
@@ -136,6 +137,7 @@ npm run lint -- --fix
 ```
 
 关键规范：
+
 - 使用 TypeScript 严格模式
 - React 组件使用函数式 + Hooks
 - 状态管理使用 Zustand
@@ -162,6 +164,7 @@ npm run test
 ### 报告 Bug
 
 请提供：
+
 1. 问题描述
 2. 复现步骤
 3. 期望行为
@@ -171,6 +174,7 @@ npm run test
 ### 功能建议
 
 请说明：
+
 1. 功能描述
 2. 使用场景
 3. 预期效果

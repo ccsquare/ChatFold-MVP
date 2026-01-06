@@ -58,6 +58,7 @@ class Conversation(BaseModel):
 
 # Request/Response models
 
+
 class CreateConversationRequest(BaseModel):
     title: str | None = "New Conversation"
     folderId: str | None = None  # Optional folder association

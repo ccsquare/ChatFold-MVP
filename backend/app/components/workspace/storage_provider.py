@@ -45,6 +45,7 @@ class MemoryStorageAdapter:
 
     def __init__(self):
         from app.components.workspace.storage import workspace_storage
+
         self._storage = workspace_storage
 
     def save_folder(self, folder: Folder) -> bool:
@@ -115,6 +116,7 @@ def get_workspace_storage() -> WorkspaceStorageProtocol:
     else:
         _storage_type = "redis"
         from app.components.workspace.redis_storage import get_workspace_redis_storage
+
         _workspace_storage = get_workspace_redis_storage()
         logger.info("WorkspaceStorage: Using Redis storage (multi-instance safe)")
 

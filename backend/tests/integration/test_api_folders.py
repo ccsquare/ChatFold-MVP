@@ -6,7 +6,6 @@ Test cases for:
 - Folder-Conversation linking
 """
 
-import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app

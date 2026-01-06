@@ -471,14 +471,14 @@ class TestJobEventsWorkflow:
             # Push multiple events
             for i in range(5):
                 event = JobEvent(
-                    eventId=f"evt_{job_id}_{i+1:04d}",
+                    eventId=f"evt_{job_id}_{i + 1:04d}",
                     jobId=job_id,
                     ts=get_timestamp_ms(),
                     eventType=EventType.THINKING_TEXT,
                     stage=StageType.MODEL,
                     status=StatusType.running,
                     progress=i * 20,
-                    message=f"Processing step {i+1}",
+                    message=f"Processing step {i + 1}",
                 )
                 sse_events_service.push_event(event)
 
@@ -505,14 +505,14 @@ class TestJobEventsWorkflow:
             # Push 10 events
             for i in range(10):
                 event = JobEvent(
-                    eventId=f"evt_{job_id}_{i+1:04d}",
+                    eventId=f"evt_{job_id}_{i + 1:04d}",
                     jobId=job_id,
                     ts=get_timestamp_ms(),
                     eventType=EventType.THINKING_TEXT,
                     stage=StageType.MODEL,
                     status=StatusType.running,
                     progress=i * 10,
-                    message=f"Step {i+1}",
+                    message=f"Step {i + 1}",
                 )
                 sse_events_service.push_event(event)
 
@@ -643,6 +643,7 @@ class TestRedisKeyPrefixConsistency:
 
             # Verify data exists at expected key
             from app.db.redis_cache import get_redis_cache
+
             cache = get_redis_cache()
             data = cache.hgetall(expected_key)
             assert data is not None
@@ -844,7 +845,7 @@ class TestErrorHandling:
             "invalid",
             "job-123",  # hyphen instead of underscore
             "JOB_123",  # uppercase
-            "job_",     # empty suffix
+            "job_",  # empty suffix
             "job_ABC",  # uppercase in suffix
         ]
 

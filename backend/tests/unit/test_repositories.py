@@ -349,9 +349,9 @@ class TestStructureRepository:
             repo.create_structure(
                 db_session,
                 job_id=setup_data["job_id"],
-                label=f"candidate-{i+1}",
-                filename=f"structure{i+1}.pdb",
-                file_path=f"/path/to/structure{i+1}.pdb",
+                label=f"candidate-{i + 1}",
+                filename=f"structure{i + 1}.pdb",
+                file_path=f"/path/to/structure{i + 1}.pdb",
             )
 
         structures = repo.get_by_job(db_session, setup_data["job_id"])
@@ -478,7 +478,7 @@ class TestJobEventRepository:
                 stage="MODEL",
                 status="running",
                 progress=i * 30,
-                message=f"Step {i+1}",
+                message=f"Step {i + 1}",
             )
 
         events = repo.get_by_job(db_session, setup_data["job_id"])

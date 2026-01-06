@@ -6,12 +6,7 @@ import { cn, formatTimestamp, downloadPDBFile } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -37,6 +32,7 @@ import {
 } from 'lucide-react';
 import { HelixIcon } from '@/components/icons/ProteinIcon';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { UserMenu } from '@/components/UserMenu';
 import { Folder, Asset, StructureArtifact } from '@/lib/types';
 import { pdbCache } from '@/hooks/useLazyPdb';
 
@@ -81,14 +77,17 @@ function FolderItem({
     setIsRenaming(false);
   }, [renameValue, folder.name, onRename]);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSubmitRename();
-    } else if (e.key === 'Escape') {
-      setIsRenaming(false);
-      setRenameValue(folder.name);
-    }
-  }, [handleSubmitRename, folder.name]);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        handleSubmitRename();
+      } else if (e.key === 'Escape') {
+        setIsRenaming(false);
+        setRenameValue(folder.name);
+      }
+    },
+    [handleSubmitRename, folder.name]
+  );
 
   const handleDownload = useCallback((asset: Asset) => {
     const blob = new Blob([asset.content], { type: 'text/plain' });
@@ -118,8 +117,8 @@ function FolderItem({
         <ContextMenuTrigger asChild>
           <div
             className={cn(
-              "flex items-center gap-1 px-1 py-0.5 rounded cursor-pointer group",
-              isActive ? "bg-cf-highlight-strong" : "hover:bg-cf-highlight"
+              'flex items-center gap-1 px-1 py-0.5 rounded cursor-pointer group',
+              isActive ? 'bg-cf-highlight-strong' : 'hover:bg-cf-highlight'
             )}
             onClick={onSelect}
           >
@@ -162,9 +161,7 @@ function FolderItem({
                 autoFocus
               />
             ) : (
-              <span className="text-[13px] truncate flex-1 text-cf-text">
-                {folder.name}
-              </span>
+              <span className="text-[13px] truncate flex-1 text-cf-text">{folder.name}</span>
             )}
           </div>
         </ContextMenuTrigger>
@@ -262,9 +259,7 @@ function FolderItem({
           {/* Empty State */}
           {folder.inputs.length === 0 && folder.outputs.length === 0 && (
             <li className="ml-2 px-1 py-1">
-              <span className="text-[11px] text-cf-text-muted italic">
-                No files yet
-              </span>
+              <span className="text-[11px] text-cf-text-muted italic">No files yet</span>
             </li>
           )}
         </ul>
@@ -307,77 +302,96 @@ export function Sidebar() {
     }
   };
 
-  const handleDeleteConversation = useCallback((convId: string) => {
-    deleteConversation(convId);
-    setConfirmingDeleteId(null);
-  }, [deleteConversation]);
+  const handleDeleteConversation = useCallback(
+    (convId: string) => {
+      deleteConversation(convId);
+      setConfirmingDeleteId(null);
+    },
+    [deleteConversation]
+  );
 
   const handleNewFolder = () => {
     createFolder();
   };
 
-  const handleFileSelect = useCallback((files: FileList | null) => {
-    if (!files || files.length === 0) return;
+  const handleFileSelect = useCallback(
+    (files: FileList | null) => {
+      if (!files || files.length === 0) return;
 
-    // Create a new folder for the uploaded files
-    let folderId = activeFolderId;
-    if (!folderId) {
-      folderId = createFolder();
-    }
+      // Create a new folder for the uploaded files
+      let folderId = activeFolderId;
+      if (!folderId) {
+        folderId = createFolder();
+      }
 
-    // Also maintain backward compatibility with conversations
-    let convId = activeConversationId;
-    if (!convId) {
-      convId = createConversation();
-    }
+      // Also maintain backward compatibility with conversations
+      let convId = activeConversationId;
+      if (!convId) {
+        convId = createConversation();
+      }
 
-    Array.from(files).forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const content = e.target?.result as string;
-        const type = file.name.toLowerCase().endsWith('.pdb') ? 'pdb' : 'fasta';
+      Array.from(files).forEach((file) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const content = e.target?.result as string;
+          const type = file.name.toLowerCase().endsWith('.pdb') ? 'pdb' : 'fasta';
 
-        // Add to folder
-        addFolderInput(folderId!, {
-          name: file.name,
-          type,
-          content
-        });
+          // Add to folder
+          addFolderInput(folderId!, {
+            name: file.name,
+            type,
+            content,
+          });
 
-        // Also add to conversation for backward compatibility
-        addAsset(convId!, {
-          name: file.name,
-          type,
-          content
-        });
+          // Also add to conversation for backward compatibility
+          addAsset(convId!, {
+            name: file.name,
+            type,
+            content,
+          });
+        };
+        reader.readAsText(file);
+      });
+    },
+    [
+      activeFolderId,
+      activeConversationId,
+      createFolder,
+      createConversation,
+      addFolderInput,
+      addAsset,
+    ]
+  );
+
+  const handleOpenStructure = useCallback(
+    async (structure: StructureArtifact) => {
+      let pdbData: string | undefined = structure.pdbData;
+      if (!pdbData) {
+        // Lazy load PDB data
+        const loaded = await pdbCache.get(structure.structureId);
+        if (loaded) pdbData = loaded;
+      }
+      if (pdbData) {
+        openStructureTab({ ...structure, pdbData }, pdbData);
+      }
+    },
+    [openStructureTab]
+  );
+
+  const handleOpenAsset = useCallback(
+    (asset: Asset) => {
+      // Convert Asset to a structure-like object for the viewer
+      const structure: StructureArtifact = {
+        type: 'structure',
+        structureId: asset.id,
+        label: asset.name,
+        filename: asset.name,
+        pdbData: asset.content,
       };
-      reader.readAsText(file);
-    });
-  }, [activeFolderId, activeConversationId, createFolder, createConversation, addFolderInput, addAsset]);
-
-  const handleOpenStructure = useCallback(async (structure: StructureArtifact) => {
-    let pdbData: string | undefined = structure.pdbData;
-    if (!pdbData) {
-      // Lazy load PDB data
-      const loaded = await pdbCache.get(structure.structureId);
-      if (loaded) pdbData = loaded;
-    }
-    if (pdbData) {
-      openStructureTab({ ...structure, pdbData }, pdbData);
-    }
-  }, [openStructureTab]);
-
-  const handleOpenAsset = useCallback((asset: Asset) => {
-    // Convert Asset to a structure-like object for the viewer
-    const structure: StructureArtifact = {
-      type: 'structure',
-      structureId: asset.id,
-      label: asset.name,
-      filename: asset.name,
-      pdbData: asset.content
-    };
-    openStructureTab(structure, asset.content);
-  }, [openStructureTab]);
+      openStructureTab(structure, asset.content);
+    },
+    [openStructureTab]
+  );
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -385,7 +399,10 @@ export function Sidebar() {
         {/* Header */}
         <header className="flex items-center justify-between px-3 h-10 border-b border-cf-border">
           <div className="flex items-center gap-1 opacity-80">
-            <div className="w-5 h-5 bg-gradient-to-br from-purple-500 to-pink-500 rounded-md" aria-hidden="true" />
+            <div
+              className="w-5 h-5 bg-gradient-to-br from-purple-500 to-pink-500 rounded-md"
+              aria-hidden="true"
+            />
             <span className="text-sm font-semibold text-cf-text">ChatFold</span>
           </div>
           <Tooltip>
@@ -470,7 +487,7 @@ export function Sidebar() {
           <nav aria-label="Project files">
             {/* Folders List */}
             <ul role="tree" aria-label="Folders">
-              {folders.map(folder => (
+              {folders.map((folder) => (
                 <FolderItem
                   key={folder.id}
                   folder={folder}
@@ -489,15 +506,12 @@ export function Sidebar() {
             {folders.length === 0 && (
               <div className="text-center py-6 px-2">
                 <HelixIcon className="w-8 h-8 mx-auto mb-2 text-cf-text-muted opacity-30" />
-                <p className="text-[12px] text-cf-text-muted">
-                  No projects yet
-                </p>
+                <p className="text-[12px] text-cf-text-muted">No projects yet</p>
                 <p className="text-[11px] text-cf-text-muted mt-1">
                   Upload files or paste a sequence to create one
                 </p>
               </div>
             )}
-
           </nav>
         </ScrollArea>
 
@@ -513,62 +527,72 @@ export function Sidebar() {
           <ScrollArea className="max-h-[160px]">
             <ul role="list">
               {conversations
-                .filter(conv => conv.messages.length > 0 || conv.id === activeConversationId)
-                .map(conv => (
-                <li key={conv.id} className="group relative">
-                  {confirmingDeleteId === conv.id ? (
-                    // Confirmation UI
-                    <div className="flex items-center justify-between px-2 py-1.5 bg-cf-error/10 rounded">
-                      <span className="text-[11px] text-cf-error">Delete?</span>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-5 px-2 text-[10px] text-cf-text-muted hover:text-cf-text hover:bg-cf-highlight"
-                          onClick={() => setConfirmingDeleteId(null)}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-5 px-2 text-[10px] text-cf-error hover:text-cf-error/80 hover:bg-cf-error/20"
-                          onClick={() => handleDeleteConversation(conv.id)}
-                        >
-                          Delete
-                        </Button>
+                .filter((conv) => conv.messages.length > 0 || conv.id === activeConversationId)
+                .map((conv) => (
+                  <li key={conv.id} className="group relative">
+                    {confirmingDeleteId === conv.id ? (
+                      // Confirmation UI
+                      <div className="flex items-center justify-between px-2 py-1.5 bg-cf-error/10 rounded">
+                        <span className="text-[11px] text-cf-error">Delete?</span>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-5 px-2 text-[10px] text-cf-text-muted hover:text-cf-text hover:bg-cf-highlight"
+                            onClick={() => setConfirmingDeleteId(null)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-5 px-2 text-[10px] text-cf-error hover:text-cf-error/80 hover:bg-cf-error/20"
+                            onClick={() => handleDeleteConversation(conv.id)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    // Normal conversation item
-                    <div
-                      className={cn(
-                        "flex items-center w-full h-auto px-2 py-1 rounded cursor-pointer",
-                        conv.id === activeConversationId ? "bg-cf-highlight-strong" : "hover:bg-cf-highlight"
-                      )}
-                      onClick={() => setActiveConversation(conv.id)}
-                    >
-                      <div className="flex-1 min-w-0 text-left">
-                        <p className="text-[12px] font-medium text-cf-text truncate">{conv.title}</p>
-                        <p className="text-[10px] text-cf-text-muted">{formatTimestamp(conv.updatedAt)}</p>
-                      </div>
-                      <Button
-                        variant="ghost-icon-danger"
-                        size="icon"
-                        className="h-5 w-5 opacity-0 group-hover:opacity-100"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setConfirmingDeleteId(conv.id);
-                        }}
+                    ) : (
+                      // Normal conversation item
+                      <div
+                        className={cn(
+                          'flex items-center w-full h-auto px-2 py-1 rounded cursor-pointer',
+                          conv.id === activeConversationId
+                            ? 'bg-cf-highlight-strong'
+                            : 'hover:bg-cf-highlight'
+                        )}
+                        onClick={() => setActiveConversation(conv.id)}
                       >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  )}
+                        <div className="flex-1 min-w-0 text-left">
+                          <p className="text-[12px] font-medium text-cf-text truncate">
+                            {conv.title}
+                          </p>
+                          <p className="text-[10px] text-cf-text-muted">
+                            {formatTimestamp(conv.updatedAt)}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost-icon-danger"
+                          size="icon"
+                          className="h-5 w-5 opacity-0 group-hover:opacity-100"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmingDeleteId(conv.id);
+                          }}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              {conversations.filter(
+                (conv) => conv.messages.length > 0 || conv.id === activeConversationId
+              ).length === 0 && (
+                <li className="text-[11px] text-cf-text-muted text-center py-3">
+                  No conversations yet
                 </li>
-              ))}
-              {conversations.filter(conv => conv.messages.length > 0 || conv.id === activeConversationId).length === 0 && (
-                <li className="text-[11px] text-cf-text-muted text-center py-3">No conversations yet</li>
               )}
             </ul>
           </ScrollArea>
@@ -576,16 +600,7 @@ export function Sidebar() {
 
         {/* Footer */}
         <footer className="border-t border-cf-border p-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-pink-500" aria-hidden="true" />
-              <div>
-                <p className="text-[12px] font-medium text-cf-text">User</p>
-                <p className="text-[10px] text-cf-text-secondary">Free</p>
-              </div>
-            </div>
-            <ThemeToggle />
-          </div>
+          <UserMenu />
         </footer>
       </div>
     </TooltipProvider>

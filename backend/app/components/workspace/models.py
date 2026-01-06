@@ -15,12 +15,14 @@ from pydantic import BaseModel, Field
 
 class UserPlan(str, Enum):
     """User subscription plan."""
+
     free = "free"
     pro = "pro"
 
 
 class User(BaseModel):
     """User model for multi-user support."""
+
     id: str
     name: str
     email: str
@@ -39,6 +41,7 @@ class Asset(BaseModel):
     - uploads/{folder_id}/{asset_id}.fasta
     - uploads/{folder_id}/{asset_id}.pdb
     """
+
     id: str
     name: str
     type: Literal["fasta", "pdb", "text"]
@@ -58,6 +61,7 @@ class StructureArtifact(BaseModel):
     - structures/{job_id}/candidate_1.pdb
     - structures/{job_id}/final.pdb
     """
+
     type: Literal["structure"] = "structure"
     structureId: str
     label: str  # 'candidate-1', 'candidate-2', ..., 'final'
@@ -74,6 +78,7 @@ class Folder(BaseModel):
 
     Each folder has a 1:1 association with a conversation.
     """
+
     id: str
     projectId: str | None = None  # Parent project (MVP: project_default)
     name: str
@@ -92,6 +97,7 @@ class Project(BaseModel):
     MVP uses a single default project (project_default).
     Future: support multiple projects per user for better organization.
     """
+
     id: str
     userId: str  # Owner user ID
     name: str
@@ -102,14 +108,17 @@ class Project(BaseModel):
 
 # Request models
 
+
 class CreateFolderRequest(BaseModel):
     """Request to create a new folder."""
+
     name: str | None = None  # Auto-generate if not provided
     conversationId: str | None = None  # Optional conversation association
 
 
 class AddFolderInputRequest(BaseModel):
     """Request to add an input file to a folder."""
+
     name: str
     type: Literal["fasta", "pdb", "text"]
     content: str
