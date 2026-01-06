@@ -76,6 +76,45 @@ cd backend && uv run uvicorn app.main:app --reload --port 8000
 
 后端 API 文档: http://localhost:8000/docs
 
+### 3.4 测试序列数据
+
+项目提供预置测试序列，方便开发调试：
+
+**文件位置**: `web/src/test/fixtures/`
+
+| 文件 | 内容 | 用途 |
+|------|------|------|
+| `test_sequences.ts` | TypeScript 导出 | 代码中直接 import |
+| `insulin_a.fasta` | 胰岛素A链 (21 aa) | 快速测试 |
+| `ubiquitin.fasta` | 泛素蛋白 (76 aa) | 中等长度测试 |
+
+**使用方式**:
+
+```typescript
+import {
+  HEMOGLOBIN_BETA_SEQUENCE,  // 147 aa - 标准测试
+  GFP_SEQUENCE,               // 238 aa - 长序列测试
+  SAMPLE_SEQUENCES,           // 快捷按钮数组
+} from '@/test/fixtures/test_sequences';
+
+// 直接提交序列
+submit(HEMOGLOBIN_BETA_SEQUENCE);
+
+// 快捷按钮使用
+SAMPLE_SEQUENCES.map(s => (
+  <button onClick={() => setInput(s.sequence)}>{s.label}</button>
+));
+```
+
+**可用序列**:
+
+| 名称 | 长度 | 说明 |
+|------|------|------|
+| 胰岛素A链 | 21 aa | 最短，快速验证 |
+| 泛素蛋白 | 76 aa | 中等长度 |
+| 血红蛋白B链 | 147 aa | 标准测试序列 |
+| GFP | 238 aa | 长序列/压力测试 |
+
 ---
 
 ## 4. 项目结构
