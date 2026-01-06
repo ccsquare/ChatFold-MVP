@@ -43,40 +43,94 @@ node -v
 
 # 包管理器 (npm 或 pnpm)
 npm -v
+
+# Python 包管理器 uv (后端需要)
+uv --version
 ```
 
-### 3.2 启动前端开发服务器
+### 3.2 一键启动 (推荐)
+
+**使用启动脚本同时启动前后端**，脚本会自动处理依赖安装和端口冲突：
 
 ```bash
+# 在项目根目录执行
+./scripts/local-dev/start.sh
+```
+
+启动成功后会看到：
+```
+[OK] Backend running at http://localhost:28000
+[OK] API docs at http://localhost:28000/docs
+[OK] Frontend running at http://localhost:23000
+[OK] All services started!
+```
+
+**启动选项**:
+```bash
+./scripts/local-dev/start.sh           # 同时启动前后端 (默认)
+./scripts/local-dev/start.sh frontend  # 只启动前端
+./scripts/local-dev/start.sh backend   # 只启动后端
+```
+
+按 `Ctrl+C` 停止所有服务。
+
+### 3.3 手动启动 (分别启动)
+
+如果需要分别启动或调试，可以手动操作：
+
+**启动前先检查端口**:
+```bash
+# 检查端口是否被占用 (包括 IPv6)
+ss -tlnp | grep -E ':23000|:28000'
+
+# 如有残留进程，先终止
+kill $(ss -tlnp | grep ':23000' | sed -n 's/.*pid=\([0-9]*\).*/\1/p') 2>/dev/null
+kill $(ss -tlnp | grep ':28000' | sed -n 's/.*pid=\([0-9]*\).*/\1/p') 2>/dev/null
+```
+
+**启动后端** (终端 1):
+```bash
+cd backend
+uv sync                                           # 安装/同步依赖
+uv run uvicorn app.main:app --reload --port 28000
+```
+
+**启动前端** (终端 2):
+```bash
 cd web
-
-# 安装依赖
-npm install
-
-# 启动开发服务器 (端口 23000)
+npm install    # 首次需要安装依赖
 npm run dev
 ```
 
-访问 http://localhost:23000
-
-### 3.3 启动后端服务 (可选)
-
-如需完整功能测试，需启动后端：
+### 3.4 验证服务
 
 ```bash
-# 方式 1: 零依赖模式 (推荐，无需 Docker)
-cd backend
-uv sync
-uv run uvicorn app.main:app --reload --port 28000
+# 验证后端
+curl http://localhost:28000/api/v1/health
+# 期望输出: {"status":"healthy"}
 
-# 方式 2: 完整模式 (需要 Docker)
-./scripts/local-dev/start.sh  # 启动 MySQL + Redis
-cd backend && uv run uvicorn app.main:app --reload --port 28000
+# 验证前端
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:23000
+# 期望输出: 200
 ```
 
-后端 API 文档: http://localhost:28000/docs
+**服务地址**:
+| 服务 | 地址 |
+|------|------|
+| 前端 | http://localhost:23000 |
+| 后端 | http://localhost:28000 |
+| API 文档 | http://localhost:28000/docs |
 
-### 3.4 测试序列数据
+### 3.5 常见启动问题
+
+| 问题 | 原因 | 解决方案 |
+|------|------|----------|
+| `EADDRINUSE: address already in use` | 端口被占用 | 使用启动脚本 (自动清理) 或手动 kill 进程 |
+| `lsof` 未检测到端口占用 | IPv6 监听 | 改用 `ss -tlnp` 检查端口 |
+| 前端编译慢 | 首次启动需编译 | 耐心等待，后续热更新会很快 |
+| 后端 import 错误 | 依赖未安装 | 执行 `uv sync` |
+
+### 3.6 测试序列数据
 
 项目提供预置测试序列，方便开发调试：
 
