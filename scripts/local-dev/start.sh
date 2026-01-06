@@ -84,9 +84,20 @@ start_frontend() {
     # Kill existing process on port 23000
     kill_port 23000
 
+    # Verify port is actually free before starting
+    if check_port 23000; then
+        log_error "Port 23000 is still in use after cleanup, waiting..."
+        sleep 3
+        kill_port 23000
+    fi
+
     # Start Next.js dev server
+    log_info "Starting Next.js dev server..."
     npm run dev &
     FRONTEND_PID=$!
+
+    # Give npm run dev time to actually start binding the port
+    sleep 3
 
     # Wait for server to be ready
     log_info "Waiting for frontend to be ready..."
