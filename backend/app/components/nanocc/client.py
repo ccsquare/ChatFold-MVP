@@ -16,6 +16,7 @@ NANOCC_TIMEOUT = float(os.getenv("NANOCC_TIMEOUT", "120"))
 @dataclass
 class NanoCCEvent:
     """Parsed NanoCC SSE event."""
+
     event_type: Literal["text", "tool_use", "tool_result", "done", "error"]
     data: dict
 
@@ -23,6 +24,7 @@ class NanoCCEvent:
 @dataclass
 class NanoCCSession:
     """NanoCC session information."""
+
     session_id: str
     created_at: str
 
@@ -49,27 +51,23 @@ class NanoCCClient:
             payload["working_directory"] = working_directory
 
         async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                f"{self.base_url}/sessions",
-                json=payload,
-                timeout=10.0
-            )
+            resp = await client.post(f"{self.base_url}/sessions", json=payload, timeout=10.0)
             resp.raise_for_status()
             data = resp.json()
             self._session_id = data["session_id"]
-            return NanoCCSession(
-                session_id=data["session_id"],
-                created_at=data["created_at"]
-            )
+            return NanoCCSession(session_id=data["session_id"], created_at=data["created_at"])
 
     async def send_message(self, session_id: str, content: str) -> AsyncGenerator[NanoCCEvent, None]:
         """Send a message and stream the response."""
-        async with httpx.AsyncClient() as client, client.stream(
-            "POST",
-            f"{self.base_url}/sessions/{session_id}/messages",
-            json={"content": content},
-            timeout=self.timeout
-        ) as response:
+        async with (
+            httpx.AsyncClient() as client,
+            client.stream(
+                "POST",
+                f"{self.base_url}/sessions/{session_id}/messages",
+                json={"content": content},
+                timeout=self.timeout,
+            ) as response,
+        ):
             response.raise_for_status()
 
             event_type = ""
@@ -90,10 +88,7 @@ class NanoCCClient:
     async def delete_session(self, session_id: str) -> bool:
         """Delete a NanoCC session."""
         async with httpx.AsyncClient() as client:
-            resp = await client.delete(
-                f"{self.base_url}/sessions/{session_id}",
-                timeout=10.0
-            )
+            resp = await client.delete(f"{self.base_url}/sessions/{session_id}", timeout=10.0)
             if resp.status_code == 404:
                 return False
             resp.raise_for_status()
@@ -102,10 +97,7 @@ class NanoCCClient:
     async def get_completion_logs(self, session_id: str) -> list[dict]:
         """Get completion logs for a session."""
         async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                f"{self.base_url}/sessions/{session_id}/completion_logs",
-                timeout=10.0
-            )
+            resp = await client.get(f"{self.base_url}/sessions/{session_id}/completion_logs", timeout=10.0)
             resp.raise_for_status()
             return resp.json().get("logs", [])
 

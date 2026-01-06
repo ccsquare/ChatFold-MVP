@@ -5,18 +5,19 @@
 ## 项目简介
 
 ChatFold 是一个 ChatGPT 风格的蛋白质折叠工作台，提供：
+
 - 实时流式折叠进度展示
-- 3D 蛋白质结构可视化 (Mol*)
+- 3D 蛋白质结构可视化 (Mol\*)
 - 多候选结构对比
 
 ## 环境要求
 
-| 工具 | 版本 | 说明 |
-|------|------|------|
-| Node.js | >= 18 | 前端运行环境 |
-| Python | >= 3.10 | 后端运行环境 |
-| Docker | >= 24 | MySQL/Redis 容器 |
-| uv | latest | Python 包管理器 |
+| 工具    | 版本    | 说明             |
+| ------- | ------- | ---------------- |
+| Node.js | >= 18   | 前端运行环境     |
+| Python  | >= 3.10 | 后端运行环境     |
+| Docker  | >= 24   | MySQL/Redis 容器 |
+| uv      | latest  | Python 包管理器  |
 
 ## 快速启动
 
@@ -82,13 +83,13 @@ ChatFold-MVP/
 
 ## 核心概念
 
-| 概念 | 说明 |
-|------|------|
-| **Folder** | 工作目录，包含输入文件和输出结构 |
-| **Conversation** | 对话会话，与 Folder 1:1 关联 |
-| **Message** | 单条消息 (user/assistant) |
-| **Task** | 折叠任务，产出 Structure |
-| **Structure** | 生成的 PDB 结构文件 |
+| 概念             | 说明                             |
+| ---------------- | -------------------------------- |
+| **Folder**       | 工作目录，包含输入文件和输出结构 |
+| **Conversation** | 对话会话，与 Folder 1:1 关联     |
+| **Message**      | 单条消息 (user/assistant)        |
+| **Task**         | 折叠任务，产出 Structure         |
+| **Structure**    | 生成的 PDB 结构文件              |
 
 ## 下一步
 
@@ -101,6 +102,7 @@ ChatFold-MVP/
 ### Q: 后端启动失败，提示连接 Redis 失败
 
 确保 Docker 容器已启动：
+
 ```bash
 docker ps | grep chatfold
 ```
@@ -108,6 +110,7 @@ docker ps | grep chatfold
 ### Q: 前端页面空白
 
 检查后端是否正常运行：
+
 ```bash
 curl http://localhost:8000/api/v1/health
 ```

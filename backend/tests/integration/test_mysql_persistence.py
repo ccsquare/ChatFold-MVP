@@ -172,24 +172,22 @@ class TestFolderAssetPersistence:
             db.add(user)
             db.flush()
 
-            project = Project(
-                id=project_id, user_id=user_id, name="Asset Project",
-                created_at=now, updated_at=now
-            )
+            project = Project(id=project_id, user_id=user_id, name="Asset Project", created_at=now, updated_at=now)
             db.add(project)
             db.flush()
 
-            folder = Folder(
-                id=folder_id, project_id=project_id, name="Asset Folder",
-                created_at=now, updated_at=now
-            )
+            folder = Folder(id=folder_id, project_id=project_id, name="Asset Folder", created_at=now, updated_at=now)
             db.add(folder)
             db.flush()
 
             asset = Asset(
-                id=asset_id, folder_id=folder_id, name="test.fasta",
-                type="fasta", file_path=f"/uploads/{folder_id}/{asset_id}.fasta",
-                size=1024, uploaded_at=now
+                id=asset_id,
+                folder_id=folder_id,
+                name="test.fasta",
+                type="fasta",
+                file_path=f"/uploads/{folder_id}/{asset_id}.fasta",
+                size=1024,
+                uploaded_at=now,
             )
             db.add(asset)
 
@@ -217,21 +215,14 @@ class TestConversationMessagePersistence:
 
         with get_db_session() as db:
             # Conversation without folder (folder_id=None is allowed)
-            conv = Conversation(
-                id=conv_id, folder_id=None, title="Test Conversation",
-                created_at=now, updated_at=now
-            )
+            conv = Conversation(id=conv_id, folder_id=None, title="Test Conversation", created_at=now, updated_at=now)
             db.add(conv)
             db.flush()
 
             # Add messages
-            msg1 = Message(
-                id=msg1_id, conversation_id=conv_id, role="user",
-                content="Hello", created_at=now
-            )
+            msg1 = Message(id=msg1_id, conversation_id=conv_id, role="user", content="Hello", created_at=now)
             msg2 = Message(
-                id=msg2_id, conversation_id=conv_id, role="assistant",
-                content="Hi there!", created_at=now + 1
+                id=msg2_id, conversation_id=conv_id, role="assistant", content="Hi there!", created_at=now + 1
             )
             db.add_all([msg1, msg2])
 
@@ -266,27 +257,34 @@ class TestJobStructurePersistence:
             db.add(user)
             db.flush()
 
-            project = Project(
-                id=project_id, user_id=user_id, name="Job Project",
-                created_at=now, updated_at=now
-            )
+            project = Project(id=project_id, user_id=user_id, name="Job Project", created_at=now, updated_at=now)
             db.add(project)
             db.flush()
 
             job = Job(
-                id=job_id, user_id=user_id, job_type="folding",
-                status="complete", stage="DONE",
+                id=job_id,
+                user_id=user_id,
+                job_type="folding",
+                status="complete",
+                stage="DONE",
                 sequence="MVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSH",
-                created_at=now, completed_at=now + 60000
+                created_at=now,
+                completed_at=now + 60000,
             )
             db.add(job)
             db.flush()
 
             structure = Structure(
-                id=struct_id, job_id=job_id, user_id=user_id, project_id=project_id,
-                label="candidate-1", filename="candidate_1.pdb",
+                id=struct_id,
+                job_id=job_id,
+                user_id=user_id,
+                project_id=project_id,
+                label="candidate-1",
+                filename="candidate_1.pdb",
                 file_path=f"/structures/{job_id}/candidate_1.pdb",
-                plddt_score=85, is_final=False, created_at=now
+                plddt_score=85,
+                is_final=False,
+                created_at=now,
             )
             db.add(structure)
 
@@ -319,18 +317,27 @@ class TestJobEventPersistence:
             db.flush()
 
             job = Job(
-                id=job_id, user_id=user_id, job_type="folding",
-                status="running", stage="MODEL",
-                sequence="MVLSPADKTNVKAAWG", created_at=now
+                id=job_id,
+                user_id=user_id,
+                job_type="folding",
+                status="running",
+                stage="MODEL",
+                sequence="MVLSPADKTNVKAAWG",
+                created_at=now,
             )
             db.add(job)
             db.flush()
 
             event = JobEvent(
-                id=event_id, job_id=job_id, event_type="THINKING_TEXT",
-                stage="MODEL", status="running", progress=50,
+                id=event_id,
+                job_id=job_id,
+                event_type="THINKING_TEXT",
+                stage="MODEL",
+                status="running",
+                progress=50,
                 message="Generating structure predictions...",
-                block_index=1, created_at=now
+                block_index=1,
+                created_at=now,
             )
             db.add(event)
 
@@ -364,40 +371,48 @@ class TestLearningRecordPersistence:
             db.add(user)
             db.flush()
 
-            project = Project(
-                id=project_id, user_id=user_id, name="ML Project",
-                created_at=now, updated_at=now
-            )
+            project = Project(id=project_id, user_id=user_id, name="ML Project", created_at=now, updated_at=now)
             db.add(project)
             db.flush()
 
             job = Job(
-                id=job_id, user_id=user_id, job_type="folding",
-                status="complete", stage="DONE",
+                id=job_id,
+                user_id=user_id,
+                job_type="folding",
+                status="complete",
+                stage="DONE",
                 sequence="MVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSH",
-                created_at=now, completed_at=now + 60000
+                created_at=now,
+                completed_at=now + 60000,
             )
             db.add(job)
             db.flush()
 
             structure = Structure(
-                id=struct_id, job_id=job_id, user_id=user_id, project_id=project_id,
-                label="final", filename="final.pdb",
+                id=struct_id,
+                job_id=job_id,
+                user_id=user_id,
+                project_id=project_id,
+                label="final",
+                filename="final.pdb",
                 file_path=f"/structures/{job_id}/final.pdb",
-                plddt_score=92, is_final=True, created_at=now
+                plddt_score=92,
+                is_final=True,
+                created_at=now,
             )
             db.add(structure)
             db.flush()
 
             # Create learning record
             record = LearningRecord(
-                id=record_id, job_id=job_id,
+                id=record_id,
+                job_id=job_id,
                 input_sequence="MVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSH",
                 thinking_block_count=5,
                 structure_count=3,
                 final_structure_id=struct_id,
                 final_plddt=92,
-                created_at=now
+                created_at=now,
             )
             db.add(record)
 
@@ -435,17 +450,18 @@ class TestForeignKeyRelationships:
             db.add(user)
             db.flush()
 
-            project = Project(
-                id=project_id, user_id=user_id, name="Will Cascade",
-                created_at=now, updated_at=now
-            )
+            project = Project(id=project_id, user_id=user_id, name="Will Cascade", created_at=now, updated_at=now)
             db.add(project)
             db.flush()
 
             job = Job(
-                id=job_id, user_id=user_id, job_type="folding",
-                status="queued", stage="QUEUED",
-                sequence="MVLSPADKTNVKAAWG", created_at=now
+                id=job_id,
+                user_id=user_id,
+                job_type="folding",
+                status="queued",
+                stage="QUEUED",
+                sequence="MVLSPADKTNVKAAWG",
+                created_at=now,
             )
             db.add(job)
 
@@ -472,25 +488,25 @@ class TestForeignKeyRelationships:
             db.add(user)
             db.flush()
 
-            project = Project(
-                id=project_id, user_id=user_id, name="Link Project",
-                created_at=now, updated_at=now
-            )
+            project = Project(id=project_id, user_id=user_id, name="Link Project", created_at=now, updated_at=now)
             db.add(project)
             db.flush()
 
             # Create folder first without conversation_id
             folder = Folder(
-                id=folder_id, project_id=project_id, name="Linked Folder",
-                conversation_id=None, created_at=now, updated_at=now
+                id=folder_id,
+                project_id=project_id,
+                name="Linked Folder",
+                conversation_id=None,
+                created_at=now,
+                updated_at=now,
             )
             db.add(folder)
             db.flush()
 
             # Create conversation with folder_id
             conv = Conversation(
-                id=conv_id, folder_id=folder_id, title="Linked Conversation",
-                created_at=now, updated_at=now
+                id=conv_id, folder_id=folder_id, title="Linked Conversation", created_at=now, updated_at=now
             )
             db.add(conv)
             db.flush()

@@ -13,7 +13,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.components.nanocc.job import EventType, JobEvent, StageType, StatusType
-from app.db.models import Base, Job, Project, Structure, User
+from app.db.models import Base, Job, Project, User
 from app.repositories.job import JobRepository
 from app.repositories.job_event import JobEventRepository
 from app.repositories.learning_record import LearningRecordRepository
@@ -128,9 +128,7 @@ class TestDualWrite:
         # Verify Redis was called
         job_state_svc.create_state.assert_called_once()
 
-    def test_create_job_state_redis_failure_still_succeeds(
-        self, db_session: Session, setup_data, mock_services
-    ):
+    def test_create_job_state_redis_failure_still_succeeds(self, db_session: Session, setup_data, mock_services):
         """MySQL success with Redis failure still returns True."""
         job_state_svc, sse_events_svc = mock_services
         job_state_svc.create_state.side_effect = Exception("Redis connection error")
@@ -266,9 +264,7 @@ class TestFallbackStrategy:
         assert state is not None
         assert state["status"] == "queued"  # From MySQL
 
-    def test_get_job_state_fallback_on_redis_error(
-        self, db_session: Session, setup_data, mock_services
-    ):
+    def test_get_job_state_fallback_on_redis_error(self, db_session: Session, setup_data, mock_services):
         """Fall back to MySQL when Redis throws an error."""
         job_state_svc, sse_events_svc = mock_services
         job_state_svc.get_state.side_effect = Exception("Redis connection error")

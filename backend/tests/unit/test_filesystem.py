@@ -6,7 +6,6 @@ Test cases from:
 - TC-13.6: Structure file storage
 """
 
-
 from app.services.filesystem import FileSystemService
 from app.settings import DEFAULT_PROJECT_ID, DEFAULT_USER_ID, settings
 

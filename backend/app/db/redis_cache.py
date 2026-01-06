@@ -50,7 +50,6 @@ from typing import Any
 import redis
 
 from app.db.redis_db import RedisDB
-from app.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -103,18 +102,9 @@ class RedisCache:
     def client(self) -> redis.Redis:
         """Lazy initialization of Redis client with shared connection pool"""
         if self._client is None:
-            redis_config = {
-                "host": settings.redis_host,
-                "port": settings.redis_port,
-                "db": self.db,  # Always 0 for Redis Cluster compatibility
-                "socket_connect_timeout": settings.redis_socket_connect_timeout,
-                "socket_timeout": settings.redis_socket_timeout,
-                "decode_responses": True,  # Auto-decode bytes to str
-            }
-            if settings.redis_password:
-                redis_config["password"] = settings.redis_password
+            from app.db.redis_factory import create_redis_client
 
-            self._client = redis.Redis(**redis_config)
+            self._client = create_redis_client(db=self.db)
             logger.info(f"RedisCache initialized: db={self.db} (single DB + key prefix pattern)")
 
         return self._client
@@ -236,8 +226,7 @@ class RedisCache:
         """
         try:
             # Serialize values to JSON strings
-            serialized = {k: json.dumps(v, default=str) if not isinstance(v, str) else v
-                          for k, v in mapping.items()}
+            serialized = {k: json.dumps(v, default=str) if not isinstance(v, str) else v for k, v in mapping.items()}
             self.client.hset(key, mapping=serialized)
             logger.debug(f"Hash set: {key}, fields: {list(mapping.keys())}")
             return True

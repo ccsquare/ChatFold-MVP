@@ -6,7 +6,6 @@ Test cases from:
 - TC-15.3: MVP convenience methods
 """
 
-
 from app.settings import DEFAULT_PROJECT_ID, DEFAULT_USER_ID, settings
 
 

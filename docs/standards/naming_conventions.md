@@ -4,11 +4,11 @@
 
 ## 1. 设计原则
 
-| 原则 | 说明 |
-|------|------|
-| **一致性优先** | 整个项目使用统一的命名规则 |
-| **语义清晰** | 名称应反映用途，而非类型 |
-| **避免冗余** | 不重复表达已知信息 |
+| 原则             | 说明                                        |
+| ---------------- | ------------------------------------------- |
+| **一致性优先**   | 整个项目使用统一的命名规则                  |
+| **语义清晰**     | 名称应反映用途，而非类型                    |
+| **避免冗余**     | 不重复表达已知信息                          |
 | **遵循社区惯例** | 参考 FastAPI、SQLAlchemy、Pydantic 官方文档 |
 
 ### 参考来源
@@ -43,6 +43,7 @@ class JobModel(Base): ...
 ```
 
 **理由**:
+
 - 类已继承 `Base`，添加 `Model` 后缀是冗余
 - 文件名 `models.py` 已表明这是模型定义
 - 与 Django、Flask-SQLAlchemy 社区惯例一致
@@ -55,13 +56,13 @@ class JobModel(Base): ...
 
 **规则**: 使用语义后缀表明用途
 
-| 后缀 | 用途 | 示例 |
-|------|------|------|
-| `Base` | 共享基类字段 | `UserBase`, `JobBase` |
-| `Create` | 创建请求 | `UserCreate`, `JobCreate` |
-| `Update` | 更新请求 | `UserUpdate`, `JobUpdate` |
-| `Public` / `Response` | API 响应 | `UserPublic`, `JobResponse` |
-| `InDB` | 数据库完整记录 | `UserInDB` (含敏感字段) |
+| 后缀                  | 用途           | 示例                        |
+| --------------------- | -------------- | --------------------------- |
+| `Base`                | 共享基类字段   | `UserBase`, `JobBase`       |
+| `Create`              | 创建请求       | `UserCreate`, `JobCreate`   |
+| `Update`              | 更新请求       | `UserUpdate`, `JobUpdate`   |
+| `Public` / `Response` | API 响应       | `UserPublic`, `JobResponse` |
+| `InDB`                | 数据库完整记录 | `UserInDB` (含敏感字段)     |
 
 ```python
 # app/schemas/user.py
@@ -153,25 +154,25 @@ nanocc_job.NanoCCJob  # Pydantic DTO
 
 ### ORM 实体 (`app/db/models.py`)
 
-| 类名 | 表名 | 说明 |
-|------|------|------|
-| `User` | `users` | 用户账户 |
-| `Project` | `projects` | 项目 |
-| `Folder` | `folders` | 工作目录 |
-| `Asset` | `assets` | 用户上传文件 |
-| `Conversation` | `conversations` | 对话会话 |
-| `Message` | `messages` | 消息 |
-| `Job` | `jobs` | 折叠任务 |
-| `Structure` | `structures` | 生成的结构 |
+| 类名           | 表名            | 说明         |
+| -------------- | --------------- | ------------ |
+| `User`         | `users`         | 用户账户     |
+| `Project`      | `projects`      | 项目         |
+| `Folder`       | `folders`       | 工作目录     |
+| `Asset`        | `assets`        | 用户上传文件 |
+| `Conversation` | `conversations` | 对话会话     |
+| `Message`      | `messages`      | 消息         |
+| `Job`          | `jobs`          | 折叠任务     |
+| `Structure`    | `structures`    | 生成的结构   |
 
 ### Repository (`app/repositories/`)
 
-| 类名 | 文件 | 说明 |
-|------|------|------|
-| `BaseRepository[T]` | `base.py` | 通用 CRUD 基类 |
-| `UserRepository` | `user.py` | 用户操作 |
-| `JobRepository` | `job.py` | 任务操作 |
-| `StructureRepository` | `structure.py` | 结构操作 |
+| 类名                  | 文件           | 说明           |
+| --------------------- | -------------- | -------------- |
+| `BaseRepository[T]`   | `base.py`      | 通用 CRUD 基类 |
+| `UserRepository`      | `user.py`      | 用户操作       |
+| `JobRepository`       | `job.py`       | 任务操作       |
+| `StructureRepository` | `structure.py` | 结构操作       |
 
 ---
 
@@ -273,6 +274,7 @@ class User(Base):
 ```
 
 **特点**:
+
 - 1:1 对应数据库表
 - 定义字段类型、约束、索引
 - 定义表间关系 (relationship)
@@ -307,6 +309,7 @@ class UserPublic(UserBase):
 ```
 
 **特点**:
+
 - 输入验证（类型、格式、范围）
 - 控制暴露哪些字段（安全）
 - 不同场景用不同 Schema
@@ -339,6 +342,7 @@ class UserRepository(BaseRepository[User]):
 ```
 
 **特点**:
+
 - 封装 SQL 查询逻辑
 - 提供语义化方法（`get_by_email` vs 原始 SQL）
 - 可包含简单业务逻辑（如密码哈希）
@@ -347,11 +351,11 @@ class UserRepository(BaseRepository[User]):
 
 ### 9.4 职责对比
 
-| 层 | 职责 | 面向 | 示例 |
-|----|------|------|------|
-| **ORM Entity** | 数据库映射 | 数据库 | `User` 类定义表结构 |
-| **Pydantic Schema** | 验证 & 序列化 | API 客户端 | `UserCreate` 验证输入 |
-| **Repository** | 数据访问抽象 | 业务层 | `user_repo.get_by_email()` |
+| 层                  | 职责          | 面向       | 示例                       |
+| ------------------- | ------------- | ---------- | -------------------------- |
+| **ORM Entity**      | 数据库映射    | 数据库     | `User` 类定义表结构        |
+| **Pydantic Schema** | 验证 & 序列化 | API 客户端 | `UserCreate` 验证输入      |
+| **Repository**      | 数据访问抽象  | 业务层     | `user_repo.get_by_email()` |
 
 ### 9.5 数据流示例
 
@@ -379,13 +383,13 @@ def create_user(request: UserCreate, db: Session = Depends(get_db)):
 
 ### 9.6 为什么需要三层？
 
-| 问题 | 解决方案 |
-|------|---------|
-| 直接暴露 ORM 会泄露敏感字段 | Schema 控制输出 |
-| 输入数据需要验证 | Schema 自动验证 |
-| SQL 逻辑散落各处难维护 | Repository 集中管理 |
-| 难以测试数据库操作 | Repository 可 mock |
-| 切换数据库改动大 | Repository 隔离变化 |
+| 问题                        | 解决方案            |
+| --------------------------- | ------------------- |
+| 直接暴露 ORM 会泄露敏感字段 | Schema 控制输出     |
+| 输入数据需要验证            | Schema 自动验证     |
+| SQL 逻辑散落各处难维护      | Repository 集中管理 |
+| 难以测试数据库操作          | Repository 可 mock  |
+| 切换数据库改动大            | Repository 隔离变化 |
 
 ---
 

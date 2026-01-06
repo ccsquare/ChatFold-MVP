@@ -15,6 +15,7 @@ from app.components.workspace.models import StructureArtifact
 
 class StageType(str, Enum):
     """Job execution stages."""
+
     QUEUED = "QUEUED"
     MSA = "MSA"
     MODEL = "MODEL"
@@ -26,6 +27,7 @@ class StageType(str, Enum):
 
 class StatusType(str, Enum):
     """Job status."""
+
     queued = "queued"
     running = "running"
     partial = "partial"
@@ -36,6 +38,7 @@ class StatusType(str, Enum):
 
 class JobType(str, Enum):
     """Type of NanoCC job."""
+
     folding = "folding"
     relaxation = "relaxation"
     # Future: docking, optimization, etc.
@@ -51,6 +54,7 @@ class EventType(str, Enum):
     - THINKING_PDB: Thinking with structure output (displayed in area 3+4 as thinking block)
     - CONCLUSION: Final conclusion message (displayed as completion message)
     """
+
     PROLOGUE = "PROLOGUE"
     ANNOTATION = "ANNOTATION"
     THINKING_TEXT = "THINKING_TEXT"
@@ -69,6 +73,7 @@ class JobEvent(BaseModel):
     - THINKING_PDB: Display in area 3+4 as thinking block with structure card
     - CONCLUSION: Display as final completion message
     """
+
     eventId: str
     jobId: str
     ts: int  # Unix timestamp in milliseconds
@@ -89,6 +94,7 @@ class NanoCCJob(BaseModel):
     - Structure relaxation
     - Other computational jobs
     """
+
     id: str
     conversationId: str
     jobType: JobType = JobType.folding
@@ -102,8 +108,10 @@ class NanoCCJob(BaseModel):
 
 # Request models
 
+
 class CreateJobRequest(BaseModel):
     """Request to create a new NanoCC job."""
+
     conversationId: str | None = None
     jobType: JobType = JobType.folding
     sequence: str | None = None
@@ -115,6 +123,7 @@ class CreateJobRequest(BaseModel):
         if v is None:
             return None
         from app.utils.sequence_validator import normalize_sequence
+
         return normalize_sequence(v)
 
     def get_validated_sequence(self) -> str:
@@ -138,5 +147,6 @@ class CreateJobRequest(BaseModel):
 
 class RegisterSequenceRequest(BaseModel):
     """Request to pre-register a sequence for streaming."""
+
     jobId: str
     sequence: str

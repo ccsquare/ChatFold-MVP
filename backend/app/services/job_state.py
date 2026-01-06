@@ -162,10 +162,7 @@ class JobStateService:
         }
 
         result = self._cache.hset(self._key(job_id), state)
-        logger.debug(
-            f"Updated job state: {job_id}, status={status.value}, "
-            f"stage={stage.value}, progress={progress}"
-        )
+        logger.debug(f"Updated job state: {job_id}, status={status.value}, stage={stage.value}, progress={progress}")
         return result
 
     def update_progress(
@@ -427,16 +424,13 @@ class JobStateService:
                         pipe.execute()
 
                         logger.debug(
-                            f"Updated job state with version: {job_id}, "
-                            f"version={expected_version}->{new_version}"
+                            f"Updated job state with version: {job_id}, version={expected_version}->{new_version}"
                         )
                         return (True, new_version)
 
                     except redis.WatchError:
                         # Key was modified by another client, retry
-                        logger.debug(
-                            f"WatchError for job {job_id}, retrying optimistic lock"
-                        )
+                        logger.debug(f"WatchError for job {job_id}, retrying optimistic lock")
                         continue
 
         except redis.RedisError as e:
@@ -582,7 +576,6 @@ class JobStateService:
         Returns:
             Tuple of (scanned_count, deleted_count)
         """
-        import time
 
         client = self._cache.client
         meta_prefix = "chatfold:job:meta:*"
@@ -626,9 +619,7 @@ class JobStateService:
                     created_at_raw = meta.get(b"created_at", meta.get("created_at"))
                     if created_at_raw:
                         created_at = int(
-                            created_at_raw.decode()
-                            if isinstance(created_at_raw, bytes)
-                            else created_at_raw
+                            created_at_raw.decode() if isinstance(created_at_raw, bytes) else created_at_raw
                         )
                         age_ms = current_time_ms - created_at
 
@@ -636,19 +627,14 @@ class JobStateService:
                             # Delete orphan metadata
                             client.delete(key)
                             deleted += 1
-                            logger.debug(
-                                f"Deleted orphan metadata: {job_id}, "
-                                f"age={age_ms / 3600000:.1f}h"
-                            )
+                            logger.debug(f"Deleted orphan metadata: {job_id}, age={age_ms / 3600000:.1f}h")
 
                 # Exit when scan complete
                 if cursor == 0:
                     break
 
             if deleted > 0:
-                logger.info(
-                    f"Orphan cleanup complete: scanned={scanned}, deleted={deleted}"
-                )
+                logger.info(f"Orphan cleanup complete: scanned={scanned}, deleted={deleted}")
 
             return (scanned, deleted)
 
@@ -709,11 +695,7 @@ class JobStateService:
                     if terminal_only:
                         status_raw = state.get(b"status", state.get("status"))
                         if status_raw:
-                            status = (
-                                status_raw.decode()
-                                if isinstance(status_raw, bytes)
-                                else status_raw
-                            )
+                            status = status_raw.decode() if isinstance(status_raw, bytes) else status_raw
                             if status not in terminal_statuses:
                                 continue  # Skip non-terminal jobs
 
@@ -721,9 +703,7 @@ class JobStateService:
                     updated_at_raw = state.get(b"updated_at", state.get("updated_at"))
                     if updated_at_raw:
                         updated_at = int(
-                            updated_at_raw.decode()
-                            if isinstance(updated_at_raw, bytes)
-                            else updated_at_raw
+                            updated_at_raw.decode() if isinstance(updated_at_raw, bytes) else updated_at_raw
                         )
                         age_ms = current_time_ms - updated_at
 
@@ -739,17 +719,13 @@ class JobStateService:
                             client.delete(meta_key)
 
                             deleted += 1
-                            logger.debug(
-                                f"Deleted stale job: {job_id}, age={age_ms / 3600000:.1f}h"
-                            )
+                            logger.debug(f"Deleted stale job: {job_id}, age={age_ms / 3600000:.1f}h")
 
                 if cursor == 0:
                     break
 
             if deleted > 0:
-                logger.info(
-                    f"Stale job cleanup complete: scanned={scanned}, deleted={deleted}"
-                )
+                logger.info(f"Stale job cleanup complete: scanned={scanned}, deleted={deleted}")
 
             return (scanned, deleted)
 

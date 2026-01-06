@@ -49,21 +49,21 @@ class RedisKeyPrefix(str, Enum):
     """
 
     # === Job 相关 ===
-    JOB_STATE = "chatfold:job:state"        # Job 实时状态 (Hash)
-    JOB_META = "chatfold:job:meta"          # Job 元数据 (Hash)
-    JOB_EVENTS = "chatfold:job:events"      # Job SSE 事件队列 (List)
+    JOB_STATE = "chatfold:job:state"  # Job 实时状态 (Hash)
+    JOB_META = "chatfold:job:meta"  # Job 元数据 (Hash)
+    JOB_EVENTS = "chatfold:job:events"  # Job SSE 事件队列 (List)
 
     # === Workspace 相关 ===
-    WORKSPACE_FOLDER = "chatfold:workspace:folder"    # Folder 数据 (String/JSON)
-    WORKSPACE_USER = "chatfold:workspace:user"        # User 数据 (String/JSON)
+    WORKSPACE_FOLDER = "chatfold:workspace:folder"  # Folder 数据 (String/JSON)
+    WORKSPACE_USER = "chatfold:workspace:user"  # User 数据 (String/JSON)
     WORKSPACE_PROJECT = "chatfold:workspace:project"  # Project 数据 (String/JSON)
-    WORKSPACE_INDEX = "chatfold:workspace:index"      # 索引集合 (Set)
+    WORKSPACE_INDEX = "chatfold:workspace:index"  # 索引集合 (Set)
 
     # === 会话相关 (未来) ===
     SESSION_USER = "chatfold:session:user"  # 用户会话 (Hash)
 
     # === 缓存相关 (未来) ===
-    CACHE_FILE = "chatfold:cache:file"          # 文件缓存
+    CACHE_FILE = "chatfold:cache:file"  # 文件缓存
     CACHE_STRUCTURE = "chatfold:cache:structure"  # 结构缓存
 
     # === 限流相关 (未来) ===
@@ -139,13 +139,7 @@ class RedisKeyPrefix(str, Enum):
     @classmethod
     def list_all(cls) -> dict:
         """列出所有已定义的 Key 前缀及其用途"""
-        return {
-            member.name: {
-                "prefix": member.value,
-                "description": cls.get_description(member)
-            }
-            for member in cls
-        }
+        return {member.name: {"prefix": member.value, "description": cls.get_description(member)} for member in cls}
 
 
 # ==================== 向后兼容 (deprecated) ====================
@@ -183,19 +177,11 @@ class RedisDB(IntEnum):
     @classmethod
     def get_description(cls, db: "RedisDB") -> str:
         """获取数据库用途描述 (deprecated)"""
-        warnings.warn(
-            "RedisDB is deprecated. Use RedisKeyPrefix instead.",
-            DeprecationWarning,
-            stacklevel=2
-        )
+        warnings.warn("RedisDB is deprecated. Use RedisKeyPrefix instead.", DeprecationWarning, stacklevel=2)
         return "所有功能使用 db=0 + Key 前缀隔离"
 
     @classmethod
     def list_all(cls) -> dict:
         """列出所有已定义的数据库 (deprecated)"""
-        warnings.warn(
-            "RedisDB is deprecated. Use RedisKeyPrefix.list_all() instead.",
-            DeprecationWarning,
-            stacklevel=2
-        )
+        warnings.warn("RedisDB is deprecated. Use RedisKeyPrefix.list_all() instead.", DeprecationWarning, stacklevel=2)
         return {"DEFAULT": {"db": 0, "description": "单一 DB + Key 前缀模式"}}

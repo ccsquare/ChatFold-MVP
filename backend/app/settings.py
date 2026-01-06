@@ -22,11 +22,7 @@ DEFAULT_PROJECT_ID = "project_default"
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 # 优先使用 .env.local（本地开发配置），如果不存在则使用 .env
-ENV_FILE = (
-    PROJECT_ROOT / ".env.local"
-    if (PROJECT_ROOT / ".env.local").exists()
-    else PROJECT_ROOT / ".env"
-)
+ENV_FILE = PROJECT_ROOT / ".env.local" if (PROJECT_ROOT / ".env.local").exists() else PROJECT_ROOT / ".env"
 
 
 class Settings(BaseSettings):
@@ -53,6 +49,12 @@ class Settings(BaseSettings):
     api_prefix: str = ""
 
     # ==================== 数据库配置 ====================
+    # 数据库类型: "sqlite" | "mysql"
+    # - sqlite: 本地开发，快速启动，无需容器
+    # - mysql: 生产环境，需要 Docker 容器或远程数据库
+    database_type: str = "sqlite"
+
+    # 显式数据库 URL（如果提供，将覆盖自动生成的 URL）
     database_url: str = ""
 
     # MySQL 特定配置
@@ -61,6 +63,11 @@ class Settings(BaseSettings):
     mysql_pool_pre_ping: bool = True
 
     # ==================== Redis 配置 ====================
+    # Redis 类型: "fake" | "docker"
+    # - fake: 内存模拟 Redis，无需 Docker 容器
+    # - docker: 真实 Redis，需要 Docker 容器或远程服务
+    redis_type: str = "fake"
+
     redis_host: str = "localhost"
     redis_port: int = 6379
     redis_index: int = 0
@@ -132,6 +139,67 @@ class Settings(BaseSettings):
     def get_project_root(cls) -> Path:
         """获取项目根目录的绝对路径"""
         return PROJECT_ROOT
+
+    def get_database_dir(self) -> Path:
+        """获取数据库文件目录
+
+        目录结构: {workspace}/databases/
+
+        Returns:
+            数据库文件存储目录的绝对路径
+        """
+        return self.get_workspace_root() / "databases"
+
+    def get_sqlite_path(self) -> Path:
+        """获取 SQLite 数据库文件路径
+
+        根据环境返回不同的数据库文件：
+        - test: :memory: (内存数据库)
+        - local-dev: {workspace}/databases/chatfold_dev.db
+        - production: {workspace}/databases/chatfold.db
+
+        Returns:
+            SQLite 数据库文件的绝对路径
+        """
+        if self.environment == "test":
+            return Path(":memory:")
+        elif self.environment == "local-dev":
+            db_dir = self.get_database_dir()
+            db_dir.mkdir(parents=True, exist_ok=True)
+            return db_dir / "chatfold_dev.db"
+        else:
+            db_dir = self.get_database_dir()
+            db_dir.mkdir(parents=True, exist_ok=True)
+            return db_dir / "chatfold.db"
+
+    def get_database_url_auto(self) -> str:
+        """自动生成数据库连接 URL
+
+        根据 database_type 配置自动生成：
+        - sqlite: sqlite:///{database_dir}/chatfold.db
+        - mysql: mysql+pymysql://user:pass@host:port/db
+
+        Returns:
+            数据库连接 URL
+        """
+        if self.database_url:
+            # 如果提供了显式 URL，直接使用
+            return self.database_url
+
+        if self.database_type == "sqlite":
+            sqlite_path = self.get_sqlite_path()
+            if str(sqlite_path) == ":memory:":
+                return "sqlite:///:memory:"
+            return f"sqlite:///{sqlite_path}"
+
+        # MySQL 配置（默认）
+        host = getattr(self, "mysql_host", "localhost")
+        port = getattr(self, "mysql_port", 3306)
+        user = getattr(self, "mysql_user", "chatfold")
+        password = getattr(self, "mysql_password", "chatfold_dev")
+        database = getattr(self, "mysql_database", "chatfold")
+
+        return f"mysql+pymysql://{user}:{password}@{host}:{port}/{database}?charset=utf8mb4"
 
     def is_local_dev(self) -> bool:
         """Check if running in local development mode."""

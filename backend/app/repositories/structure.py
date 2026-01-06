@@ -25,11 +25,7 @@ class StructureRepository(BaseRepository[Structure]):
         Returns:
             List of structures
         """
-        stmt = (
-            select(Structure)
-            .where(Structure.job_id == job_id)
-            .order_by(Structure.created_at.asc())
-        )
+        stmt = select(Structure).where(Structure.job_id == job_id).order_by(Structure.created_at.asc())
         result = db.execute(stmt)
         return list(result.scalars().all())
 

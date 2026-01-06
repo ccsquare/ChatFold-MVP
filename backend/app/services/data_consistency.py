@@ -448,7 +448,6 @@ class DataConsistencyService:
         try:
             status = StatusType(job.status) if job.status else StatusType.queued
             stage = StageType(job.stage) if job.stage else StageType.QUEUED
-            progress = 100 if job.status == "complete" else 0
 
             self._job_state_svc.create_state(job_id, status, stage)
             logger.info(f"Synced Redis from MySQL: {job_id}")

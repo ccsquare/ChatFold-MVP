@@ -85,10 +85,7 @@ class FileSystemService:
             logger.debug(f"Ensured directory exists: {dir_path}")
 
         self._initialized = True
-        logger.info(
-            f"FileSystem initialized: outputs={settings.get_outputs_root()}, "
-            f"logs={settings.get_logs_root()}"
-        )
+        logger.info(f"FileSystem initialized: outputs={settings.get_outputs_root()}, logs={settings.get_logs_root()}")
 
     @property
     def is_initialized(self) -> bool:

@@ -25,6 +25,7 @@ MOCK_DELAY_MAX = float(os.getenv("MOCK_NANOCC_DELAY_MAX", "5.0"))
 @dataclass
 class MockCoTMessage:
     """A single Chain-of-Thought message from the mock data."""
+
     type: str  # "PROLOGUE", "ANNOTATION", "THINKING", "CONCLUSION"
     state: str  # "MODEL" or "DONE"
     message: str
@@ -54,13 +55,15 @@ def load_mock_messages(file_path: str | None = None) -> list[MockCoTMessage]:
                 continue
             try:
                 data = json.loads(line)
-                messages.append(MockCoTMessage(
-                    type=data.get("TYPE", "THINKING"),  # Default to THINKING if not specified
-                    state=data.get("STATE", "MODEL"),
-                    message=data.get("MESSAGE", ""),
-                    pdb_file=data.get("pdb_file"),
-                    label=data.get("label"),
-                ))
+                messages.append(
+                    MockCoTMessage(
+                        type=data.get("TYPE", "THINKING"),  # Default to THINKING if not specified
+                        state=data.get("STATE", "MODEL"),
+                        message=data.get("MESSAGE", ""),
+                        pdb_file=data.get("pdb_file"),
+                        label=data.get("label"),
+                    )
+                )
             except json.JSONDecodeError:
                 continue
 
@@ -157,7 +160,7 @@ class MockNanoCCClient:
                     "type": msg.type,  # PROLOGUE, ANNOTATION, THINKING, CONCLUSION
                     "content": msg.message,
                     "state": msg.state,
-                }
+                },
             }
 
             # If there's a PDB file, yield it as a tool result
@@ -168,7 +171,7 @@ class MockNanoCCClient:
                         "pdb_file": msg.pdb_file,
                         "label": msg.label or "structure",
                         "message": msg.message,  # Include MESSAGE for Position 2 display
-                    }
+                    },
                 }
 
         # Signal completion
@@ -177,7 +180,7 @@ class MockNanoCCClient:
             "data": {
                 "input_tokens": 0,
                 "output_tokens": len(messages) * 100,  # Mock token count
-            }
+            },
         }
 
     async def delete_session(self, session_id: str) -> bool:

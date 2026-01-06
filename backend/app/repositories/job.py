@@ -33,13 +33,7 @@ class JobRepository(BaseRepository[Job]):
         Returns:
             List of jobs
         """
-        stmt = (
-            select(Job)
-            .where(Job.user_id == user_id)
-            .order_by(Job.created_at.desc())
-            .offset(skip)
-            .limit(limit)
-        )
+        stmt = select(Job).where(Job.user_id == user_id).order_by(Job.created_at.desc()).offset(skip).limit(limit)
         result = db.execute(stmt)
         return list(result.scalars().all())
 
@@ -59,11 +53,7 @@ class JobRepository(BaseRepository[Job]):
         Returns:
             List of jobs with the given status
         """
-        stmt = (
-            select(Job)
-            .where(Job.user_id == user_id, Job.status == status)
-            .order_by(Job.created_at.desc())
-        )
+        stmt = select(Job).where(Job.user_id == user_id, Job.status == status).order_by(Job.created_at.desc())
         result = db.execute(stmt)
         return list(result.scalars().all())
 
@@ -77,11 +67,7 @@ class JobRepository(BaseRepository[Job]):
         Returns:
             List of jobs
         """
-        stmt = (
-            select(Job)
-            .where(Job.conversation_id == conversation_id)
-            .order_by(Job.created_at.desc())
-        )
+        stmt = select(Job).where(Job.conversation_id == conversation_id).order_by(Job.created_at.desc())
         result = db.execute(stmt)
         return list(result.scalars().all())
 

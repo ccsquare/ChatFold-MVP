@@ -38,6 +38,7 @@ def api_base_url() -> str:
 def test_job_id() -> str:
     """Generate a test job ID"""
     import uuid
+
     return f"test_job_{uuid.uuid4().hex[:8]}"
 
 

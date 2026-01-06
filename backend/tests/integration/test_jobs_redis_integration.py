@@ -103,14 +103,14 @@ class TestJobEventsEndpoint:
         # Push some events
         for i in range(5):
             event = JobEvent(
-                eventId=f"evt_{job_id}_{i+1:04d}",
+                eventId=f"evt_{job_id}_{i + 1:04d}",
                 jobId=job_id,
                 ts=get_timestamp_ms(),
                 eventType=EventType.THINKING_TEXT,
                 stage=StageType.MODEL,
                 status=StatusType.running,
                 progress=i * 20,
-                message=f"Step {i+1}",
+                message=f"Step {i + 1}",
             )
             sse_events_service.push_event(event)
 
@@ -137,14 +137,14 @@ class TestJobEventsEndpoint:
         # Push 10 events
         for i in range(10):
             event = JobEvent(
-                eventId=f"evt_{job_id}_{i+1:04d}",
+                eventId=f"evt_{job_id}_{i + 1:04d}",
                 jobId=job_id,
                 ts=get_timestamp_ms(),
                 eventType=EventType.THINKING_TEXT,
                 stage=StageType.MODEL,
                 status=StatusType.running,
                 progress=i * 10,
-                message=f"Step {i+1}",
+                message=f"Step {i + 1}",
             )
             sse_events_service.push_event(event)
 

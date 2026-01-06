@@ -78,6 +78,7 @@ docker ps | grep chatfold
 ```
 
 预期输出：
+
 ```
 chatfold-mysql   ... Up ...
 chatfold-redis   ... Up ...
@@ -217,6 +218,7 @@ docker logs chatfold-redis
 ### Q: uv sync 失败
 
 确保 uv 已正确安装：
+
 ```bash
 uv --version
 ```
@@ -224,11 +226,13 @@ uv --version
 ### Q: Redis 连接失败
 
 1. 检查容器状态：
+
 ```bash
 docker ps | grep chatfold-redis
 ```
 
 2. 检查端口：
+
 ```bash
 lsof -i :6379
 ```
@@ -236,11 +240,13 @@ lsof -i :6379
 ### Q: MySQL 连接失败
 
 1. 检查容器状态：
+
 ```bash
 docker ps | grep chatfold-mysql
 ```
 
 2. 测试连接：
+
 ```bash
 docker exec -it chatfold-mysql mysql -u chatfold -pchatfold123 chatfold
 ```

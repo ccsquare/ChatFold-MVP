@@ -20,7 +20,7 @@ ChatFold 是一个 ChatGPT 风格的蛋白质折叠工作台，提供实时流�
 
 **输出**:
 
-- 3D 蛋白质结构可视化 (Mol*)
+- 3D 蛋白质结构可视化 (Mol\*)
 - 实时折叠进度 (SSE streaming)
 - 结构质量指标 (pLDDT, PAE)
 - 可下载的 PDB 结构文件
@@ -54,7 +54,7 @@ ChatFold-MVP/
 - **框架**: Next.js 14 / React 18 / TypeScript
 - **样式**: TailwindCSS
 - **状态管理**: Zustand
-- **3D 可视化**: Mol* 4.5.0
+- **3D 可视化**: Mol\* 4.5.0
 - **UI 组件**: shadcn/ui
 - **端口**: 3000
 
@@ -169,30 +169,30 @@ User → Project → Folder ◄──► Conversation → Message → Task → S
                    └── Asset
 ```
 
-| 概念 | 说明 |
-|------|------|
-| **User** | 用户账户 |
-| **Project** | 项目，用户的顶层组织单位 |
-| **Folder** | 工作目录，包含输入文件和输出结构 |
-| **Conversation** | 对话会话，与 Folder 1:1 关联 |
-| **Message** | 单条消息 (user/assistant/system) |
-| **Task** | 折叠任务，产出 Structure |
-| **Structure** | 生成的 PDB 结构文件 |
-| **Asset** | 用户上传的文件 |
+| 概念             | 说明                             |
+| ---------------- | -------------------------------- |
+| **User**         | 用户账户                         |
+| **Project**      | 项目，用户的顶层组织单位         |
+| **Folder**       | 工作目录，包含输入文件和输出结构 |
+| **Conversation** | 对话会话，与 Folder 1:1 关联     |
+| **Message**      | 单条消息 (user/assistant/system) |
+| **Task**         | 折叠任务，产出 Structure         |
+| **Structure**    | 生成的 PDB 结构文件              |
+| **Asset**        | 用户上传的文件                   |
 
 **详细说明**: [docs/developer/data_model.md](./docs/developer/data_model.md)
 
 ## 7. API 端点
 
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| `/api/v1/health` | GET | 健康检查 |
-| `/api/v1/users` | POST/GET | 用户 CRUD |
-| `/api/v1/folders` | POST/GET | 文件夹 CRUD |
-| `/api/v1/conversations` | POST/GET | 对话 CRUD |
-| `/api/v1/tasks` | POST/GET | 任务管理 |
-| `/api/v1/tasks/{id}/stream` | GET | SSE 折叠进度流 |
-| `/api/v1/structures/{id}` | GET | 下载 PDB 文件 |
+| 端点                        | 方法     | 说明           |
+| --------------------------- | -------- | -------------- |
+| `/api/v1/health`            | GET      | 健康检查       |
+| `/api/v1/users`             | POST/GET | 用户 CRUD      |
+| `/api/v1/folders`           | POST/GET | 文件夹 CRUD    |
+| `/api/v1/conversations`     | POST/GET | 对话 CRUD      |
+| `/api/v1/tasks`             | POST/GET | 任务管理       |
+| `/api/v1/tasks/{id}/stream` | GET      | SSE 折叠进度流 |
+| `/api/v1/structures/{id}`   | GET      | 下载 PDB 文件  |
 
 ### SSE 事件结构
 

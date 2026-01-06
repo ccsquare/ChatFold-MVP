@@ -27,7 +27,7 @@
 
 - **[sse_streaming.md](./features/sse_streaming.md)** - SSE 流式进度推送
 - **[folding_service.md](./features/folding_service.md)** - 蛋白质折叠服务集成
-- **[molstar_viewer.md](./features/molstar_viewer.md)** - Mol* 3D 结构查看器
+- **[molstar_viewer.md](./features/molstar_viewer.md)** - Mol\* 3D 结构查看器
 
 ### 运维文档 ([operations/](./operations/))
 
@@ -60,6 +60,7 @@ open docs/developer/getting_started.md
 ```
 
 推荐阅读顺序：
+
 1. [getting_started.md](./developer/getting_started.md) - 快速上手
 2. [architecture.md](./developer/architecture.md) - 了解架构
 3. [local_setup.md](./developer/local_setup.md) - 搭建环境
@@ -107,12 +108,12 @@ ChatFold-MVP/
 
 ## 技术栈
 
-| 层级 | 技术 |
-|------|------|
-| **前端** | Next.js 14, React 18, TypeScript, TailwindCSS, Zustand, Mol* |
-| **后端** | Python 3.10+, FastAPI, Pydantic, Redis |
-| **数据库** | MySQL (持久化), Redis (缓存/状态) |
-| **部署** | Docker, Kubernetes |
+| 层级       | 技术                                                          |
+| ---------- | ------------------------------------------------------------- |
+| **前端**   | Next.js 14, React 18, TypeScript, TailwindCSS, Zustand, Mol\* |
+| **后端**   | Python 3.10+, FastAPI, Pydantic, Redis                        |
+| **数据库** | MySQL (持久化), Redis (缓存/状态)                             |
+| **部署**   | Docker, Kubernetes                                            |
 
 ---
 

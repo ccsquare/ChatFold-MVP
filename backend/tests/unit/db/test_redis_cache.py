@@ -92,6 +92,7 @@ class TestRedisDB:
     def test_redis_db_deprecated_warning(self):
         """Test that RedisDB.get_description emits deprecation warning"""
         import warnings
+
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             RedisDB.get_description(RedisDB.JOB_STATE)

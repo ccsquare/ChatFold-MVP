@@ -70,6 +70,7 @@ def _is_job_canceled(job_id: str) -> bool:
     # Redis only - shared across all instances
     return job_state_service.is_canceled(job_id)
 
+
 # Job ID pattern
 JOB_ID_PATTERN = re.compile(r"^job_[a-z0-9]+$")
 
@@ -88,18 +89,21 @@ def _save_job_to_mysql(job: NanoCCJob) -> bool:
 
     try:
         with get_db_session() as db:
-            job_repository.create(db, {
-                "id": job.id,
-                "user_id": None,  # MVP: no user auth yet
-                "conversation_id": None,  # MVP: conversations in memory
-                "job_type": "folding",
-                "status": job.status.value,
-                "stage": "QUEUED",
-                "sequence": job.sequence,
-                "file_path": None,
-                "created_at": job.createdAt,
-                "completed_at": None,
-            })
+            job_repository.create(
+                db,
+                {
+                    "id": job.id,
+                    "user_id": None,  # MVP: no user auth yet
+                    "conversation_id": None,  # MVP: conversations in memory
+                    "job_type": "folding",
+                    "status": job.status.value,
+                    "stage": "QUEUED",
+                    "sequence": job.sequence,
+                    "file_path": None,
+                    "created_at": job.createdAt,
+                    "completed_at": None,
+                },
+            )
             db.commit()  # Explicit commit for clarity
         return True
     except Exception as e:
@@ -157,10 +161,7 @@ async def create_job(request: CreateJobRequest):
     if not _save_job_to_mysql(job):
         # MySQL failed in persistent mode - this is a critical error
         if not settings.use_memory_store:
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to create job: database error"
-            )
+            raise HTTPException(status_code=500, detail="Failed to create job: database error")
 
     # Step 2: Create job state and metadata in Redis (multi-instance support)
     # If this fails after MySQL success, cache can be rebuilt on read
