@@ -164,19 +164,19 @@ backend/app/components/nanocc/data/Mocking_CoT.nanocc.jsonl
 ### 4.2 后端独立开发
 
 **API 测试**:
-- Swagger UI: http://localhost:8000/docs
+- Swagger UI: http://localhost:28000/docs
 - Pytest: `uv run pytest`
 - cURL 脚本
 
 **无前端验证**:
 ```bash
 # 创建任务
-curl -X POST http://localhost:8000/api/v1/tasks \
+curl -X POST http://localhost:28000/api/v1/tasks \
   -H "Content-Type: application/json" \
   -d '{"sequence":"MKTA...", "conversationId":"conv_xxx"}'
 
 # 监听 SSE
-curl -N http://localhost:8000/api/v1/tasks/{id}/stream
+curl -N http://localhost:28000/api/v1/tasks/{id}/stream
 ```
 
 ---
@@ -200,14 +200,14 @@ curl -N http://localhost:8000/api/v1/tasks/{id}/stream
 ```bash
 # 1. 后端启动 (非 Mock 模式，可选)
 cd backend
-uv run uvicorn app.main:app --reload --port 8000
+uv run uvicorn app.main:app --reload --port 28000
 
 # 2. 前端启动
 cd web
 npm run dev
 
 # 3. 浏览器测试
-open http://localhost:3000
+open http://localhost:23000
 ```
 
 ### 5.3 问题排查
@@ -290,7 +290,7 @@ v{major}.{minor}.{patch}
 
 - [前端上手指南](./frontend_onboarding.md)
 - [工作项清单](./work_items.md)
-- [API 文档](http://localhost:8000/docs)
+- [API 文档](http://localhost:28000/docs)
 
 ---
 

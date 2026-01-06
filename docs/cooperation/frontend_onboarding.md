@@ -53,11 +53,11 @@ cd web
 # 安装依赖
 npm install
 
-# 启动开发服务器 (端口 3000)
+# 启动开发服务器 (端口 23000)
 npm run dev
 ```
 
-访问 http://localhost:3000
+访问 http://localhost:23000
 
 ### 3.3 启动后端服务 (可选)
 
@@ -67,14 +67,14 @@ npm run dev
 # 方式 1: 零依赖模式 (推荐，无需 Docker)
 cd backend
 uv sync
-uv run uvicorn app.main:app --reload --port 8000
+uv run uvicorn app.main:app --reload --port 28000
 
 # 方式 2: 完整模式 (需要 Docker)
 ./scripts/local-dev/start.sh  # 启动 MySQL + Redis
-cd backend && uv run uvicorn app.main:app --reload --port 8000
+cd backend && uv run uvicorn app.main:app --reload --port 28000
 ```
 
-后端 API 文档: http://localhost:8000/docs
+后端 API 文档: http://localhost:28000/docs
 
 ### 3.4 测试序列数据
 
@@ -369,7 +369,7 @@ git push origin feat/your-feature
 
 2. **联调模式**:
    - 启动后端服务
-   - 确认 API 端点可用: `curl http://localhost:8000/api/v1/health`
+   - 确认 API 端点可用: `curl http://localhost:28000/api/v1/health`
    - 前端请求代理到后端
 
 ---
@@ -390,7 +390,7 @@ const MolstarViewer = dynamic(
 ### Q: SSE 连接失败
 
 检查:
-1. 后端是否运行: `curl http://localhost:8000/api/v1/health`
+1. 后端是否运行: `curl http://localhost:28000/api/v1/health`
 2. CORS 配置是否正确
 3. 浏览器控制台错误信息
 

@@ -11,7 +11,7 @@
     "*.{json,css}": "prettier --write"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 23000",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
