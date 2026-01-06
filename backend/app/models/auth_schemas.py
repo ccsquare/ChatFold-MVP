@@ -13,6 +13,7 @@ class SendCodeResponse(BaseModel):
     """Response after sending verification code."""
 
     message: str
+    code: str | None = None  # Only in dev/test mode for auto-fill
 
 
 class UserRegister(BaseModel):

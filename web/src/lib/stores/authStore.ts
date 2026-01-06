@@ -14,6 +14,7 @@ import {
   type LoginRequest,
   type RegisterRequest,
   type UserResponse,
+  type SendCodeResponse,
 } from '../api/auth';
 
 export interface AuthState {
@@ -28,7 +29,7 @@ export interface AuthState {
   login: (data: LoginRequest) => Promise<void>;
   register: (data: RegisterRequest) => Promise<void>;
   logout: () => void;
-  sendCode: (email: string) => Promise<void>;
+  sendCode: (email: string) => Promise<SendCodeResponse>;
   loadUser: () => Promise<void>;
   clearError: () => void;
 }
@@ -47,8 +48,9 @@ export const useAuthStore = create<AuthState>()(
       sendCode: async (email: string) => {
         set({ isLoading: true, error: null });
         try {
-          await apiSendCode(email);
+          const response = await apiSendCode(email);
           set({ isLoading: false });
+          return response;
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Failed to send code';
           set({ isLoading: false, error: message });
