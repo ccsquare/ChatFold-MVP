@@ -72,6 +72,8 @@ tmp/
 
 # local-dev storage(for test)
 chatfold-workspace/
+!chatfold-workspace/databases/.gitkeep	
+!chatfold-workspace/databases/README.md
 
 # Playwright
 /test-results/
