@@ -90,20 +90,9 @@ start_backend() {
     log_info "Starting backend server..."
     cd "$BACKEND_DIR"
 
-    # Check if virtual environment exists
-    if [ ! -d "venv" ]; then
-        log_info "Creating Python virtual environment..."
-        python3 -m venv venv
-    fi
-
-    # Activate virtual environment
-    source venv/bin/activate
-
-    # Check if dependencies are installed
-    if ! pip show fastapi > /dev/null 2>&1; then
-        log_info "Installing backend dependencies..."
-        pip install -r requirements.txt
-    fi
+    # Sync dependencies using uv
+    log_info "Syncing backend dependencies with uv..."
+    uv sync
 
     # Kill existing process on port 28000
     kill_port 28000
