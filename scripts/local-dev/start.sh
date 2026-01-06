@@ -5,7 +5,9 @@
 
 set -e
 
-PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
+# Get the project root (two levels up from this script)
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 FRONTEND_DIR="$PROJECT_ROOT/web"
 BACKEND_DIR="$PROJECT_ROOT/backend"
 
@@ -63,8 +65,8 @@ start_frontend() {
         npm install
     fi
 
-    # Kill existing process on port 3000
-    kill_port 3000
+    # Kill existing process on port 23000
+    kill_port 23000
 
     # Start Next.js dev server
     npm run dev &
@@ -73,8 +75,8 @@ start_frontend() {
     # Wait for server to be ready
     log_info "Waiting for frontend to be ready..."
     for i in {1..30}; do
-        if curl -s http://localhost:3000 > /dev/null 2>&1; then
-            log_success "Frontend running at http://localhost:3000"
+        if curl -s http://localhost:23000 > /dev/null 2>&1; then
+            log_success "Frontend running at http://localhost:23000"
             return 0
         fi
         sleep 1
@@ -103,19 +105,19 @@ start_backend() {
         pip install -r requirements.txt
     fi
 
-    # Kill existing process on port 8000
-    kill_port 8000
+    # Kill existing process on port 28000
+    kill_port 28000
 
-    # Start FastAPI server
-    uvicorn app.main:app --reload --port 8000 &
+    # Start FastAPI server using uv
+    uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 28000 &
     BACKEND_PID=$!
 
     # Wait for server to be ready
     log_info "Waiting for backend to be ready..."
     for i in {1..30}; do
-        if curl -s http://localhost:8000/health > /dev/null 2>&1; then
-            log_success "Backend running at http://localhost:8000"
-            log_success "API docs at http://localhost:8000/docs"
+        if curl -s http://localhost:28000/api/v1/health > /dev/null 2>&1; then
+            log_success "Backend running at http://localhost:28000"
+            log_success "API docs at http://localhost:28000/docs"
             return 0
         fi
         sleep 1
@@ -127,8 +129,8 @@ start_backend() {
 # Cleanup function
 cleanup() {
     log_info "Shutting down servers..."
-    kill_port 3000
-    kill_port 8000
+    kill_port 23000
+    kill_port 28000
     log_success "Servers stopped"
     exit 0
 }
@@ -159,9 +161,9 @@ main() {
             echo ""
             log_success "All services started!"
             echo ""
-            echo "  Frontend: http://localhost:3000"
-            echo "  Backend:  http://localhost:8000"
-            echo "  API Docs: http://localhost:8000/docs"
+            echo "  Frontend: http://localhost:23000"
+            echo "  Backend:  http://localhost:28000"
+            echo "  API Docs: http://localhost:28000/docs"
             echo ""
             echo "Press Ctrl+C to stop all servers"
             ;;
