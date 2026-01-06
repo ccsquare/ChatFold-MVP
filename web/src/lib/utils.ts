@@ -10,7 +10,7 @@ export function cn(...inputs: ClassValue[]) {
  * Uses ?? instead of || so empty string uses relative path in production.
  */
 export function getBackendUrl(): string {
-  return process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:8000';
+  return process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:28000';
 }
 
 /**
