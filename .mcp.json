@@ -8,6 +8,10 @@
         "@playwright/mcp"
       ],
       "env": {}
+    },
+    "figma-desktop": {
+      "type": "http",
+      "url": "http://localhost:3845/mcp"
     }
   }
 }

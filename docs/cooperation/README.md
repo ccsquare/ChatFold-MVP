@@ -1,0 +1,30 @@
+# 前后端协作文档
+
+本目录包含前端工程师与后端工程师协作开发的相关文档。
+
+## 文档索引
+
+| 文档 | 说明 | 目标读者 |
+|------|------|----------|
+| [frontend_onboarding.md](./frontend_onboarding.md) | 快速上手指南 | 前端 |
+| [backend_concepts.md](./backend_concepts.md) | **后端概念与数据流** (EventType, SSE, API) | 前端 |
+| [collaboration_workflow.md](./collaboration_workflow.md) | 前后端协作流程规范 | 前端 + 后端 |
+| [work_items.md](./work_items.md) | 工作项清单与联调指南 | 前端 + 后端 |
+
+## 团队角色
+
+| 角色 | 职责 | 技术栈 |
+|------|------|--------|
+| **后端工程师** | API 设计与实现、折叠服务集成、数据模型 | Python, FastAPI, Redis |
+| **前端工程师** | UI 组件开发、Figma 设计还原、交互实现 | React, Next.js, TypeScript |
+
+## 核心原则
+
+1. **API 先行**: 先定义接口契约，再各自实现
+2. **Mock 优先**: 前端使用 Mock 数据独立开发，后端提供 Mock 模式
+3. **增量联调**: 功能模块完成后立即联调，避免积压
+4. **文档驱动**: 接口变更必须更新文档
+
+---
+
+**更新日期**: 2026-01-06
