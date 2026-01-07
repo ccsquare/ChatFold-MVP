@@ -1,12 +1,15 @@
 """NanoCC API client for AI-powered protein folding analysis."""
 
 import json
+import logging
 import os
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from typing import Literal
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 # NanoCC API configuration
 NANOCC_BASE_URL = os.getenv("NANOCC_BASE_URL", "http://127.0.0.1:8001")
@@ -82,7 +85,8 @@ class NanoCCClient:
                     try:
                         data = json.loads(line[5:])
                         yield NanoCCEvent(event_type=event_type, data=data)
-                    except json.JSONDecodeError:
+                    except json.JSONDecodeError as e:
+                        logger.warning(f"Skipping invalid JSON in NanoCC SSE stream: {line[:100]}... Error: {e}")
                         continue
 
     async def delete_session(self, session_id: str) -> bool:

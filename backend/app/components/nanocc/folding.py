@@ -19,11 +19,14 @@ Storage:
 - CHATFOLD_USE_MEMORY_STORE=true: saves to memory only (legacy)
 """
 
+import logging
 import os
 from collections.abc import AsyncGenerator
 from pathlib import Path
 
 from app.components.nanocc.job import EventType, JobEvent, StageType, StatusType
+
+logger = logging.getLogger(__name__)
 from app.components.nanocc.mock import MockNanoCCClient
 from app.components.workspace.models import StructureArtifact
 from app.services.structure_storage import structure_storage
@@ -54,8 +57,11 @@ def _read_pdb_file(pdb_path: str) -> str | None:
     if path.exists():
         try:
             return path.read_text(encoding="utf-8")
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Failed to read PDB file {path}: {e}")
             return None
+
+    logger.warning(f"PDB file not found: {path} (original path: {pdb_path})")
     return None
 
 
@@ -244,6 +250,12 @@ async def generate_mock_cot_events(
 
                     # Increment block index after THINKING_PDB
                     block_index += 1
+                else:
+                    # PDB file not found - log and skip this structure
+                    logger.warning(
+                        f"Skipping structure '{label}' for job {job_id}: "
+                        f"PDB file not readable (path: {pdb_path})"
+                    )
 
         elif event_type == "done":
             # Final done event

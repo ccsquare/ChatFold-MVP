@@ -7,11 +7,14 @@ realistic generation behavior.
 
 import asyncio
 import json
+import logging
 import os
 import random
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # Configuration
 # Default path relative to backend directory
@@ -64,7 +67,8 @@ def load_mock_messages(file_path: str | None = None) -> list[MockCoTMessage]:
                         label=data.get("label"),
                     )
                 )
-            except json.JSONDecodeError:
+            except json.JSONDecodeError as e:
+                logger.warning(f"Skipping invalid JSON line in mock data: {line[:100]}... Error: {e}")
                 continue
 
     return messages
