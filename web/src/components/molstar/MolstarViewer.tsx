@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useCallback, useState, useLayoutEffect, memo, forwardRef, useImperativeHandle } from 'react';
+import { useEffect, useRef, useCallback, useState, useLayoutEffect, memo, forwardRef, useImperativeHandle, useMemo } from 'react';
 import { useAppStore } from '@/lib/store';
 import { AtomInfo } from '@/lib/types';
 import { Loader2, AlertCircle, Maximize2, Minimize2, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
@@ -337,8 +337,91 @@ export const MolstarViewer = memo(forwardRef<MolstarViewerRef, MolstarViewerProp
   const isSpinningRef = useRef(false);
   const hasUserInteractedRef = useRef(false);
   const [retryCount, setRetryCount] = useState(0);
+  const [retryState, setRetryState] = useState<{
+    attempt: number;
+    type: 'init' | 'structure' | 'webgl';
+    lastError?: string;
+    backoffMs: number;
+  }>({ attempt: 0, type: 'init', backoffMs: 1000 });
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const maxRetryAttempts = 3;
+
+  // Different retry strategies for different error types (memoized to prevent dependency changes)
+  const retryStrategies = useMemo(() => ({
+    init: { maxAttempts: 3, baseDelay: 1000, maxDelay: 8000 },
+    structure: { maxAttempts: 2, baseDelay: 500, maxDelay: 4000 },
+    webgl: { maxAttempts: 1, baseDelay: 2000, maxDelay: 2000 }
+  }), []);
+
+  // Smart retry function with exponential backoff
+  const attemptRetry = useCallback(async (
+    errorType: 'init' | 'structure' | 'webgl',
+    errorMessage: string,
+    retryAction: () => Promise<void>
+  ): Promise<boolean> => {
+    const strategy = retryStrategies[errorType];
+    const currentState = retryState;
+
+    // Check if we should retry this error type
+    if (currentState.type !== errorType) {
+      // Reset retry state for new error type
+      setRetryState({
+        attempt: 0,
+        type: errorType,
+        lastError: errorMessage,
+        backoffMs: strategy.baseDelay
+      });
+    }
+
+    if (currentState.attempt >= strategy.maxAttempts || !isMountedRef.current) {
+      console.warn(`Max retry attempts (${strategy.maxAttempts}) reached for ${errorType} error`);
+      return false;
+    }
+
+    // Calculate exponential backoff delay
+    const attempt = currentState.attempt + 1;
+    const backoffDelay = Math.min(
+      strategy.baseDelay * Math.pow(2, attempt - 1) + Math.random() * 500, // Add jitter
+      strategy.maxDelay
+    );
+
+    console.warn(`${errorType} error (attempt ${attempt}/${strategy.maxAttempts}): ${errorMessage}`);
+    console.log(`Retrying in ${backoffDelay}ms...`);
+
+    // Update retry state
+    setRetryState({
+      attempt,
+      type: errorType,
+      lastError: errorMessage,
+      backoffMs: backoffDelay
+    });
+
+    // Clear existing timeout
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+    }
+
+    return new Promise((resolve) => {
+      retryTimeoutRef.current = setTimeout(async () => {
+        if (!isMountedRef.current) {
+          resolve(false);
+          return;
+        }
+
+        try {
+          await retryAction();
+          // Success - reset retry state
+          setRetryState({ attempt: 0, type: 'init', backoffMs: 1000 });
+          resolve(true);
+        } catch (retryError) {
+          console.warn(`Retry attempt ${attempt} failed:`, retryError);
+          // Attempt another retry if we haven't exceeded limits
+          const retrySuccess = await attemptRetry(errorType, String(retryError), retryAction);
+          resolve(retrySuccess);
+        }
+      }, backoffDelay);
+    });
+  }, [retryState, retryStrategies]);
 
   // WebGL readiness detection
   const checkWebGLSupport = useCallback((): Promise<boolean> => {
@@ -689,34 +772,29 @@ export const MolstarViewer = memo(forwardRef<MolstarViewerRef, MolstarViewerProp
     try {
       await initPromiseRef.current;
     } catch (err) {
-      // If initialization fails and we haven't exceeded retry limit, attempt automatic retry
-      if (retryCount < maxRetryAttempts && isMountedRef.current) {
-        console.warn(`Molstar initialization failed (attempt ${retryCount + 1}/${maxRetryAttempts}). Retrying in 2 seconds...`);
+      const errorMessage = err instanceof Error ? err.message : String(err);
 
-        setRetryCount(prev => prev + 1);
+      // Determine error type for smart retry strategy
+      let errorType: 'init' | 'structure' | 'webgl' = 'init';
+      if (errorMessage.toLowerCase().includes('webgl')) {
+        errorType = 'webgl';
+      }
 
-        // Schedule automatic retry after a delay
-        retryTimeoutRef.current = setTimeout(async () => {
-          if (!isMountedRef.current) return;
+      // Attempt smart retry with exponential backoff
+      const retrySuccess = await attemptRetry(errorType, errorMessage, async () => {
+        // Reset initialization promise to allow retry
+        initPromiseRef.current = null;
 
-          console.log(`Auto-retrying Molstar initialization (attempt ${retryCount + 1}/${maxRetryAttempts})`);
+        await initViewer();
+        // If successful, load structure
+        if (isMountedRef.current && pluginRef.current) {
+          await loadStructure();
+        }
+      });
 
-          // Reset initialization promise to allow retry
-          initPromiseRef.current = null;
-
-          try {
-            await initViewer();
-            // If successful, load structure
-            if (isMountedRef.current && pluginRef.current) {
-              await loadStructure();
-            }
-          } catch (retryErr) {
-            console.warn('Auto-retry failed:', retryErr);
-          }
-        }, 2000);
-      } else {
-        // Max retries exceeded or component unmounted, fall back to fallback renderer
-        console.error('Max retries exceeded or component unmounted, using fallback renderer');
+      if (!retrySuccess) {
+        // All retries failed, fall back to fallback renderer
+        console.error('All retry attempts failed, using fallback renderer');
         if (isMountedRef.current) {
           setUseFallback(true);
           setIsLoading(false);
@@ -725,7 +803,44 @@ export const MolstarViewer = memo(forwardRef<MolstarViewerRef, MolstarViewerProp
     } finally {
       initPromiseRef.current = null;
     }
-  }, [disposePlugin, retryCount, maxRetryAttempts, checkWebGLSupport]);
+  }, [disposePlugin, retryCount, maxRetryAttempts, checkWebGLSupport, attemptRetry]);
+
+  // Validate CIF file format and attempt conversion if needed
+  const validateAndFixStructureData = useCallback(async (data: string, format: string): Promise<{ data: string; format: 'pdb' | 'mmcif' | 'cif' }> => {
+    if (format !== 'cif' && format !== 'mmcif') {
+      return { data, format: format as 'pdb' | 'mmcif' | 'cif' };
+    }
+
+    // Check for common CIF parsing issues
+    const lines = data.split('\n');
+
+    // Basic CIF validation
+    const hasValidHeader = lines.some(line => line.trim().startsWith('data_'));
+    const hasAtomRecords = lines.some(line => line.includes('ATOM') || line.includes('_atom_site'));
+
+    if (!hasValidHeader) {
+      console.warn('CIF file missing valid header, attempting to fix...');
+      // Add a basic header if missing
+      data = 'data_structure\n' + data;
+    }
+
+    if (!hasAtomRecords) {
+      console.warn('CIF file appears to have no atom records, may cause parsing issues');
+    }
+
+    // Check for problematic characters that might cause parsing issues
+    if (data.includes('\0') || data.includes('\x00')) {
+      console.warn('CIF file contains null characters, cleaning...');
+      data = data.replace(/\0/g, '').replace(/\x00/g, '');
+    }
+
+    // Remove any trailing empty lines that might cause issues
+    data = data.replace(/\n+$/, '\n');
+
+    return { data, format: format as 'pdb' | 'mmcif' | 'cif' };
+  }, []);
+
+  // Convert CIF data to PDB format as a fallback
 
   // Load structure into viewer
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -771,20 +886,31 @@ export const MolstarViewer = memo(forwardRef<MolstarViewerRef, MolstarViewerProp
         plugin.canvas3d.handleResize();
       }
 
-      // Load PDB data from URL or raw data
+      // Load PDB data from URL or raw data with validation
       let dataObj;
+      let processedFormat = format;
+      let processedData = pdbData;
+
       if (pdbUrl) {
         dataObj = await plugin.builders.data.download(
           { url: Asset.Url(pdbUrl), isBinary: false },
           { state: { isGhost: true } }
         );
       } else if (pdbData) {
-        dataObj = await plugin.builders.data.rawData({ data: pdbData, label: structureId });
+        // Validate and potentially fix structure data
+        const validated = await validateAndFixStructureData(pdbData, format);
+        processedData = validated.data;
+        processedFormat = validated.format;
+
+        dataObj = await plugin.builders.data.rawData({
+          data: processedData,
+          label: structureId
+        });
       } else {
         return;
       }
 
-      const trajectory = await plugin.builders.structure.parseTrajectory(dataObj, format);
+      const trajectory = await plugin.builders.structure.parseTrajectory(dataObj, processedFormat);
 
       // Build model and structure manually for more control
       // Use 'empty' preset to prevent default representation from being added
@@ -931,10 +1057,27 @@ export const MolstarViewer = memo(forwardRef<MolstarViewerRef, MolstarViewerProp
       setIsLoading(false);
     } catch (err) {
       console.error('Failed to load structure:', err);
+      const errorMessage = err instanceof Error ? err.message : String(err);
+
+      // Attempt general retry with smart strategy
+      const retrySuccess = await attemptRetry('structure', errorMessage, async () => {
+        if (!pluginRef.current) {
+          throw new Error('Plugin not available for structure loading');
+        }
+
+        // Simply retry the same operation
+        await loadStructure();
+      });
+
+      if (retrySuccess) {
+        return; // Successful retry, exit
+      }
+
+      // All retries failed
       setError('Failed to load structure. Using fallback renderer.');
       renderFallback();
     }
-  }, [pdbData, structureId, parseAtomCount, minimalUI, startAutoSpin]);
+  }, [pdbData, structureId, parseAtomCount, minimalUI, startAutoSpin, attemptRetry]);
 
   // Generate thumbnail from canvas
   const generateThumbnail = useCallback(() => {
@@ -1821,11 +1964,16 @@ export const MolstarViewer = memo(forwardRef<MolstarViewerRef, MolstarViewerProp
             <Loader2 className="w-8 h-8 border-cf-accent animate-spin" aria-hidden="true" />
             <div className="text-center">
               <span className="text-sm text-cf-text-secondary">
-                {retryCount > 0 ? 'Retrying 3D viewer...' : 'Loading structure...'}
+                {retryState.attempt > 0
+                  ? `Retrying ${retryState.type === 'init' ? '3D viewer' : retryState.type}...`
+                  : 'Loading structure...'}
               </span>
-              {retryCount > 0 && (
+              {retryState.attempt > 0 && (
                 <div className="text-xs text-cf-text-muted mt-1">
-                  Attempt {retryCount} of {maxRetryAttempts}
+                  Attempt {retryState.attempt} of {retryStrategies[retryState.type].maxAttempts}
+                  {retryState.backoffMs > 1000 && (
+                    <span className="block">Next retry in {Math.ceil(retryState.backoffMs / 1000)}s</span>
+                  )}
                 </div>
               )}
             </div>
@@ -1839,16 +1987,20 @@ export const MolstarViewer = memo(forwardRef<MolstarViewerRef, MolstarViewerProp
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
               <span>3D renderer failed</span>
-              {retryCount > 0 && retryCount < maxRetryAttempts && (
+              {retryState.attempt > 0 && retryState.attempt < retryStrategies[retryState.type].maxAttempts && (
                 <span className="text-cf-text-muted">
-                  (attempt {retryCount}/{maxRetryAttempts})
+                  (attempt {retryState.attempt}/{retryStrategies[retryState.type].maxAttempts})
                 </span>
               )}
             </div>
-            {retryCount >= maxRetryAttempts ? (
-              <span className="text-xs text-cf-text-muted">Using fallback renderer</span>
+            {retryState.attempt >= retryStrategies[retryState.type].maxAttempts ? (
+              <span className="text-xs text-cf-text-muted">
+                Using fallback renderer - {retryState.type} retry limit reached
+              </span>
             ) : retryTimeoutRef.current ? (
-              <span className="text-xs text-cf-text-muted">Auto-retrying in 2s...</span>
+              <span className="text-xs text-cf-text-muted">
+                Auto-retrying {retryState.type} in {Math.ceil(retryState.backoffMs / 1000)}s...
+              </span>
             ) : (
               <button
                 onClick={handleRetry}

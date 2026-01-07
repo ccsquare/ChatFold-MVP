@@ -2,3 +2,4 @@
 web/public/images/*.png filter=lfs diff=lfs merge=lfs -text
 docs/**/*.png filter=lfs diff=lfs merge=lfs -text
 *.cif filter=lfs diff=lfs merge=lfs -text
+chatfold-workspace/**/*.cif !filter !diff !merge text
