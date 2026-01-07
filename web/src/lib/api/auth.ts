@@ -3,7 +3,11 @@
  * Handles all authentication-related API calls to the backend
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+import { config } from '@/config';
+
+// Use centralized configuration for API base URL
+// This ensures consistency with the main backend URL configuration
+const API_BASE_URL = config.backend.apiUrl;
 
 export interface SendCodeRequest {
   email: string;

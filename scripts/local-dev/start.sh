@@ -11,6 +11,40 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 FRONTEND_DIR="$PROJECT_ROOT/web"
 BACKEND_DIR="$PROJECT_ROOT/backend"
 
+# Load environment configuration
+log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+
+# Load environment configuration files in order of priority
+load_env_config() {
+    local env_file=""
+
+    # 1. Load .env.defaults first (base configuration)
+    if [ -f "$PROJECT_ROOT/.env.defaults" ]; then
+        export $(cat "$PROJECT_ROOT/.env.defaults" | grep -v '^#' | grep -v '^$' | xargs)
+        log_info "Loaded .env.defaults"
+    fi
+
+    # 2. Load environment-specific file (.env.development by default)
+    local node_env="${NODE_ENV:-development}"
+    env_file="$PROJECT_ROOT/.env.$node_env"
+    if [ -f "$env_file" ]; then
+        export $(cat "$env_file" | grep -v '^#' | grep -v '^$' | xargs)
+        log_info "Loaded .env.$node_env"
+    fi
+
+    # 3. Load .env.local for local overrides (highest priority)
+    if [ -f "$PROJECT_ROOT/.env.local" ]; then
+        export $(cat "$PROJECT_ROOT/.env.local" | grep -v '^#' | grep -v '^$' | xargs)
+        log_info "Loaded .env.local"
+    fi
+
+    # Set default ports if not configured
+    export FRONTEND_PORT="${FRONTEND_PORT:-23000}"
+    export BACKEND_PORT="${BACKEND_PORT:-28000}"
+
+    log_info "Using ports: Frontend=$FRONTEND_PORT, Backend=$BACKEND_PORT"
+}
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -81,14 +115,14 @@ start_frontend() {
         npm install
     fi
 
-    # Kill existing process on port 23000
-    kill_port 23000
+    # Kill existing process on frontend port
+    kill_port $FRONTEND_PORT
 
     # Verify port is actually free before starting
-    if check_port 23000; then
-        log_error "Port 23000 is still in use after cleanup, waiting..."
+    if check_port $FRONTEND_PORT; then
+        log_error "Port $FRONTEND_PORT is still in use after cleanup, waiting..."
         sleep 3
-        kill_port 23000
+        kill_port $FRONTEND_PORT
     fi
 
     # Start Next.js dev server
@@ -102,8 +136,8 @@ start_frontend() {
     # Wait for server to be ready
     log_info "Waiting for frontend to be ready..."
     for i in {1..30}; do
-        if curl -s http://localhost:23000 > /dev/null 2>&1; then
-            log_success "Frontend running at http://localhost:23000"
+        if curl -s http://localhost:$FRONTEND_PORT > /dev/null 2>&1; then
+            log_success "Frontend running at http://localhost:$FRONTEND_PORT"
             return 0
         fi
         sleep 1
@@ -121,19 +155,19 @@ start_backend() {
     log_info "Syncing backend dependencies with uv..."
     uv sync
 
-    # Kill existing process on port 28000
-    kill_port 28000
+    # Kill existing process on backend port
+    kill_port $BACKEND_PORT
 
     # Start FastAPI server using uv
-    uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 28000 &
+    uv run uvicorn app.main:app --reload --host 0.0.0.0 --port $BACKEND_PORT &
     BACKEND_PID=$!
 
     # Wait for server to be ready
     log_info "Waiting for backend to be ready..."
     for i in {1..30}; do
-        if curl -s http://localhost:28000/api/v1/health > /dev/null 2>&1; then
-            log_success "Backend running at http://localhost:28000"
-            log_success "API docs at http://localhost:28000/docs"
+        if curl -s http://localhost:$BACKEND_PORT/api/v1/health > /dev/null 2>&1; then
+            log_success "Backend running at http://localhost:$BACKEND_PORT"
+            log_success "API docs at http://localhost:$BACKEND_PORT/docs"
             return 0
         fi
         sleep 1
@@ -145,8 +179,8 @@ start_backend() {
 # Cleanup function
 cleanup() {
     log_info "Shutting down servers..."
-    kill_port 23000
-    kill_port 28000
+    kill_port $FRONTEND_PORT
+    kill_port $BACKEND_PORT
     log_success "Servers stopped"
     exit 0
 }
@@ -164,6 +198,9 @@ main() {
     echo "=========================================="
     echo ""
 
+    # Load environment configuration first
+    load_env_config
+
     case $mode in
         frontend|front|f)
             start_frontend
@@ -177,9 +214,9 @@ main() {
             echo ""
             log_success "All services started!"
             echo ""
-            echo "  Frontend: http://localhost:23000"
-            echo "  Backend:  http://localhost:28000"
-            echo "  API Docs: http://localhost:28000/docs"
+            echo "  Frontend: http://localhost:$FRONTEND_PORT"
+            echo "  Backend:  http://localhost:$BACKEND_PORT"
+            echo "  API Docs: http://localhost:$BACKEND_PORT/docs"
             echo ""
             echo "Press Ctrl+C to stop all servers"
             ;;

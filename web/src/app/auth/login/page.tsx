@@ -12,9 +12,13 @@ export default function LoginPage() {
     router.push('/');
   };
 
+  const handleSwitchToRegister = () => {
+    router.push('/auth/signup');
+  };
+
   return (
     <AuthLayout>
-      <LoginForm onSuccess={handleSuccess} />
+      <LoginForm onSuccess={handleSuccess} onSwitchToRegister={handleSwitchToRegister} />
     </AuthLayout>
   );
 }

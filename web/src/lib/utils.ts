@@ -6,11 +6,29 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Get the backend API URL from environment or default to localhost.
- * Uses ?? instead of || so empty string uses relative path in production.
+ * Get the backend API URL from centralized configuration.
+ *
+ * This function now uses the centralized config system which automatically
+ * handles environment detection and provides appropriate defaults.
+ *
+ * @deprecated Consider importing { getBackendUrl } from '@/config' directly
+ * @returns Backend base URL
  */
 export function getBackendUrl(): string {
-  return process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:28000';
+  // Dynamic import to avoid circular dependency issues
+  if (typeof window !== 'undefined') {
+    // Client-side: use environment variable directly for backward compatibility
+    return process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:28000';
+  } else {
+    // Server-side: use the new config system
+    try {
+      const { config } = require('@/config');
+      return config.backend.url;
+    } catch {
+      // Fallback if config module is not available
+      return process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:28000';
+    }
+  }
 }
 
 /**

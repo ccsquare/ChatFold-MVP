@@ -20,6 +20,14 @@ logger = setup_logging("chatfold")
 async def lifespan(app: FastAPI):
     """Manage application lifespan - startup and shutdown events."""
     # Startup
+    # Validate configuration
+    try:
+        settings.validate_configuration()
+        logger.info("✅ Configuration validation passed")
+    except ValueError as e:
+        logger.error(f"❌ Configuration validation failed: {e}")
+        raise
+
     filesystem_service.initialize()
 
     # CRITICAL WARNING: Memory store is not safe for multi-instance deployment

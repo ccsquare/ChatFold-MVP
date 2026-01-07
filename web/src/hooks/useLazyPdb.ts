@@ -1,6 +1,6 @@
 'use client';
 
-import { getBackendUrl } from '@/lib/utils';
+import { getBackendUrl } from '@/config';
 
 /**
  * Shared PDB cache for multiple components.

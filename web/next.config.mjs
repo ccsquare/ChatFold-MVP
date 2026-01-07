@@ -4,8 +4,10 @@
 // Set via NEXT_PUBLIC_BASE_PATH environment variable
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
-// Backend URL for API proxy (default: http://localhost:28000)
-const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:28000';
+// Backend URL for API proxy
+// Use 8000 as default for all environments to match backend setup
+const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ||
+                   `http://localhost:${process.env.BACKEND_PORT || '8000'}`;
 
 const nextConfig = {
   reactStrictMode: false, // Temporarily disabled to debug SSE issues

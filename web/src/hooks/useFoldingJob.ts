@@ -3,7 +3,7 @@
 import { useCallback, useRef, useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
 import { StepEvent, Job } from '@/lib/types';
-import { getBackendUrl } from '@/lib/utils';
+import { getBackendUrl } from '@/config';
 
 /**
  * Shared hook for managing protein folding jobs with SSE streaming.

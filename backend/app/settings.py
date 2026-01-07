@@ -10,6 +10,7 @@ IMPORTANT:
 
 from pathlib import Path
 
+from pydantic import computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # ==================== MVP 默认常量 ====================
@@ -37,8 +38,14 @@ class Settings(BaseSettings):
     port: int = 8000
     debug: bool = True
 
+    # ==================== 前端配置 (用于CORS自动生成) ====================
+    frontend_host: str = "localhost"
+    frontend_port: int = 3000
+
     # ==================== CORS 配置 ====================
-    cors_origins: list[str] = [
+    # DEPRECATED: Use computed_field cors_origins for auto-generation
+    # This field is kept for backward compatibility
+    cors_origins_manual: list[str] = [
         "http://localhost:3000",
         "http://localhost:3001",
         "http://127.0.0.1:3000",
@@ -124,6 +131,47 @@ class Settings(BaseSettings):
 
     # Instance identifier (for debugging multi-instance issues)
     instance_id: str = "default"
+
+    # ==================== 计算属性 ====================
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def cors_origins(self) -> list[str]:
+        """
+        Auto-generate CORS origins based on frontend configuration
+
+        This replaces the hardcoded cors_origins list and automatically
+        generates the appropriate CORS origins based on frontend_host and frontend_port.
+
+        Returns:
+            List of CORS origin URLs
+        """
+        frontend_url = f"http://{self.frontend_host}:{self.frontend_port}"
+        return [
+            frontend_url,
+            f"http://127.0.0.1:{self.frontend_port}",
+            f"http://localhost:{self.frontend_port}",
+            # Legacy support for common development ports
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ]
+
+    # ==================== 验证方法 ====================
+
+    def validate_configuration(self) -> None:
+        """
+        Validate configuration settings
+
+        Checks for common configuration issues like port conflicts.
+
+        Raises:
+            ValueError: If configuration is invalid
+        """
+        if self.port == self.frontend_port:
+            raise ValueError(
+                f"Port conflict: Backend port {self.port} conflicts with "
+                f"frontend port {self.frontend_port}"
+            )
 
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE),
