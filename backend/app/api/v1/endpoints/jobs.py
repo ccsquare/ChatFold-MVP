@@ -142,6 +142,10 @@ async def create_job(request: CreateJobRequest):
     2. Redis (cache layer) - for multi-instance state sharing
     3. Memory store (legacy fallback) - for backward compatibility
     """
+    logger.info(
+        f"POST /jobs: conversation_id={request.conversationId}, "
+        f"sequence_len={len(request.sequence) if request.sequence else 0}"
+    )
     try:
         sequence = request.get_validated_sequence()
     except ValueError as e:
@@ -191,6 +195,7 @@ async def create_job(request: CreateJobRequest):
 @router.get("")
 async def list_jobs(jobId: str | None = Query(None)):
     """List jobs or get a specific job by ID."""
+    logger.info(f"GET /jobs: jobId={jobId}")
     if jobId:
         job = storage.get_job(jobId)
         if not job:
@@ -204,6 +209,7 @@ async def list_jobs(jobId: str | None = Query(None)):
 @router.post("/{job_id}/stream")
 async def register_sequence(job_id: str, request: RegisterSequenceRequest):
     """Pre-register a sequence for streaming."""
+    logger.info(f"POST /jobs/{job_id}/stream: sequence_len={len(request.sequence)}")
     if not JOB_ID_PATTERN.match(job_id):
         raise HTTPException(status_code=400, detail="Invalid job ID")
 
@@ -229,6 +235,7 @@ async def cancel_job(job_id: str):
     across all application instances. The SSE stream will detect this
     status and terminate gracefully.
     """
+    logger.info(f"POST /jobs/{job_id}/cancel")
     if not JOB_ID_PATTERN.match(job_id):
         raise HTTPException(status_code=400, detail="Invalid job ID")
 
@@ -272,6 +279,10 @@ async def stream_job(
         sequence: Optional amino acid sequence (if not pre-registered)
         use_nanocc: Override NanoCC usage (default: USE_NANOCC env var)
     """
+    logger.info(
+        f"GET /jobs/{job_id}/stream: sequence_len={len(sequence) if sequence else 'None'}, "
+        f"nanocc={use_nanocc}"
+    )
     # Validate job_id format
     if not JOB_ID_PATTERN.match(job_id):
         raise HTTPException(status_code=400, detail="Invalid job ID")
@@ -387,6 +398,7 @@ async def get_job_state(job_id: str):
     This endpoint provides fast access to job status without
     requiring a database query.
     """
+    logger.info(f"GET /jobs/{job_id}/state")
     if not JOB_ID_PATTERN.match(job_id):
         raise HTTPException(status_code=400, detail="Invalid job ID")
 
@@ -413,6 +425,7 @@ async def get_job_events(
         offset: Start from this event index (0-based)
         limit: Maximum number of events to return
     """
+    logger.info(f"GET /jobs/{job_id}/events: offset={offset}, limit={limit}")
     if not JOB_ID_PATTERN.match(job_id):
         raise HTTPException(status_code=400, detail="Invalid job ID")
 

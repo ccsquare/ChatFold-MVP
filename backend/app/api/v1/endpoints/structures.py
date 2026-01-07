@@ -5,7 +5,11 @@ Supports two storage modes controlled by CHATFOLD_USE_MEMORY_STORE:
 - Filesystem mode: Stores on disk with memory cache
 """
 
+import logging
+
 from fastapi import APIRouter, HTTPException, Query
+
+logger = logging.getLogger(__name__)
 from fastapi.responses import Response
 
 from app.models.schemas import CachePDBRequest
@@ -51,6 +55,10 @@ async def get_structure(
         job_id: Job ID for filesystem lookup
         filename: Filename for filesystem lookup
     """
+    logger.info(
+        f"GET /structures/{structure_id}: job_id={job_id}, "
+        f"sequence_len={len(sequence) if sequence else 'None'}, filename={filename}"
+    )
     # Try to get from storage (checks memory cache, then filesystem if applicable)
     cached = structure_storage.get_structure(
         structure_id,
@@ -121,6 +129,10 @@ async def cache_structure(
         job_id: Job ID for filesystem path
         filename: Filename for filesystem storage
     """
+    logger.info(
+        f"POST /structures/{structure_id}: job_id={job_id}, "
+        f"data_len={len(request.pdbData) if request.pdbData else 0}, filename={filename}"
+    )
     if not request.pdbData:
         raise HTTPException(status_code=400, detail="pdbData is required")
 
@@ -150,6 +162,7 @@ async def get_structure_info(
         structure_id: Unique structure identifier
         job_id: Job ID for filesystem lookup
     """
+    logger.info(f"GET /structures/{structure_id}/info: job_id={job_id}")
     # Check if structure exists
     exists_in_memory = structure_id in structure_storage._memory_cache
 
