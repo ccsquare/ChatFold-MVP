@@ -336,6 +336,69 @@ export const MolstarViewer = memo(forwardRef<MolstarViewerRef, MolstarViewerProp
   const resetViewRef = useRef<() => void>(() => {});
   const isSpinningRef = useRef(false);
   const hasUserInteractedRef = useRef(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const maxRetryAttempts = 3;
+
+  // WebGL readiness detection
+  const checkWebGLSupport = useCallback((): Promise<boolean> => {
+    return new Promise((resolve) => {
+      try {
+        // Create a test canvas to check WebGL support
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl') as WebGLRenderingContext | null;
+
+        if (!gl) {
+          console.warn('WebGL not supported');
+          resolve(false);
+          return;
+        }
+
+        // Check for essential WebGL extensions
+        const requiredExtensions = [
+          'OES_element_index_uint',
+          'OES_standard_derivatives'
+        ];
+
+        let extensionsSupported = true;
+        for (const ext of requiredExtensions) {
+          if (!gl.getExtension(ext)) {
+            console.warn(`Required WebGL extension not supported: ${ext}`);
+            extensionsSupported = false;
+          }
+        }
+
+        // Test basic WebGL functionality
+        try {
+          const vertexShader = gl.createShader(gl.VERTEX_SHADER);
+          if (!vertexShader) {
+            console.warn('Failed to create WebGL vertex shader');
+            resolve(false);
+            return;
+          }
+
+          // Simple test shader
+          gl.shaderSource(vertexShader, 'attribute vec4 position; void main() { gl_Position = position; }');
+          gl.compileShader(vertexShader);
+
+          if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
+            console.warn('WebGL shader compilation test failed');
+            resolve(false);
+            return;
+          }
+
+          gl.deleteShader(vertexShader);
+          resolve(extensionsSupported);
+        } catch (e) {
+          console.warn('WebGL functionality test failed:', e);
+          resolve(false);
+        }
+      } catch (e) {
+        console.warn('WebGL support check failed:', e);
+        resolve(false);
+      }
+    });
+  }, []);
 
   // Camera sync hook for synchronizing views across multiple viewers
   useCameraSync(tabId, syncGroupId, syncEnabled && pluginReady, pluginRef);
@@ -422,8 +485,19 @@ export const MolstarViewer = memo(forwardRef<MolstarViewerRef, MolstarViewerProp
     setIsLoading(true);
     setError(null);
 
+    // Clear any pending retry timeout
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+    }
+
     initPromiseRef.current = (async () => {
       try {
+        // Check WebGL support before attempting Molstar initialization
+        const webglSupported = await checkWebGLSupport();
+        if (!webglSupported) {
+          throw new Error('WebGL not supported or not ready');
+        }
         // Use global module cache for better performance across multiple instances
         const modules = await loadMolstarModules();
         const {
@@ -614,10 +688,44 @@ export const MolstarViewer = memo(forwardRef<MolstarViewerRef, MolstarViewerProp
 
     try {
       await initPromiseRef.current;
+    } catch (err) {
+      // If initialization fails and we haven't exceeded retry limit, attempt automatic retry
+      if (retryCount < maxRetryAttempts && isMountedRef.current) {
+        console.warn(`Molstar initialization failed (attempt ${retryCount + 1}/${maxRetryAttempts}). Retrying in 2 seconds...`);
+
+        setRetryCount(prev => prev + 1);
+
+        // Schedule automatic retry after a delay
+        retryTimeoutRef.current = setTimeout(async () => {
+          if (!isMountedRef.current) return;
+
+          console.log(`Auto-retrying Molstar initialization (attempt ${retryCount + 1}/${maxRetryAttempts})`);
+
+          // Reset initialization promise to allow retry
+          initPromiseRef.current = null;
+
+          try {
+            await initViewer();
+            // If successful, load structure
+            if (isMountedRef.current && pluginRef.current) {
+              await loadStructure();
+            }
+          } catch (retryErr) {
+            console.warn('Auto-retry failed:', retryErr);
+          }
+        }, 2000);
+      } else {
+        // Max retries exceeded or component unmounted, fall back to fallback renderer
+        console.error('Max retries exceeded or component unmounted, using fallback renderer');
+        if (isMountedRef.current) {
+          setUseFallback(true);
+          setIsLoading(false);
+        }
+      }
     } finally {
       initPromiseRef.current = null;
     }
-  }, [disposePlugin]);
+  }, [disposePlugin, retryCount, maxRetryAttempts, checkWebGLSupport]);
 
   // Load structure into viewer
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1329,6 +1437,13 @@ export const MolstarViewer = memo(forwardRef<MolstarViewerRef, MolstarViewerProp
     return () => {
       // Mark as unmounted first
       isMountedRef.current = false;
+
+      // Clear any pending retry timeout
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+        retryTimeoutRef.current = null;
+      }
+
       // Synchronously dispose plugin before React unmounts DOM
       if (pluginRef.current) {
         try {
@@ -1629,11 +1744,28 @@ export const MolstarViewer = memo(forwardRef<MolstarViewerRef, MolstarViewerProp
   const handleRetry = useCallback(() => {
     setError(null);
     setIsLoading(true);
+    setUseFallback(false);
+    setRetryCount(0); // Reset retry count for manual retry
+
+    // Clear any pending auto-retry timeout
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+    }
+
     // Reset module promise to force fresh initialization
     initPromiseRef.current = null;
     // Re-trigger initialization
-    const timer = setTimeout(() => {
-      initViewer().then(() => loadStructure());
+    const timer = setTimeout(async () => {
+      try {
+        await initViewer();
+        // If successful, load structure
+        if (isMountedRef.current && pluginRef.current) {
+          await loadStructure();
+        }
+      } catch (retryErr) {
+        console.warn('Manual retry failed:', retryErr);
+      }
     }, 100);
     return () => clearTimeout(timer);
   }, [initViewer, loadStructure]);
@@ -1687,21 +1819,45 @@ export const MolstarViewer = memo(forwardRef<MolstarViewerRef, MolstarViewerProp
         >
           <div className="flex flex-col items-center gap-2">
             <Loader2 className="w-8 h-8 border-cf-accent animate-spin" aria-hidden="true" />
-            <span className="text-sm text-cf-text-secondary">Loading structure...</span>
+            <div className="text-center">
+              <span className="text-sm text-cf-text-secondary">
+                {retryCount > 0 ? 'Retrying 3D viewer...' : 'Loading structure...'}
+              </span>
+              {retryCount > 0 && (
+                <div className="text-xs text-cf-text-muted mt-1">
+                  Attempt {retryCount} of {maxRetryAttempts}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
 
-      {/* Error indicator with retry button - sibling of containerRef, not child */}
+      {/* Error indicator with retry button and progress - sibling of containerRef, not child */}
       {error && (
-        <div className="absolute top-4 right-4 flex items-center gap-2 bg-cf-warning/20 text-cf-warning px-2 py-1 rounded text-xs">
-          <span>Using fallback renderer</span>
-          <button
-            onClick={handleRetry}
-            className="underline hover:text-cf-warning/80 transition-colors"
-          >
-            Retry
-          </button>
+        <div className="absolute top-4 right-4 flex items-center gap-2 bg-cf-warning/20 text-cf-warning px-3 py-2 rounded-lg text-xs shadow-lg border border-cf-warning/30">
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <span>3D renderer failed</span>
+              {retryCount > 0 && retryCount < maxRetryAttempts && (
+                <span className="text-cf-text-muted">
+                  (attempt {retryCount}/{maxRetryAttempts})
+                </span>
+              )}
+            </div>
+            {retryCount >= maxRetryAttempts ? (
+              <span className="text-xs text-cf-text-muted">Using fallback renderer</span>
+            ) : retryTimeoutRef.current ? (
+              <span className="text-xs text-cf-text-muted">Auto-retrying in 2s...</span>
+            ) : (
+              <button
+                onClick={handleRetry}
+                className="text-xs underline hover:text-cf-warning/80 transition-colors text-left"
+              >
+                Click to retry with 3D viewer
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
