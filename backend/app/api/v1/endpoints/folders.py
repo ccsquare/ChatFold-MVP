@@ -6,7 +6,11 @@ Each folder has a 1:1 association with a conversation.
 This endpoint layer delegates to the workspace module for business logic.
 """
 
+import logging
+
 from fastapi import APIRouter, HTTPException
+
+logger = logging.getLogger(__name__)
 
 from app.components.workspace import (
     AddFolderInputRequest,
@@ -36,6 +40,7 @@ async def create_folder_endpoint(request: CreateFolderRequest) -> Folder:
     Returns:
         The created folder
     """
+    logger.info(f"POST /folders: name={request.name}, conversation_id={request.conversationId}")
     return create_folder(request)
 
 
@@ -46,6 +51,7 @@ async def list_folders_endpoint() -> list[Folder]:
     Returns:
         List of all folders, sorted by creation time (newest first)
     """
+    logger.info("GET /folders")
     return list_folders()
 
 
@@ -62,6 +68,7 @@ async def get_folder_endpoint(folder_id: str) -> Folder:
     Raises:
         HTTPException: If folder not found
     """
+    logger.info(f"GET /folders/{folder_id}")
     folder = get_folder(folder_id)
     if not folder:
         raise HTTPException(status_code=404, detail="Folder not found")
@@ -81,6 +88,7 @@ async def delete_folder_endpoint(folder_id: str) -> dict:
     Raises:
         HTTPException: If folder not found
     """
+    logger.info(f"DELETE /folders/{folder_id}")
     if not delete_folder(folder_id):
         raise HTTPException(status_code=404, detail="Folder not found")
 
@@ -106,6 +114,7 @@ async def update_folder_endpoint(
     Raises:
         HTTPException: If folder not found
     """
+    logger.info(f"PATCH /folders/{folder_id}: name={name}, isExpanded={isExpanded}")
     folder = update_folder(folder_id, name=name, isExpanded=isExpanded)
     if not folder:
         raise HTTPException(status_code=404, detail="Folder not found")
@@ -129,6 +138,7 @@ async def add_folder_input_endpoint(
     Raises:
         HTTPException: If folder not found
     """
+    logger.info(f"POST /folders/{folder_id}/inputs: type={request.type}, name={request.name}")
     asset = add_folder_input(folder_id, request)
     if not asset:
         raise HTTPException(status_code=404, detail="Folder not found")
@@ -148,6 +158,7 @@ async def list_folder_inputs_endpoint(folder_id: str) -> list[Asset]:
     Raises:
         HTTPException: If folder not found
     """
+    logger.info(f"GET /folders/{folder_id}/inputs")
     inputs = list_folder_inputs(folder_id)
     if inputs is None:
         raise HTTPException(status_code=404, detail="Folder not found")
@@ -168,6 +179,7 @@ async def link_conversation_endpoint(folder_id: str, conversation_id: str) -> Fo
     Raises:
         HTTPException: If folder not found
     """
+    logger.info(f"POST /folders/{folder_id}/link-conversation: conversation_id={conversation_id}")
     folder = link_folder_conversation(folder_id, conversation_id)
     if not folder:
         raise HTTPException(status_code=404, detail="Folder not found")

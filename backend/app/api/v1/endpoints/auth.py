@@ -81,6 +81,7 @@ async def get_current_user(
 @router.post("/send-verification-code", response_model=SendCodeResponse)
 async def send_code(request: Request, body: SendCodeRequest):
     """Send verification code to email."""
+    logger.info(f"POST /auth/send-verification-code: email={body.email}")
     email = body.email
     client_ip = get_client_ip(request)
 
@@ -111,6 +112,7 @@ async def send_code(request: Request, body: SendCodeRequest):
 @router.post("/register", response_model=UserResponse)
 async def register(body: UserRegister):
     """Register a new user."""
+    logger.info(f"POST /auth/register: email={body.email}, username={body.username}")
     # Verify verification code
     success, message = verification_service.verify_code(body.email, body.verification_code)
     if not success:
@@ -161,6 +163,7 @@ async def register(body: UserRegister):
 @router.post("/login", response_model=Token)
 async def login(body: UserLogin):
     """Login user and return JWT token."""
+    logger.info(f"POST /auth/login: email={body.email}")
     from app.db.redis_cache import get_redis_cache
     from app.services.auth_service import verify_password
 
@@ -194,6 +197,7 @@ async def login(body: UserLogin):
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
     """Get current user information."""
+    logger.info(f"GET /auth/me: user_id={current_user.id}")
     return UserResponse(
         id=current_user.id,
         name=current_user.name,

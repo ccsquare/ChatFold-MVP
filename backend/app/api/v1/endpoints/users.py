@@ -6,7 +6,11 @@ Currently uses a default user for MVP.
 This endpoint layer delegates to the workspace module for business logic.
 """
 
+import logging
+
 from fastapi import APIRouter, HTTPException
+
+logger = logging.getLogger(__name__)
 
 from app.components.workspace import (
     User,
@@ -28,6 +32,7 @@ async def get_current_user_endpoint() -> User:
     Returns:
         The current user
     """
+    logger.info("GET /users/me")
     return get_current_user()
 
 
@@ -44,6 +49,7 @@ async def get_user_endpoint(user_id: str) -> User:
     Raises:
         HTTPException: If user not found
     """
+    logger.info(f"GET /users/{user_id}")
     user = get_user(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -64,4 +70,5 @@ async def update_current_user_endpoint(
     Returns:
         The updated user
     """
+    logger.info(f"PATCH /users/me: name={name}, email={email}")
     return update_current_user(name=name, email=email)
