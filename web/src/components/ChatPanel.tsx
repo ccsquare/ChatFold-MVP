@@ -48,15 +48,18 @@ export function ChatPanel() {
       const currentConversation = storeState.conversations.find(c => c.id === currentConvId);
       const currentIsStreaming = storeState.isStreaming;
 
-      // Single-round chat mode: if there's already content in the current conversation (previous round completed),
-      // create a new Folder and Conversation for this new round
+      // Single-round chat mode: if there's already a protein sequence submitted in current conversation,
+      // create a new Folder and Conversation for this new round (regardless of completion status)
       const hasMessages = currentConversation && currentConversation.messages.length > 0;
-      const hasCompletedRound = hasMessages && !currentIsStreaming;
+      const hasSubmittedSequence = hasMessages && currentConversation.messages.some(msg =>
+        msg.role === 'user' && /[ACDEFGHIKLMNPQRSTVWY]{10,}/i.test(msg.content)
+      );
+      const shouldCreateNewRound = hasSubmittedSequence;
 
       let convId = currentConvId;
       let folderId = currentFolderId;
 
-      if (hasCompletedRound || !convId) {
+      if (shouldCreateNewRound || !convId) {
         // Create new Folder and Conversation for new round with 1:1 association
         folderId = createFolder();
         convId = createConversation(folderId);
@@ -217,15 +220,18 @@ export function ChatPanel() {
           return;
         }
 
-        // Get fresh state to check if current conversation has messages
+        // Get fresh state to check if current conversation has sequence submission
         const storeState = useAppStore.getState();
         const currentConvId = storeState.activeConversationId;
         const currentConversation = storeState.conversations.find(c => c.id === currentConvId);
         const hasMessages = currentConversation && currentConversation.messages.length > 0;
+        const hasSubmittedSequence = hasMessages && currentConversation.messages.some(msg =>
+          msg.role === 'user' && /[ACDEFGHIKLMNPQRSTVWY]{10,}/i.test(msg.content)
+        );
 
-        // Determine folder: create new if conversation has messages, otherwise reuse
+        // Determine folder: create new if sequence already submitted, otherwise reuse
         let fId = storeState.activeFolderId;
-        if (hasMessages || !fId) {
+        if (hasSubmittedSequence || !fId) {
           // Create new folder for new round or if no active folder
           fId = createFolder();
         }
