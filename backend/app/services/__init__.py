@@ -8,6 +8,14 @@ from app.services.data_consistency import DataConsistencyService, data_consisten
 from app.services.filesystem import FileSystemService, filesystem_service
 from app.services.job_state import JobStateService, job_state_service
 from app.services.memory_store import storage
+from app.services.session_store import (
+    SessionMeta,
+    SessionPaths,
+    SessionStore,
+    TaskMeta,
+    TaskQuery,
+    get_session_store,
+)
 from app.services.sse_events import SSEEventsService, sse_events_service
 from app.services.structure_storage import StructureStorageService, structure_storage
 
@@ -28,4 +36,11 @@ __all__ = [
     # Structure storage service
     "structure_storage",
     "StructureStorageService",
+    # Session store (TOS)
+    "get_session_store",
+    "SessionStore",
+    "SessionPaths",
+    "SessionMeta",
+    "TaskMeta",
+    "TaskQuery",
 ]

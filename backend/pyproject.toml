@@ -26,6 +26,9 @@ dependencies = [
     # Authentication
     "bcrypt>=4.0.0",  # Password hashing
     "python-jose[cryptography]>=3.3.0",  # JWT tokens
+    # TOS storage
+    "ditto @ git+https://github.com/spxix/Ditto.git@v0.2.0",
+    "boto3>=1.34.0",  # Required by Ditto TOS client
 ]
 
 [project.optional-dependencies]
@@ -78,6 +81,9 @@ testpaths = ["tests"]
 # Uncomment when adding async tests:
 # asyncio_mode = "auto"
 # asyncio_default_fixture_loop_scope = "function"
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]

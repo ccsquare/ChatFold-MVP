@@ -115,6 +115,18 @@ class Settings(BaseSettings):
     http_timeout: float = 300
     nanocc_api_timeout: int = 600  # 蛋白质折叠可能需要较长时间
 
+    # ==================== TOS (火山云对象存储) 配置 ====================
+    # TOS 桶名称
+    tos_bucket_name: str = "chatfold-test"
+    # TOS 访问密钥 ID
+    tos_access_key: str = ""
+    # TOS 访问密钥 Secret
+    tos_secret_key: str = ""
+    # TOS S3 兼容端点 (默认上海区域)
+    tos_endpoint: str = "https://tos-s3-cn-shanghai.ivolces.com"
+    # TOS 区域
+    tos_region: str = "cn-shanghai"
+
     # ==================== 存储模式配置 ====================
     # 统一存储模式控制
     # false (默认): 持久化模式 - MySQL + Redis + 文件系统
@@ -432,6 +444,16 @@ class Settings(BaseSettings):
     def get_default_jobs_path(self, job_id: str) -> Path:
         """MVP: 使用默认用户获取 Job 目录"""
         return self.get_jobs_path(DEFAULT_USER_ID, job_id)
+
+    # ==================== TOS 配置检查 ====================
+
+    def is_tos_configured(self) -> bool:
+        """检查 TOS 是否已配置
+
+        Returns:
+            如果 TOS 配置完整返回 True，否则返回 False
+        """
+        return bool(self.tos_bucket_name and self.tos_access_key and self.tos_secret_key)
 
 
 # 创建全局配置实例
