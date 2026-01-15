@@ -41,6 +41,8 @@ spec:
           value: "8000"
         - name: PYTHONUNBUFFERED
           value: "1"
+        - name: TZ
+          value: "Asia/Shanghai"
 
         # Liveness probe
         livenessProbe:

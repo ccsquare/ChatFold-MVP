@@ -30,6 +30,11 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
+# Kubernetes secrets (contains sensitive data)
+deploy/k8s/**/secret.yaml
+**/secret.yaml
+!**/secret.yaml.example
+
 # Vercel
 .vercel
 

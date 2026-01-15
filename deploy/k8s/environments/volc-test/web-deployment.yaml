@@ -39,6 +39,8 @@ spec:
         env:
         - name: PORT
           value: "3000"
+        - name: TZ
+          value: "Asia/Shanghai"
         - name: NODE_ENV
           valueFrom:
             configMapKeyRef:

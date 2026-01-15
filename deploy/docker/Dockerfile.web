@@ -7,8 +7,8 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 
-# Install libc6-compat for better compatibility
-RUN apk add --no-cache libc6-compat
+# Install libc6-compat and tzdata for better compatibility
+RUN apk add --no-cache libc6-compat tzdata
 
 # Copy dependency files
 COPY package.json package-lock.json ./
@@ -25,7 +25,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Install build tools
-RUN apk add --no-cache git curl libc6-compat
+RUN apk add --no-cache git curl libc6-compat tzdata
 
 # Copy dependency files and install all dependencies
 COPY package.json package-lock.json ./
@@ -77,6 +77,9 @@ LABEL git.commit="${GIT_COMMIT}" \
 ARG NODE_ENV=production
 
 WORKDIR /app
+
+# Install tzdata for timezone support
+RUN apk add --no-cache tzdata
 
 # Validate NODE_ENV
 RUN if [ "$NODE_ENV" != "production" ] && [ "$NODE_ENV" != "development" ] && [ "$NODE_ENV" != "test" ]; then \

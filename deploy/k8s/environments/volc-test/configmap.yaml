@@ -11,6 +11,9 @@ data:
   ENVIRONMENT: "test"
   NODE_ENV: "test"
 
+  # 时区配置
+  TZ: "Asia/Shanghai"
+
   # Frontend configuration
   FRONTEND_PORT: "3000"
 
@@ -25,3 +28,13 @@ data:
 
   # Backend configuration (for future use)
   BACKEND_PORT: "8000"
+
+  ## =============================================================================
+  ## 缓存配置 - Redis (Cache - Redis) 火山云测试环境
+  ## =============================================================================
+  # 用于多实例部署的分布式会话/Token 存储
+  REDIS_HOST: "redis-shzloqdbx9s7bpvpa.redis.ivolces.com"
+  REDIS_PORT: "6379"
+  REDIS_TOKEN_DB: "1"
+  REDIS_SOCKET_TIMEOUT: "5"
+  REDIS_SOCKET_CONNECT_TIMEOUT: "5"
