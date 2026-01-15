@@ -1,5 +1,6 @@
 """Verification code service for email-based authentication."""
 
+import json
 import logging
 import random
 import time
@@ -61,8 +62,6 @@ class VerificationCodeService:
             ip_key = self._get_ip_rate_limit_key(ip)
             ip_data = self.redis.get(ip_key)
             if ip_data:
-                import json
-
                 ip_info = json.loads(ip_data)
                 if ip_info.get("count", 0) >= IP_RATE_LIMIT_COUNT:
                     return False, "Too many requests from this IP. Please try again later"
@@ -78,8 +77,6 @@ class VerificationCodeService:
                 "created_at": int(time.time()),
                 "ip": ip,
             }
-
-            import json
 
             self.redis.setex(code_key, CODE_EXPIRY, json.dumps(code_data))
 
@@ -116,8 +113,6 @@ class VerificationCodeService:
 
             if not code_data_str:
                 return False, "Verification code has expired"
-
-            import json
 
             code_data = json.loads(code_data_str)
 

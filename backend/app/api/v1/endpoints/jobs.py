@@ -35,6 +35,8 @@ from app.components.nanocc import (
     generate_cot_events,
     generate_step_events,
 )
+from app.db.mysql import get_db_session
+from app.repositories import job_repository
 from app.services.job_state import job_state_service
 from app.services.memory_store import storage
 from app.services.sse_events import sse_events_service
@@ -84,9 +86,6 @@ def _save_job_to_mysql(job: NanoCCJob) -> bool:
     if settings.use_memory_store:
         return True
 
-    from app.db.mysql import get_db_session
-    from app.repositories import job_repository
-
     try:
         with get_db_session() as db:
             job_repository.create(
@@ -119,9 +118,6 @@ def _update_job_status_mysql(job_id: str, status: str, stage: str | None = None)
     """
     if settings.use_memory_store:
         return True
-
-    from app.db.mysql import get_db_session
-    from app.repositories import job_repository
 
     try:
         with get_db_session() as db:

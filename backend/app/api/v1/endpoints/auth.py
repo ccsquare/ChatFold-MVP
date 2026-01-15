@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import User
 from app.db.mysql import get_db
+from app.db.redis_cache import get_redis_cache
 from app.models.auth_schemas import (
     SendCodeRequest,
     SendCodeResponse,
@@ -21,10 +22,12 @@ from app.services.auth_service import (
     create_access_token,
     get_password_hash,
     get_user_from_cache,
+    verify_password,
     verify_token,
 )
 from app.services.email_service import send_verification_code
 from app.services.verification_service import verification_service
+from app.settings import settings
 from app.utils.id_generator import generate_id
 from app.utils.time_utils import get_timestamp_ms
 
@@ -104,8 +107,6 @@ async def send_code(request: Request, body: SendCodeRequest):
         )
 
     # In debug/test mode, return the code for auto-fill
-    from app.settings import settings
-
     return SendCodeResponse(message="Verification code sent to your email", code=code if settings.debug else None)
 
 
@@ -129,8 +130,6 @@ async def register(body: UserRegister):
     user_id = generate_id("user")
 
     # Store user in Redis cache for authentication in memory mode
-    from app.db.redis_cache import get_redis_cache
-
     cache = get_redis_cache()
     user_data = {
         "id": user_id,
@@ -164,8 +163,6 @@ async def register(body: UserRegister):
 async def login(body: UserLogin):
     """Login user and return JWT token."""
     logger.info(f"POST /auth/login: email={body.email}")
-    from app.db.redis_cache import get_redis_cache
-    from app.services.auth_service import verify_password
 
     # In memory mode, check Redis cache for user
     cache = get_redis_cache()

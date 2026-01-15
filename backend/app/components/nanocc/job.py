@@ -11,6 +11,8 @@ from enum import Enum
 from pydantic import BaseModel, Field, field_validator
 
 from app.components.workspace.models import StructureArtifact
+from app.utils.fasta_parser import parse_fasta
+from app.utils.sequence_validator import normalize_sequence, validate_amino_acid_sequence
 
 
 class StageType(str, Enum):
@@ -122,15 +124,10 @@ class CreateJobRequest(BaseModel):
     def normalize_sequence_field(cls, v: str | None) -> str | None:
         if v is None:
             return None
-        from app.utils.sequence_validator import normalize_sequence
-
         return normalize_sequence(v)
 
     def get_validated_sequence(self) -> str:
         """Get and validate the sequence from either direct input or FASTA."""
-        from app.utils.fasta_parser import parse_fasta
-        from app.utils.sequence_validator import validate_amino_acid_sequence
-
         seq = self.sequence
 
         if self.fastaContent:
