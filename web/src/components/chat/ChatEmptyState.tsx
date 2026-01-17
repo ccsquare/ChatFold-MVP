@@ -3,10 +3,10 @@
 import { Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { HelixIcon, ProteinFoldIcon } from '@/components/icons/ProteinIcon';
-import { EXAMPLE_SEQUENCES } from '@/lib/constants/sequences';
+import { EXAMPLE_SEQUENCES, ExampleSequence } from '@/lib/constants/sequences';
 
 interface ChatEmptyStateProps {
-  onExampleClick: (sequence: string) => void;
+  onExampleClick: (example: ExampleSequence) => void;
   variant?: 'compact' | 'wide';
 }
 
@@ -51,7 +51,7 @@ export function ChatEmptyState({ onExampleClick, variant = 'wide' }: ChatEmptySt
             {EXAMPLE_SEQUENCES.map((example, index) => (
               <button
                 key={index}
-                onClick={() => onExampleClick(example.sequence)}
+                onClick={() => onExampleClick(example)}
                 style={{ animationDelay: `${index * 50}ms` }}
                 className={cn(
                   // Animation on mount

@@ -18,7 +18,6 @@ import {
   Upload,
   FolderOpen,
   FolderClosed,
-  FolderPlus,
   FileInput,
   ChevronRight,
   ChevronDown,
@@ -45,6 +44,7 @@ interface FolderItemProps {
   onDelete: () => void;
   onOpenStructure: (structure: StructureArtifact) => void;
   onOpenAsset: (asset: Asset) => void;
+  onUpload: (folderId: string) => void;
 }
 
 function FolderItem({
@@ -56,6 +56,7 @@ function FolderItem({
   onDelete,
   onOpenStructure,
   onOpenAsset,
+  onUpload,
 }: FolderItemProps) {
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(folder.name);
@@ -163,6 +164,23 @@ function FolderItem({
             ) : (
               <span className="text-[13px] truncate flex-1 text-cf-text">{folder.name}</span>
             )}
+
+            {/* Upload button - visible on hover */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className="p-0.5 opacity-0 group-hover:opacity-100 hover:bg-cf-highlight-strong rounded transition-opacity"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUpload(folder.id);
+                  }}
+                >
+                  <Upload className="w-3.5 h-3.5 text-cf-text-secondary hover:text-cf-text" />
+                  <span className="sr-only">Upload to {folder.name}</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Upload file</TooltipContent>
+            </Tooltip>
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent>
@@ -310,18 +328,23 @@ export function Sidebar() {
     [deleteConversation]
   );
 
-  const handleNewFolder = () => {
-    createFolder();
-  };
+  // State for tracking which folder to upload to
+  const [uploadTargetFolderId, setUploadTargetFolderId] = useState<string | null>(null);
+
+  const handleUploadToFolder = useCallback((folderId: string) => {
+    setUploadTargetFolderId(folderId);
+    fileInputRef.current?.click();
+  }, []);
 
   const handleFileSelect = useCallback(
     (files: FileList | null) => {
       if (!files || files.length === 0) return;
 
-      // Create a new folder for the uploaded files
-      let folderId = activeFolderId;
+      // Use the target folder that was set when clicking upload
+      const folderId = uploadTargetFolderId;
       if (!folderId) {
-        folderId = createFolder();
+        console.warn('No target folder selected for upload');
+        return;
       }
 
       // Also maintain backward compatibility with conversations
@@ -337,7 +360,7 @@ export function Sidebar() {
           const type = file.name.toLowerCase().endsWith('.pdb') ? 'pdb' : 'fasta';
 
           // Add to folder
-          addFolderInput(folderId!, {
+          addFolderInput(folderId, {
             name: file.name,
             type,
             content,
@@ -352,11 +375,13 @@ export function Sidebar() {
         };
         reader.readAsText(file);
       });
+
+      // Reset target folder
+      setUploadTargetFolderId(null);
     },
     [
-      activeFolderId,
+      uploadTargetFolderId,
       activeConversationId,
-      createFolder,
       createConversation,
       addFolderInput,
       addAsset,
@@ -434,40 +459,10 @@ export function Sidebar() {
         </div>
 
         {/* Project Files Header */}
-        <div className="flex items-center justify-between px-2 py-1">
+        <div className="flex items-center px-2 py-1">
           <div className="flex items-center gap-1">
             <FolderOpen className="w-4 h-4 text-cf-text-secondary" aria-hidden="true" />
             <span className="text-[13px] font-medium text-cf-text">Project</span>
-          </div>
-          <div className="flex items-center gap-0.5">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost-icon"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <Upload className="w-3.5 h-3.5" aria-hidden="true" />
-                  <span className="sr-only">Upload file</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Upload file</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost-icon"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={handleNewFolder}
-                >
-                  <FolderPlus className="w-3.5 h-3.5" aria-hidden="true" />
-                  <span className="sr-only">New folder</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>New folder</TooltipContent>
-            </Tooltip>
           </div>
         </div>
 
@@ -498,6 +493,7 @@ export function Sidebar() {
                   onDelete={() => deleteFolder(folder.id)}
                   onOpenStructure={handleOpenStructure}
                   onOpenAsset={handleOpenAsset}
+                  onUpload={handleUploadToFolder}
                 />
               ))}
             </ul>

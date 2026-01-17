@@ -262,23 +262,39 @@ export const useAppStore = create<AppState>()(
   },
 
   addFolderInput: (folderId, assetData) => {
-    const asset: Asset = {
-      id: generateId('asset'),
-      uploadedAt: Date.now(),
-      ...assetData
-    };
+    set(state => {
+      const folder = state.folders.find(f => f.id === folderId);
+      if (!folder) return state;
 
-    set(state => ({
-      folders: state.folders.map(folder =>
-        folder.id === folderId
-          ? {
-            ...folder,
-            inputs: [...folder.inputs, asset],
-            updatedAt: Date.now()
-          }
-          : folder
-      )
-    }));
+      // Check if file with same name already exists
+      const existingIndex = folder.inputs.findIndex(input => input.name === assetData.name);
+
+      let newInputs: Asset[];
+      if (existingIndex >= 0) {
+        // Replace existing file (keep original id, update content and timestamp)
+        newInputs = folder.inputs.map((input, idx) =>
+          idx === existingIndex
+            ? { ...input, ...assetData, uploadedAt: Date.now() }
+            : input
+        );
+      } else {
+        // Add new file
+        const asset: Asset = {
+          id: generateId('asset'),
+          uploadedAt: Date.now(),
+          ...assetData
+        };
+        newInputs = [...folder.inputs, asset];
+      }
+
+      return {
+        folders: state.folders.map(f =>
+          f.id === folderId
+            ? { ...f, inputs: newInputs, updatedAt: Date.now() }
+            : f
+        )
+      };
+    });
   },
 
   addFolderOutput: (folderId, artifact) => {

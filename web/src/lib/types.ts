@@ -88,12 +88,20 @@ export interface Folder {
   conversationId?: string; // 1:1 association with Conversation
 }
 
+/** Attached file reference for display in messages */
+export interface AttachedFile {
+  name: string;
+  type: 'fasta' | 'pdb' | 'text';
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'tool';
   content: string;
   timestamp: number;
   artifacts?: StructureArtifact[];
+  /** Files attached to this message (displayed as chips) */
+  attachedFiles?: AttachedFile[];
 }
 
 export interface Job {

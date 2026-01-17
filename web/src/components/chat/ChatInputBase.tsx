@@ -32,6 +32,10 @@ export interface ChatInputBaseProps {
   // File mention system
   availableFiles?: MentionableFile[];
 
+  // Controlled mentioned files (for external control, e.g., example sequences)
+  mentionedFiles?: MentionableFile[];
+  onMentionedFilesChange?: (files: MentionableFile[]) => void;
+
   // Customization
   placeholder?: string;
   disabled?: boolean;
@@ -59,14 +63,16 @@ export function ChatInputBase({
   onSend,
   onFileUpload,
   availableFiles = [],
-  placeholder = '输入序列或问题...',
+  mentionedFiles: controlledMentionedFiles,
+  onMentionedFilesChange,
+  placeholder = '上传 FASTA 文件并输入约束需求',
   disabled = false,
   isSending = false,
   onStop,
   showDisclaimer = false,
   disclaimerText = 'ChatFold AI can make mistakes. Verify scientific results independently.',
-  enableFileMentions = true,
-  enableThinkingMode = true,
+  enableFileMentions = false,
+  enableThinkingMode = false,
   enableFileUpload = true,
   thinkingIntensity: controlledIntensity,
   onThinkingIntensityChange,
@@ -81,11 +87,15 @@ export function ChatInputBase({
   const thinkingIntensity = controlledIntensity ?? internalIntensity;
   const setThinkingIntensity = onThinkingIntensityChange ?? setInternalIntensity;
 
-  // File mention state
+  // File mention state (controlled/uncontrolled pattern)
   const [showFileMentions, setShowFileMentions] = useState(false);
   const [mentionSearch, setMentionSearch] = useState('');
   const [mentionPosition, setMentionPosition] = useState(0);
-  const [mentionedFiles, setMentionedFiles] = useState<MentionableFile[]>([]);
+  const [internalMentionedFiles, setInternalMentionedFiles] = useState<MentionableFile[]>([]);
+
+  // Use controlled or internal state for mentioned files
+  const mentionedFiles = controlledMentionedFiles ?? internalMentionedFiles;
+  const setMentionedFiles = onMentionedFilesChange ?? setInternalMentionedFiles;
 
   // Focus mention search input when dropdown opens
   useEffect(() => {
@@ -113,12 +123,13 @@ export function ChatInputBase({
       }
 
       if (onFileUpload) {
-        // Call the upload handler and auto-add to mentions if successful
+        // Call the upload handler to save file to folder
         const mentionableFile = await onFileUpload(file);
+        // Always show uploaded file as chip (visual display)
+        // This is independent of enableFileMentions which controls @ trigger
         if (mentionableFile) {
-          // Auto-add the uploaded file to mentioned files
           if (!mentionedFiles.some(f => f.id === mentionableFile.id)) {
-            setMentionedFiles(prev => [...prev, mentionableFile]);
+            setMentionedFiles([...mentionedFiles, mentionableFile]);
           }
         }
         inputRef.current?.focus();
@@ -164,7 +175,7 @@ export function ChatInputBase({
   const insertFileMention = (file: MentionableFile) => {
     // Add file to mentioned files if not already there (check by id, not name)
     if (!mentionedFiles.some(f => f.id === file.id)) {
-      setMentionedFiles(prev => [...prev, file]);
+      setMentionedFiles([...mentionedFiles, file]);
     }
 
     // Remove the @ trigger from input
@@ -182,7 +193,7 @@ export function ChatInputBase({
   };
 
   const removeFileMention = (fileId: string) => {
-    setMentionedFiles(prev => prev.filter(f => f.id !== fileId));
+    setMentionedFiles(mentionedFiles.filter(f => f.id !== fileId));
   };
 
   // Filter files based on search (search both name and path)
@@ -193,23 +204,14 @@ export function ChatInputBase({
 
   const handleSubmit = () => {
     if (!disabled && !isSending) {
-      // Check for fasta files to expand content as query prefix
-      const fastaFiles = mentionedFiles.filter(
-        f => f.type === 'fasta' && f.content
-      );
+      const finalQuery = value.trim();
+      const hasFastaFiles = mentionedFiles.some(f => f.type === 'fasta');
 
-      let finalQuery = value.trim();
-
-      if (fastaFiles.length > 0) {
-        // Expand fasta file contents as query prefix
-        const fastaContents = fastaFiles.map(f => f.content).join('\n\n');
-        finalQuery = fastaContents + (finalQuery ? '\n\n' + finalQuery : '');
-      }
-
-      if (finalQuery) {
-        // Filter out fasta files from mentioned files (already expanded)
-        const nonFastaFiles = mentionedFiles.filter(f => f.type !== 'fasta');
-        onSend(finalQuery, nonFastaFiles.length > 0 ? nonFastaFiles : undefined);
+      // Allow submit if there's text OR fasta files attached
+      if (finalQuery || hasFastaFiles) {
+        // Pass mentioned files to parent - don't expand FASTA content into message
+        // Parent component will handle reading file content from folder
+        onSend(finalQuery, mentionedFiles.length > 0 ? mentionedFiles : undefined);
         setMentionedFiles([]); // Clear mentioned files after send
       }
     }
@@ -431,12 +433,12 @@ export function ChatInputBase({
                     "h-8 w-8",
                     isSending
                       ? "bg-red-500/10 hover:bg-red-500/20 text-red-500"
-                      : (value.trim() || mentionedFiles.some(f => f.type === 'fasta' && f.content))
+                      : (value.trim() || mentionedFiles.length > 0)
                         ? "bg-cf-highlight hover:bg-cf-highlight-strong text-cf-text"
                         : "text-cf-text-muted"
                   )}
                   onClick={isSending ? onStop : handleSubmit}
-                  disabled={!isSending && (!(value.trim() || mentionedFiles.some(f => f.type === 'fasta' && f.content)) || disabled)}
+                  disabled={!isSending && (!(value.trim() || mentionedFiles.length > 0) || disabled)}
                 >
                   {isSending ? (
                     <Square className="w-4 h-4 fill-current" />

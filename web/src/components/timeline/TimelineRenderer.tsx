@@ -4,7 +4,8 @@ import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react'
 import { TimelineItem, TimelineByEventType, ThinkingBlock } from '@/hooks/useConversationTimeline';
 import { StructureArtifact, ChatMessage } from '@/lib/types';
 import { cn, formatTimestamp } from '@/lib/utils';
-import { Link2, Link2Off, RotateCcw, ChevronDown, CheckCircle2, Sparkle, Sparkles } from 'lucide-react';
+import { Link2, Link2Off, RotateCcw, ChevronDown, CheckCircle2, Sparkle, Sparkles, FileText } from 'lucide-react';
+import { HelixIcon } from '@/components/icons/ProteinIcon';
 import { StructureArtifactCard } from '@/components/StructureArtifactCard';
 import { resetSyncGroupCamera } from '@/hooks/useCameraSync';
 import { useAppStore } from '@/lib/store';
@@ -207,6 +208,8 @@ function MessageBubble({
   isCompact: boolean;
 }) {
   const isUser = message.role === 'user';
+  const hasContent = message.content.trim().length > 0;
+  const hasFiles = message.attachedFiles && message.attachedFiles.length > 0;
 
   return (
     <div className={cn("flex pb-3", isUser ? "justify-end" : "justify-start")}>
@@ -219,9 +222,47 @@ function MessageBubble({
             : "bg-cf-bg border border-cf-border text-cf-text"
         )}
       >
-        <p className="text-sm whitespace-pre-wrap break-all [overflow-wrap:anywhere]">
-          {message.content}
-        </p>
+        {/* Text content */}
+        {hasContent && (
+          <p className="text-sm whitespace-pre-wrap break-all [overflow-wrap:anywhere]">
+            {message.content}
+          </p>
+        )}
+        {/* Attached files as chips */}
+        {hasFiles && (
+          <div className={cn("flex flex-wrap gap-1.5", hasContent && "mt-2")}>
+            {message.attachedFiles!.map((file, idx) => {
+              const isStructure = file.type === 'pdb';
+              const Icon = isStructure ? HelixIcon : FileText;
+
+              return (
+                <div
+                  key={`${file.name}-${idx}`}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md",
+                    isUser
+                      ? "bg-white/20 border border-white/30"
+                      : "bg-cf-bg-tertiary border border-cf-border/60"
+                  )}
+                  title={file.name}
+                >
+                  <Icon className={cn(
+                    "w-3.5 h-3.5 flex-shrink-0",
+                    isUser
+                      ? "text-white/70"
+                      : isStructure ? "text-cf-success/70" : "text-cf-info/70"
+                  )} />
+                  <span className={cn(
+                    "text-xs font-medium truncate max-w-[120px]",
+                    isUser ? "text-white/90" : "text-cf-text"
+                  )}>
+                    {file.name}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
         <p
           className={cn(
             "text-[10px] mt-1",

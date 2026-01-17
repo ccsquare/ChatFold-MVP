@@ -15,7 +15,6 @@ export function useFoldingJob() {
     addStepEvent,
     activeJob,
     isStreaming,
-    activeFolderId,
     createFolder,
     addFolderInput,
   } = useAppStore();
@@ -89,8 +88,9 @@ export function useFoldingJob() {
       }
     ): Promise<{ job: Job; folderId: string } | null> => {
       try {
-        // Create or get active folder
-        let folderId = activeFolderId;
+        // Get fresh activeFolderId from store to avoid stale closure
+        const freshActiveFolderId = useAppStore.getState().activeFolderId;
+        let folderId = freshActiveFolderId;
         if (!folderId) {
           folderId = createFolder();
         }
@@ -133,7 +133,7 @@ export function useFoldingJob() {
         return null;
       }
     },
-    [activeFolderId, createFolder, addFolderInput, setActiveJob, startStream]
+    [createFolder, addFolderInput, setActiveJob, startStream]
   );
 
   /**

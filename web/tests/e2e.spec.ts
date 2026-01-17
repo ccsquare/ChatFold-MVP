@@ -31,12 +31,10 @@ test.describe('ChatFold E2E Tests', () => {
       await expect(page).toHaveTitle(/ChatFold/);
 
       // Verify sidebar elements
-      await expect(page.getByRole('button', { name: 'New folder' })).toBeVisible();
       await expect(page.getByRole('button', { name: 'New chat' })).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Upload file' })).toBeVisible();
 
       // Verify chat input area
-      await expect(page.getByPlaceholder('输入序列或问题...')).toBeVisible();
+      await expect(page.getByPlaceholder('上传 FASTA 文件并输入约束需求')).toBeVisible();
 
       // Verify welcome message
       await expect(page.getByText('How can I help you?')).toBeVisible();
@@ -54,24 +52,24 @@ test.describe('ChatFold E2E Tests', () => {
   });
 
   test.describe('Folder Management', () => {
-    test('should create a new folder', async ({ page }) => {
+    test('should create a new folder via New chat', async ({ page }) => {
       await page.goto('/');
 
-      // Click "New folder" button
-      await page.getByRole('button', { name: 'New folder' }).click();
+      // Click "New chat" button - this creates both folder and conversation
+      await page.getByRole('button', { name: 'New chat' }).click();
 
       // Wait for folder to be created - "No projects yet" should disappear
       await expect(page.getByText('No projects yet')).not.toBeVisible({ timeout: 5000 });
     });
 
-    test('should create a new chat', async ({ page }) => {
+    test('should show chat input after new chat', async ({ page }) => {
       await page.goto('/');
 
       // Click "New chat" button
       await page.getByRole('button', { name: 'New chat' }).click();
 
       // The chat view should still be active with input area
-      await expect(page.getByPlaceholder('输入序列或问题...')).toBeVisible();
+      await expect(page.getByPlaceholder('上传 FASTA 文件并输入约束需求')).toBeVisible();
     });
   });
 
@@ -79,12 +77,12 @@ test.describe('ChatFold E2E Tests', () => {
     test('should accept FASTA sequence input', async ({ page }) => {
       await page.goto('/');
 
-      // Create folder first
-      await page.getByRole('button', { name: 'New folder' }).click();
+      // Create folder via New chat first
+      await page.getByRole('button', { name: 'New chat' }).click();
       await page.waitForTimeout(1000);
 
       // Find and fill the sequence input
-      const textarea = page.getByPlaceholder('输入序列或问题...');
+      const textarea = page.getByPlaceholder('上传 FASTA 文件并输入约束需求');
       await textarea.fill(SAMPLE_SEQUENCE);
 
       // Verify the input value
@@ -106,7 +104,7 @@ test.describe('ChatFold E2E Tests', () => {
       // Should start processing (job submitted automatically or textarea filled)
       // Check if job started or if textarea has content
       const hasJobStarted = await page.getByText(/running|processing|folding/i).isVisible().catch(() => false);
-      const textareaHasValue = await page.getByPlaceholder('输入序列或问题...').inputValue().then(v => v.length > 0).catch(() => false);
+      const textareaHasValue = await page.getByPlaceholder('上传 FASTA 文件并输入约束需求').inputValue().then(v => v.length > 0).catch(() => false);
 
       expect(hasJobStarted || textareaHasValue).toBeTruthy();
     });
@@ -117,11 +115,11 @@ test.describe('ChatFold E2E Tests', () => {
       await page.goto('/');
 
       // Create folder
-      await page.getByRole('button', { name: 'New folder' }).click();
+      await page.getByRole('button', { name: 'New chat' }).click();
       await page.waitForTimeout(1000);
 
       // Input sequence
-      const textarea = page.getByPlaceholder('输入序列或问题...');
+      const textarea = page.getByPlaceholder('上传 FASTA 文件并输入约束需求');
       await textarea.fill(SAMPLE_SEQUENCE);
 
       // Submit the job
@@ -141,10 +139,10 @@ test.describe('ChatFold E2E Tests', () => {
       await page.goto('/');
 
       // Create folder and submit job
-      await page.getByRole('button', { name: 'New folder' }).click();
+      await page.getByRole('button', { name: 'New chat' }).click();
       await page.waitForTimeout(1000);
 
-      const textarea = page.getByPlaceholder('输入序列或问题...');
+      const textarea = page.getByPlaceholder('上传 FASTA 文件并输入约束需求');
       await textarea.fill(SAMPLE_SEQUENCE);
 
       await page.getByRole('button', { name: 'Send message' }).click();
@@ -162,10 +160,10 @@ test.describe('ChatFold E2E Tests', () => {
       await page.goto('/');
 
       // Create folder and submit job
-      await page.getByRole('button', { name: 'New folder' }).click();
+      await page.getByRole('button', { name: 'New chat' }).click();
       await page.waitForTimeout(1000);
 
-      const textarea = page.getByPlaceholder('输入序列或问题...');
+      const textarea = page.getByPlaceholder('上传 FASTA 文件并输入约束需求');
       await textarea.fill(SAMPLE_SEQUENCE);
 
       await page.getByRole('button', { name: 'Send message' }).click();
@@ -234,7 +232,7 @@ test.describe('ChatFold E2E Tests', () => {
 
       await collapseButton.click();
 
-      // Sidebar should be collapsed - "New folder" text might be hidden
+      // Sidebar should be collapsed - "New chat" text might be hidden
       await page.waitForTimeout(500);
 
       // Click again to expand
@@ -294,7 +292,7 @@ test.describe('ChatFold E2E Tests', () => {
       await sendButton.click({ force: true }).catch(() => {});
 
       // Page should still be functional
-      await expect(page.getByPlaceholder('输入序列或问题...')).toBeVisible();
+      await expect(page.getByPlaceholder('上传 FASTA 文件并输入约束需求')).toBeVisible();
     });
   });
 });

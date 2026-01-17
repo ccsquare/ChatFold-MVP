@@ -9,6 +9,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { generateSequenceFilename } from '@/lib/utils';
 import { ChatInputBase, ThinkingIntensity } from './chat/ChatInputBase';
 import { ChatEmptyState } from './chat/ChatEmptyState';
+import { ExampleSequence } from '@/lib/constants/sequences';
 import { useConversationTimeline } from '@/hooks/useConversationTimeline';
 import { useAvailableFiles } from '@/hooks/useAvailableFiles';
 import { TimelineRenderer } from '@/components/timeline';
@@ -30,6 +31,7 @@ export function ChatPanel() {
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [thinkingIntensity, setThinkingIntensity] = useState<ThinkingIntensity>('high');
+  const [mentionedFiles, setMentionedFiles] = useState<MentionableFile[]>([]);
 
   // Use shared hooks
   const { startStream, cancel: cancelJob } = useFoldingJob();
@@ -38,15 +40,17 @@ export function ChatPanel() {
 
   // Handle send from ChatInputBase
   const handleSend = useCallback(
-    async (content: string, mentionedFiles?: MentionableFile[]) => {
-      if (!content.trim() || isSending) return;
+    async (content: string, files?: MentionableFile[]) => {
+      // Allow sending if there's content OR fasta files attached
+      const hasFastaFiles = files?.some(f => f.type === 'fasta' && f.content);
+      if (!content.trim() && !hasFastaFiles) return;
+      if (isSending) return;
 
       // Get fresh values from store to avoid stale closure issues
       const storeState = useAppStore.getState();
       const currentConvId = storeState.activeConversationId;
       const currentFolderId = storeState.activeFolderId;
       const currentConversation = storeState.conversations.find(c => c.id === currentConvId);
-      const currentIsStreaming = storeState.isStreaming;
 
       // Single-round chat mode: if there's already a protein sequence submitted in current conversation,
       // create a new Folder and Conversation for this new round (regardless of completion status)
@@ -65,31 +69,49 @@ export function ChatPanel() {
         convId = createConversation(folderId);
       }
 
-      // Build message content with mentioned files info
-      let userMessage = content.trim();
-      if (mentionedFiles && mentionedFiles.length > 0) {
-        const fileRefs = mentionedFiles.map((f) => `@${f.path}`).join(', ');
-        userMessage = `${userMessage}\n\n[引用文件: ${fileRefs}]`;
+      if (!folderId) {
+        folderId = createFolder();
       }
 
+      // Add pending files to folder (files from example click that haven't been uploaded yet)
+      // Files from handleFileUpload are already in the folder, identified by non-pending ID
+      if (files && files.length > 0) {
+        for (const file of files) {
+          // Only add files that are pending (from example click, not yet in folder)
+          if (file.content && file.id.startsWith('pending/')) {
+            addFolderInput(folderId, {
+              name: file.name,
+              type: file.type as 'fasta' | 'pdb' | 'text',
+              content: file.content,
+            });
+          }
+        }
+      }
+
+      // Build message content - store files as attachedFiles for chip display
+      const userMessage = content.trim();
+      const attachedFiles = files && files.length > 0
+        ? files.map(f => ({ name: f.name, type: f.type as 'fasta' | 'pdb' | 'text' }))
+        : undefined;
+
       setInput('');
+      setMentionedFiles([]);
       setIsSending(true);
 
-      // Add user message
+      // Add user message with attached files
       console.log('[ChatPanel] Adding message to conversation:', convId);
       addMessage(convId, {
         role: 'user',
         content: userMessage,
+        attachedFiles,
       });
 
       try {
-        // Check if message contains FASTA sequence
-        const fastaMatch = userMessage.match(/>[\s\S]*?[A-Z]+/i);
-        const sequenceMatch = userMessage.match(/^[ACDEFGHIKLMNPQRSTVWY]+$/i);
-
-        if (fastaMatch || sequenceMatch) {
-          const parsed = fastaMatch ? parseFasta(userMessage) : null;
-          const sequence = parsed?.sequence || (sequenceMatch ? sequenceMatch[0] : '');
+        // Check if there are FASTA files attached - extract sequence from files
+        const fastaFile = files?.find(f => f.type === 'fasta' && f.content);
+        if (fastaFile && fastaFile.content) {
+          const parsed = parseFasta(fastaFile.content);
+          const sequence = parsed?.sequence || '';
           const rawSequence = parsed?.rawSequence || sequence;
 
           // Validate sequence for invalid characters
@@ -108,15 +130,8 @@ export function ChatPanel() {
               folderId = createFolder();
             }
 
-            // Create a text file for the sequence and add to folder
-            const filename = generateSequenceFilename();
-            const fastaContent = fastaMatch ? userMessage : `>user_input_sequence\n${sequence}`;
-
-            addFolderInput(folderId, {
-              name: filename,
-              type: 'fasta',
-              content: fastaContent,
-            });
+            // File already added to folder by handleExampleClick or handleFileUpload
+            // No need to add again
 
             // Create job
             const jobResponse = await fetch('/api/v1/jobs', {
@@ -146,7 +161,7 @@ export function ChatPanel() {
             // Add assistant message
             addMessage(convId, {
               role: 'assistant',
-              content: `Starting structure prediction for your ${sequence.length} residue sequence. The sequence has been saved as "${filename}" in your project. I'll keep you updated on the progress.`,
+              content: `Starting structure prediction for your ${sequence.length} residue sequence. I'll keep you updated on the progress.`,
             });
 
             // Set active job and start streaming
@@ -155,17 +170,79 @@ export function ChatPanel() {
           } else {
             addMessage(convId, {
               role: 'assistant',
-              content:
-                'The sequence seems too short. Please provide a protein sequence with at least 10 amino acids.',
+              content: 'The sequence seems too short. Please provide a protein sequence with at least 10 amino acids.',
             });
           }
-        } else {
-          // Regular chat response
-          addMessage(convId, {
-            role: 'assistant',
-            content:
-              'I can help you with protein structure prediction. Please provide a FASTA sequence or paste an amino acid sequence directly. For example:\n\n```\n>protein\nMVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSH\n```',
-          });
+        } else if (content.trim()) {
+          // No FASTA file - check if message itself contains a sequence
+          const fastaMatch = content.match(/>[\s\S]*?[A-Z]+/i);
+          const sequenceMatch = content.match(/^[ACDEFGHIKLMNPQRSTVWY]+$/i);
+
+          if (fastaMatch || sequenceMatch) {
+            const parsed = fastaMatch ? parseFasta(content) : null;
+            const sequence = parsed?.sequence || (sequenceMatch ? sequenceMatch[0] : '');
+            const rawSequence = parsed?.rawSequence || sequence;
+
+            const validation = validateSequence(rawSequence);
+            if (!validation.valid && validation.invalidChars) {
+              addMessage(convId, {
+                role: 'assistant',
+                content: `Invalid sequence: contains non-standard amino acid characters: ${validation.invalidChars.map(c => `"${c}"`).join(', ')}. Please use only standard amino acid letters (A, C, D, E, F, G, H, I, K, L, M, N, P, Q, R, S, T, V, W, Y).`,
+              });
+              return;
+            }
+
+            if (sequence.length >= 10) {
+              if (!folderId) {
+                folderId = createFolder();
+              }
+
+              const filename = generateSequenceFilename();
+              const fastaContent = fastaMatch ? content : `>user_input_sequence\n${sequence}`;
+
+              addFolderInput(folderId, {
+                name: filename,
+                type: 'fasta',
+                content: fastaContent,
+              });
+
+              const jobResponse = await fetch('/api/v1/jobs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ conversationId: convId, sequence }),
+              });
+
+              const responseData = await jobResponse.json();
+
+              if (!jobResponse.ok) {
+                const errorMessage = responseData.details?.join(', ') || responseData.error || 'Invalid sequence';
+                addMessage(convId, {
+                  role: 'assistant',
+                  content: `Unable to start prediction: ${errorMessage}. Please check your sequence and try again.`,
+                });
+                return;
+              }
+
+              const { job } = responseData;
+              addMessage(convId, {
+                role: 'assistant',
+                content: `Starting structure prediction for your ${sequence.length} residue sequence. I'll keep you updated on the progress.`,
+              });
+              setActiveJob({ ...job, status: 'running' });
+              startStream(job.id, sequence);
+            } else {
+              addMessage(convId, {
+                role: 'assistant',
+                content: 'The sequence seems too short. Please provide a protein sequence with at least 10 amino acids.',
+              });
+            }
+          } else {
+            // Regular chat response - no sequence detected
+            addMessage(convId, {
+              role: 'assistant',
+              content: 'I can help you with protein structure prediction. Please provide a FASTA sequence or paste an amino acid sequence directly. For example:\n\n```\n>protein\nMVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSH\n```',
+            });
+          }
         }
       } catch (error) {
         addMessage(convId, {
@@ -204,9 +281,28 @@ export function ChatPanel() {
     }
   }, [cancelJob, activeConversationId, addMessage]);
 
-  // Handler to insert example sequence
-  const handleExampleClick = useCallback((sequence: string) => {
-    setInput(sequence);
+  // Handler to prepare example sequence - prepare file for display, don't upload yet
+  const handleExampleClick = useCallback((example: ExampleSequence) => {
+    // Create FASTA content with example name as header
+    const fastaContent = `>${example.name}\n${example.sequence}`;
+    const filename = `${example.name}.fasta`;
+
+    // Create MentionableFile for display as chip (with content for later upload)
+    // Use a temporary ID since we don't have a folder yet
+    const mentionableFile: MentionableFile = {
+      id: `pending/${filename}`,
+      name: filename,
+      path: filename,
+      type: 'fasta',
+      source: 'project',
+      content: fastaContent,
+    };
+
+    // Set mentioned file to show as chip
+    setMentionedFiles([mentionableFile]);
+
+    // Set input to the description
+    setInput('完成该序列的折叠');
   }, []);
 
   // Handle file upload - save to active Folder's Inputs and return MentionableFile for auto-mention
@@ -304,12 +400,14 @@ export function ChatPanel() {
             onStop={handleStop}
             onFileUpload={handleFileUpload}
             availableFiles={availableFiles}
-            placeholder="输入序列或问题... (输入 @ 引用文件)"
+            mentionedFiles={mentionedFiles}
+            onMentionedFilesChange={setMentionedFiles}
+            placeholder="上传 FASTA 文件并输入约束需求"
             isSending={isSending || isStreaming}
             thinkingIntensity={thinkingIntensity}
             onThinkingIntensityChange={setThinkingIntensity}
-            enableFileMentions={true}
-            enableThinkingMode={true}
+            enableFileMentions={false}
+            enableThinkingMode={false}
             enableFileUpload={true}
           />
         </div>

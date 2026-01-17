@@ -167,15 +167,28 @@ function handleIncomingMessage(event: MessageEvent<SyncMessage>): void {
 function handleFoldersUpdate(payload: FoldersUpdatePayload): void {
   const currentState = useAppStore.getState();
 
-  // Merge folders - newer items take precedence
-  const mergedFolders = mergeFolders(currentState.folders, payload.folders);
+  // If this tab doesn't have focus, prefer the remote state entirely
+  // This ensures deletions from the active tab are respected
+  if (!document.hasFocus()) {
+    useAppStore.setState({
+      folders: payload.folders,
+      activeFolderId: payload.activeFolderId
+    });
+    return;
+  }
+
+  // If this tab has focus, merge folders - newer items take precedence
+  // but also remove folders that don't exist in remote (handle deletions)
+  const remoteIds = new Set(payload.folders.map(f => f.id));
+  const mergedFolders = mergeFolders(
+    // Filter out folders that were deleted in remote
+    currentState.folders.filter(f => remoteIds.has(f.id)),
+    payload.folders
+  );
 
   useAppStore.setState({
     folders: mergedFolders,
-    // Only update activeFolderId if we don't have focus
-    activeFolderId: !document.hasFocus()
-      ? payload.activeFolderId
-      : currentState.activeFolderId
+    activeFolderId: currentState.activeFolderId
   });
 }
 
@@ -185,18 +198,28 @@ function handleFoldersUpdate(payload: FoldersUpdatePayload): void {
 function handleConversationsUpdate(payload: ConversationsUpdatePayload): void {
   const currentState = useAppStore.getState();
 
-  // Merge conversations - newer items take precedence
+  // If this tab doesn't have focus, prefer the remote state entirely
+  // This ensures deletions from the active tab are respected
+  if (!document.hasFocus()) {
+    useAppStore.setState({
+      conversations: payload.conversations,
+      activeConversationId: payload.activeConversationId
+    });
+    return;
+  }
+
+  // If this tab has focus, merge conversations - newer items take precedence
+  // but also remove conversations that don't exist in remote (handle deletions)
+  const remoteIds = new Set(payload.conversations.map(c => c.id));
   const mergedConversations = mergeConversations(
-    currentState.conversations,
+    // Filter out conversations that were deleted in remote
+    currentState.conversations.filter(c => remoteIds.has(c.id)),
     payload.conversations
   );
 
   useAppStore.setState({
     conversations: mergedConversations,
-    // Only update activeConversationId if we don't have focus
-    activeConversationId: !document.hasFocus()
-      ? payload.activeConversationId
-      : currentState.activeConversationId
+    activeConversationId: currentState.activeConversationId
   });
 }
 
