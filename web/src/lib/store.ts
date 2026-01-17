@@ -57,6 +57,36 @@ function formatFolderTimestamp(timestamp: number): string {
   return `${year}-${month}-${day}_${hours}${minutes}`;
 }
 
+/**
+ * Generate a unique name by adding suffix (1), (2), etc. if name already exists
+ * @param baseName - The desired name
+ * @param existingNames - Array of existing names to check against
+ * @returns A unique name with suffix if needed
+ */
+function generateUniqueName(baseName: string, existingNames: string[]): string {
+  if (!existingNames.includes(baseName)) {
+    return baseName;
+  }
+
+  // Extract base name and existing suffix if any
+  // e.g., "file(1).txt" -> base="file", ext=".txt", suffix=1
+  const extMatch = baseName.match(/^(.+?)(\.[^.]+)?$/);
+  const nameWithoutExt = extMatch?.[1] || baseName;
+  const ext = extMatch?.[2] || '';
+
+  // Check if name already has a suffix like (1)
+  const suffixMatch = nameWithoutExt.match(/^(.+?)\((\d+)\)$/);
+  const pureBaseName = suffixMatch?.[1] || nameWithoutExt;
+
+  // Find the next available suffix
+  let suffix = 1;
+  while (existingNames.includes(`${pureBaseName}(${suffix})${ext}`)) {
+    suffix++;
+  }
+
+  return `${pureBaseName}(${suffix})${ext}`;
+}
+
 // Format timestamp for conversation naming (more readable format)
 function formatConversationTimestamp(timestamp: number): string {
   const date = new Date(timestamp);
@@ -217,10 +247,16 @@ export const useAppStore = create<AppState>()(
     const id = generateId('folder');
     const now = Date.now();
     const projectId = get().currentProject.id;  // Use current project
+
+    // Generate unique folder name
+    const existingFolderNames = get().folders.map(f => f.name);
+    const baseName = name || formatFolderTimestamp(now);
+    const uniqueName = generateUniqueName(baseName, existingFolderNames);
+
     const folder: Folder = {
       id,
       projectId,  // Parent project (MVP: project_default)
-      name: name || formatFolderTimestamp(now),
+      name: uniqueName,
       createdAt: now,
       updatedAt: now,
       isExpanded: true,
@@ -266,26 +302,18 @@ export const useAppStore = create<AppState>()(
       const folder = state.folders.find(f => f.id === folderId);
       if (!folder) return state;
 
-      // Check if file with same name already exists
-      const existingIndex = folder.inputs.findIndex(input => input.name === assetData.name);
+      // Generate unique file name if duplicate exists
+      const existingFileNames = folder.inputs.map(input => input.name);
+      const uniqueName = generateUniqueName(assetData.name, existingFileNames);
 
-      let newInputs: Asset[];
-      if (existingIndex >= 0) {
-        // Replace existing file (keep original id, update content and timestamp)
-        newInputs = folder.inputs.map((input, idx) =>
-          idx === existingIndex
-            ? { ...input, ...assetData, uploadedAt: Date.now() }
-            : input
-        );
-      } else {
-        // Add new file
-        const asset: Asset = {
-          id: generateId('asset'),
-          uploadedAt: Date.now(),
-          ...assetData
-        };
-        newInputs = [...folder.inputs, asset];
-      }
+      // Add new file with unique name
+      const asset: Asset = {
+        id: generateId('asset'),
+        uploadedAt: Date.now(),
+        ...assetData,
+        name: uniqueName
+      };
+      const newInputs = [...folder.inputs, asset];
 
       return {
         folders: state.folders.map(f =>
@@ -298,17 +326,26 @@ export const useAppStore = create<AppState>()(
   },
 
   addFolderOutput: (folderId, artifact) => {
-    set(state => ({
-      folders: state.folders.map(folder =>
-        folder.id === folderId
-          ? {
-            ...folder,
-            outputs: [...folder.outputs, artifact],
-            updatedAt: Date.now()
-          }
-          : folder
-      )
-    }));
+    set(state => {
+      const folder = state.folders.find(f => f.id === folderId);
+      if (!folder) return state;
+
+      // Generate unique filename if duplicate exists
+      const existingFileNames = folder.outputs.map(output => output.filename);
+      const uniqueFilename = generateUniqueName(artifact.filename, existingFileNames);
+
+      return {
+        folders: state.folders.map(f =>
+          f.id === folderId
+            ? {
+              ...f,
+              outputs: [...f.outputs, { ...artifact, filename: uniqueFilename }],
+              updatedAt: Date.now()
+            }
+            : f
+        )
+      };
+    });
   },
 
   deleteFolder: (id) => {
