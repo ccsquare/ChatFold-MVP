@@ -28,6 +28,7 @@ from fastapi.responses import StreamingResponse
 
 from app.components.nanocc import (
     CreateJobRequest,
+    NanoCCClient,
     NanoCCJob,
     RegisterSequenceRequest,
     StageType,
@@ -227,9 +228,12 @@ async def register_sequence(job_id: str, request: RegisterSequenceRequest):
 async def cancel_job(job_id: str):
     """Cancel a running job.
 
-    This endpoint marks the job as canceled in Redis, which is shared
-    across all application instances. The SSE stream will detect this
-    status and terminate gracefully.
+    This endpoint:
+    1. Sends interrupt signal to NanoCC if session is active
+    2. Marks the job as canceled in Redis (shared across all instances)
+    3. Updates memory store and MySQL for backward compatibility
+
+    The SSE stream will detect the canceled status and terminate gracefully.
     """
     logger.info(f"POST /jobs/{job_id}/cancel")
     if not JOB_ID_PATTERN.match(job_id):
@@ -250,6 +254,25 @@ async def cancel_job(job_id: str):
     if current_status not in [StatusType.queued.value, StatusType.running.value]:
         return {"ok": False, "message": "Job is not running", "status": current_status}
 
+    # Try to interrupt NanoCC session if one exists
+    nanocc_interrupted = False
+    nanocc_session = job_state_service.get_nanocc_session(job_id)
+    if nanocc_session and nanocc_session.get("session_id"):
+        try:
+            client = NanoCCClient(
+                base_url=nanocc_session["backend_url"],
+            )
+            await client.interrupt_session(nanocc_session["session_id"])
+            nanocc_interrupted = True
+            logger.info(
+                f"Interrupted NanoCC session {nanocc_session['session_id']} for job {job_id}"
+            )
+        except Exception as e:
+            # Log but don't fail - the job may have already finished
+            logger.warning(
+                f"Failed to interrupt NanoCC session for job {job_id}: {e}"
+            )
+
     # Mark as canceled in Redis (visible to all instances)
     success = job_state_service.mark_canceled(job_id)
 
@@ -259,13 +282,19 @@ async def cancel_job(job_id: str):
     # Update MySQL if enabled
     _update_job_status_mysql(job_id, "canceled", "ERROR")
 
-    return {"ok": success, "jobId": job_id, "status": "canceled" if success else current_status}
+    return {
+        "ok": success,
+        "jobId": job_id,
+        "status": "canceled" if success else current_status,
+        "nanoccInterrupted": nanocc_interrupted,
+    }
 
 
 @router.get("/{job_id}/stream")
 async def stream_job(
     job_id: str,
     sequence: str | None = Query(None),
+    files: str | None = Query(None, description="Comma-separated list of filenames in TOS upload directory"),
     use_nanocc: bool | None = Query(None, alias="nanocc"),
 ):
     """Stream job progress events via Server-Sent Events (SSE).
@@ -273,11 +302,18 @@ async def stream_job(
     Args:
         job_id: The job identifier
         sequence: Optional amino acid sequence (if not pre-registered)
+        files: Comma-separated list of filenames to download from TOS.
+               Files should be pre-uploaded to tos://bucket/sessions/{session_id}/upload/
         use_nanocc: Override NanoCC usage (default: USE_NANOCC env var)
     """
+    # Parse files parameter
+    file_list: list[str] | None = None
+    if files:
+        file_list = [f.strip() for f in files.split(",") if f.strip()]
+
     logger.info(
         f"GET /jobs/{job_id}/stream: sequence_len={len(sequence) if sequence else 'None'}, "
-        f"nanocc={use_nanocc}"
+        f"files={file_list}, nanocc={use_nanocc}"
     )
     # Validate job_id format
     if not JOB_ID_PATTERN.match(job_id):
@@ -311,7 +347,7 @@ async def stream_job(
 
         if enable_nanocc:
             # Use NanoCC-powered async generator
-            async for event in generate_cot_events(job_id, final_sequence):
+            async for event in generate_cot_events(job_id, final_sequence, files=file_list):
                 # Check if job was canceled before each event (Redis + memory)
                 if _is_job_canceled(job_id):
                     job_state_service.mark_canceled(job_id, "Job canceled by user")

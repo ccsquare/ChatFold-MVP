@@ -553,6 +553,87 @@ class JobStateService:
         """
         return self.exists(job_id) or self._cache.exists(self._meta_key(job_id))
 
+    # ==================== NanoCC Session Tracking ====================
+
+    def _nanocc_key(self, job_id: str) -> str:
+        """Generate Redis key for NanoCC session info."""
+        return f"chatfold:job:nanocc:{job_id}"
+
+    def save_nanocc_session(
+        self,
+        job_id: str,
+        instance_id: str,
+        session_id: str,
+        backend_url: str,
+        ttl: int | None = JOB_STATE_TTL,
+    ) -> bool:
+        """Save NanoCC session info for later interrupt.
+
+        This stores the NanoCC instance and session IDs so that the cancel
+        endpoint can call interrupt_session when user cancels a job.
+
+        Args:
+            job_id: Job ID
+            instance_id: NanoCC instance ID from scheduler
+            session_id: NanoCC session ID from backend
+            backend_url: NanoCC backend URL (via scheduler proxy)
+            ttl: TTL in seconds (default: 24 hours)
+
+        Returns:
+            True if successful
+        """
+        key = self._nanocc_key(job_id)
+        data = {
+            "instance_id": instance_id,
+            "session_id": session_id,
+            "backend_url": backend_url,
+            "created_at": str(get_timestamp_ms()),
+        }
+
+        result = self._cache.hset(key, data)
+
+        if result and ttl:
+            self._cache.expire(key, ttl)
+
+        logger.debug(f"Saved NanoCC session: job={job_id}, session={session_id}")
+        return result
+
+    def get_nanocc_session(self, job_id: str) -> dict | None:
+        """Get NanoCC session info for a job.
+
+        Args:
+            job_id: Job ID
+
+        Returns:
+            Dict with instance_id, session_id, backend_url or None if not found
+        """
+        data = self._cache.hgetall(self._nanocc_key(job_id))
+        if not data:
+            return None
+
+        return {
+            "instance_id": data.get("instance_id", ""),
+            "session_id": data.get("session_id", ""),
+            "backend_url": data.get("backend_url", ""),
+            "created_at": int(data.get("created_at", 0)),
+        }
+
+    def delete_nanocc_session(self, job_id: str) -> bool:
+        """Delete NanoCC session info.
+
+        Called when job completes or is canceled.
+
+        Args:
+            job_id: Job ID
+
+        Returns:
+            True if deleted
+        """
+        result = self._cache.delete(self._nanocc_key(job_id))
+        if result:
+            logger.debug(f"Deleted NanoCC session info: {job_id}")
+        return result
+
     # ==================== Orphan Cleanup ====================
 
     def cleanup_orphan_metadata(
