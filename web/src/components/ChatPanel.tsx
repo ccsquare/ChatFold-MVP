@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
 import { parseFasta, validateSequence } from '@/lib/mock/generators';
 import { MentionableFile } from '@/lib/types';
@@ -26,6 +26,9 @@ export function ChatPanel() {
     activeFolderId,
     createFolder,
     addFolderInput,
+    // Streaming state (directly from store for button state)
+    isStreaming: storeIsStreaming,
+    setIsStreaming,
   } = useAppStore();
 
   const [input, setInput] = useState('');
@@ -38,13 +41,36 @@ export function ChatPanel() {
   const { timeline, isStreaming, timelineByEventType } = useConversationTimeline();
   const availableFiles = useAvailableFiles();
 
+  // Sync isSending with storeIsStreaming
+  // When streaming ends, reset isSending to false
+  useEffect(() => {
+    if (!storeIsStreaming && isSending) {
+      setIsSending(false);
+    }
+  }, [storeIsStreaming, isSending]);
+
+  // Debug: Set window marker and log button state
+  if (typeof window !== 'undefined') {
+    (window as any).__CHATPANEL_STATE = { isSending, storeIsStreaming };
+  }
+  console.error('[ChatPanel] Button state:', { isSending, storeIsStreaming, showStop: storeIsStreaming });
+
   // Handle send from ChatInputBase
   const handleSend = useCallback(
     async (content: string, files?: MentionableFile[]) => {
       // Allow sending if there's content OR fasta files attached
       const hasFastaFiles = files?.some(f => f.type === 'fasta' && f.content);
       if (!content.trim() && !hasFastaFiles) return;
-      if (isSending) return;
+      // Use storeIsStreaming as the source of truth for preventing duplicate submissions
+      if (storeIsStreaming) return;
+
+      // Set sending state immediately BEFORE any store updates
+      // This ensures the stop button shows even during conversation/folder creation
+      console.error('[ChatPanel] Setting isSending to TRUE');
+      setIsSending(true);
+      // Also set store streaming state immediately to prevent race conditions
+      // where createConversation or other operations might cause a re-render
+      setIsStreaming(true);
 
       // Get fresh values from store to avoid stale closure issues
       const storeState = useAppStore.getState();
@@ -96,7 +122,6 @@ export function ChatPanel() {
 
       setInput('');
       setMentionedFiles([]);
-      setIsSending(true);
 
       // Add user message with attached files
       console.log('[ChatPanel] Adding message to conversation:', convId);
@@ -105,6 +130,9 @@ export function ChatPanel() {
         content: userMessage,
         attachedFiles,
       });
+
+      // Track if streaming was started - don't reset isSending in finally if true
+      let streamingStarted = false;
 
       try {
         // Check if there are FASTA files attached - extract sequence from files
@@ -167,6 +195,7 @@ export function ChatPanel() {
             // Set active job and start streaming
             setActiveJob({ ...job, status: 'running' });
             startStream(job.id, sequence);
+            streamingStarted = true;
           } else {
             addMessage(convId, {
               role: 'assistant',
@@ -230,6 +259,7 @@ export function ChatPanel() {
               });
               setActiveJob({ ...job, status: 'running' });
               startStream(job.id, sequence);
+              streamingStarted = true;
             } else {
               addMessage(convId, {
                 role: 'assistant',
@@ -250,18 +280,28 @@ export function ChatPanel() {
           content: 'An error occurred. Please try again.',
         });
       } finally {
-        setIsSending(false);
+        // Only reset states if streaming wasn't actually started
+        // When streaming starts, states will be reset by the job completion handler
+        console.error('[ChatPanel] Finally block: streamingStarted =', streamingStarted);
+        if (!streamingStarted) {
+          console.error('[ChatPanel] Setting isSending/isStreaming to FALSE (streaming not started)');
+          setIsSending(false);
+          setIsStreaming(false);
+        } else {
+          console.error('[ChatPanel] Keeping streaming TRUE (streaming started)');
+        }
       }
     },
     [
-      // Note: activeConversationId, activeFolderId, isStreaming are now read fresh from store
+      // Note: activeConversationId, activeFolderId are read fresh from store
       // to avoid stale closure issues in single-round mode detection
       addMessage,
       addFolderInput,
       createConversation,
       createFolder,
-      isSending,
+      storeIsStreaming, // Used for guard condition
       setActiveJob,
+      setIsStreaming,
       startStream,
     ]
   );
@@ -276,7 +316,7 @@ export function ChatPanel() {
     if (activeConversationId) {
       addMessage(activeConversationId, {
         role: 'assistant',
-        content: 'Structure prediction was canceled.',
+        content: '任务已被取消',
       });
     }
   }, [cancelJob, activeConversationId, addMessage]);
@@ -403,7 +443,7 @@ export function ChatPanel() {
             mentionedFiles={mentionedFiles}
             onMentionedFilesChange={setMentionedFiles}
             placeholder="上传 FASTA 文件并输入约束需求"
-            isSending={isSending || isStreaming}
+            isSending={storeIsStreaming}
             thinkingIntensity={thinkingIntensity}
             onThinkingIntensityChange={setThinkingIntensity}
             enableFileMentions={false}

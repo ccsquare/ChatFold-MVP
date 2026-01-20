@@ -256,6 +256,7 @@ export interface AppState {
 
   setConsoleWidth: (width: number) => void;
   setConsoleCollapsed: (collapsed: boolean) => void;
+  setIsStreaming: (streaming: boolean) => void;
 
   setActiveJob: (job: Job | null) => void;
   addStepEvent: (jobId: string, event: StepEvent) => void;

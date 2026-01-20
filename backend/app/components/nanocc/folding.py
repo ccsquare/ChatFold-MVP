@@ -22,7 +22,6 @@ Storage:
 - CHATFOLD_USE_MEMORY_STORE=true: saves to memory only (legacy)
 """
 
-import logging
 import os
 from collections.abc import AsyncGenerator
 from pathlib import Path
@@ -35,7 +34,6 @@ from app.components.nanocc.client import (
     get_fs_root,
     job_id_to_session_id,
 )
-from app.services.session_store import SessionPaths, TOS_BUCKET
 from app.components.nanocc.job import EventType, JobEvent, StageType, StatusType
 from app.components.nanocc.mock import (
     MockNanoCCClient,
@@ -43,11 +41,13 @@ from app.components.nanocc.mock import (
 )
 from app.components.workspace.models import StructureArtifact
 from app.services.job_state import job_state_service
+from app.services.session_store import TOS_BUCKET, SessionPaths, get_session_store
 from app.services.structure_storage import structure_storage
 from app.settings import settings
 from app.utils import get_timestamp_ms
+from app.utils.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Configuration
 USE_MOCK_NANOCC = os.getenv("USE_MOCK_NANOCC", "true").lower() in ("true", "1", "yes")
@@ -55,9 +55,10 @@ MOCK_DELAY_MIN = float(os.getenv("MOCK_NANOCC_DELAY_MIN", "1.0"))
 MOCK_DELAY_MAX = float(os.getenv("MOCK_NANOCC_DELAY_MAX", "5.0"))
 
 
+def _read_pdb_file_local(pdb_path: str) -> str | None:
+    """Read PDB/CIF file content from local filesystem.
 
-def _read_pdb_file(pdb_path: str) -> str | None:
-    """Read PDB/CIF file content if it exists.
+    Used by Mock NanoCC flow where pdb_file paths are relative to project root.
 
     Args:
         pdb_path: Path to the PDB or CIF file (can be relative to project root or absolute)
@@ -80,6 +81,43 @@ def _read_pdb_file(pdb_path: str) -> str | None:
 
     logger.warning(f"PDB file not found: {path} (original path: {pdb_path})")
     return None
+
+
+def _read_pdb_file_from_tos(session_id: str, pdb_path: str) -> str | None:
+    """Download and read PDB/CIF file content from TOS.
+
+    Used by Real NanoCC flow where pdb_file paths are relative to session root on TOS.
+    The full TOS path is: sessions/{session_id}/{pdb_path}
+
+    Args:
+        session_id: The NanoCC session ID
+        pdb_path: Path to the PDB or CIF file, relative to session root
+
+    Returns:
+        File content as string, or None if download fails
+    """
+    try:
+        store = get_session_store()
+        tos_client = store._get_tos_client()
+
+        # Build full TOS key: sessions/{session_id}/{pdb_path}
+        paths = SessionPaths(session_id)
+        # pdb_path is relative to session root, e.g., "output/structure.cif"
+        # Full key: sessions/{session_id}/output/structure.cif
+        full_key = f"{paths.base}/{pdb_path}"
+
+        logger.info(f"Downloading PDB from TOS: tos://{TOS_BUCKET}/{full_key}")
+
+        # Download as bytes and decode as UTF-8
+        pdb_bytes = tos_client.download_bytes(full_key)
+        pdb_data = pdb_bytes.decode("utf-8")
+
+        logger.info(f"Downloaded PDB from TOS: {full_key} ({len(pdb_bytes)} bytes)")
+        return pdb_data
+
+    except Exception as e:
+        logger.warning(f"Failed to download PDB file from TOS: session={session_id}, path={pdb_path}, error={e}")
+        return None
 
 
 def _map_event_type(event_type: str, data: dict) -> EventType:
@@ -179,6 +217,7 @@ async def generate_real_cot_events(
         # Create session with working_directory
         session = await backend.create_session(working_directory=fs_root)
         logger.info(f"Created session {session.session_id} for job {job_id}")
+        logger.info(f"NanoCC working_directory (trajectory): {fs_root}")
 
         # Save NanoCC session info for interrupt support
         job_state_service.save_nanocc_session(
@@ -210,9 +249,18 @@ async def generate_real_cot_events(
         tos_config = TOSConfig(
             bucket=TOS_BUCKET,
             upload=paths.upload.rstrip("/"),  # sessions/{session_id}/upload
-            state=paths.state.rstrip("/"),    # sessions/{session_id}/state
+            state=paths.state.rstrip("/"),  # sessions/{session_id}/state
             output=paths.output.rstrip("/"),  # sessions/{session_id}/output
         )
+        logger.info(
+            f"NanoCC TOS config for job {job_id}: "
+            f"bucket={TOS_BUCKET}, "
+            f"upload=tos://{TOS_BUCKET}/{tos_config.upload}, "
+            f"state=tos://{TOS_BUCKET}/{tos_config.state}, "
+            f"output=tos://{TOS_BUCKET}/{tos_config.output}"
+        )
+        if files:
+            logger.info(f"NanoCC input files for job {job_id}: {files}")
 
         # Stream events from NanoCC
         async for event in backend.send_message(
@@ -223,6 +271,9 @@ async def generate_real_cot_events(
         ):
             event_type = event.event_type
             data = event.data
+
+            # Debug: Log received SSE event
+            logger.debug(f"[NanoCC Event] type={event_type}, data={data}")
 
             if event_type == "text":
                 content = data.get("content", "")
@@ -267,8 +318,9 @@ async def generate_real_cot_events(
                     structure_count += 1
                     structure_id = f"str_{job_id}_{structure_count}"
 
-                    # Read PDB content
-                    pdb_data = _read_pdb_file(pdb_path)
+                    # Download PDB content from TOS
+                    # pdb_path is relative to session root on TOS
+                    pdb_data = _read_pdb_file_from_tos(session_id, pdb_path)
 
                     if pdb_data:
                         filename_ext = Path(pdb_path).suffix or ".cif"
@@ -301,7 +353,9 @@ async def generate_real_cot_events(
                                     filename=filename,
                                     pdbData=pdb_data,
                                     createdAt=get_timestamp_ms(),
-                                    cot=message_content.strip() if message_content else f"Structure prediction: {label}",
+                                    cot=message_content.strip()
+                                    if message_content
+                                    else f"Structure prediction: {label}",
                                 )
                             ],
                         )
@@ -434,11 +488,14 @@ async def generate_mock_cot_events(
     async for event in backend.send_message(
         session.session_id,
         prompt,
-        tos_config=tos_config.to_dict(),
+        tos=tos_config,
         files=files,
     ):
         event_type = event.event_type
         data = event.data
+
+        # Debug: Log received SSE event
+        logger.debug(f"[NanoCC Mock Event] type={event_type}, data={data}")
 
         if event_type == "text":
             content = data.get("content", "")
@@ -482,7 +539,9 @@ async def generate_mock_cot_events(
                 structure_count += 1
                 structure_id = f"str_{job_id}_{structure_count}"
 
-                pdb_data = _read_pdb_file(pdb_path)
+                # Read PDB content from local filesystem
+                # pdb_path is relative to project root (test fixtures)
+                pdb_data = _read_pdb_file_local(pdb_path)
 
                 if pdb_data:
                     filename_ext = Path(pdb_path).suffix or ".cif"

@@ -165,7 +165,9 @@ export const useAppStore = create<AppState>()(
         activeConversationId: id,
         activeJob: null, // Clear active job when creating new conversation
         activeFolderId: folderId || null, // Set active folder if provided
-        isStreaming: false,
+        // Note: Don't reset isStreaming here - let setActiveJob control it
+        // This fixes a race condition where createConversation resets streaming
+        // state before setActiveJob can set it to true
         folders: updatedFolders
       };
     });
@@ -182,8 +184,9 @@ export const useAppStore = create<AppState>()(
       return {
         activeConversationId: id,
         activeJob: null, // Clear active job when switching conversation
-        activeFolderId: folderId, // Auto-activate associated folder
-        isStreaming: false
+        activeFolderId: folderId // Auto-activate associated folder
+        // Note: Don't reset isStreaming here - clearing activeJob is sufficient
+        // and setActiveJob controls streaming state
       };
     });
   },
@@ -511,6 +514,11 @@ export const useAppStore = create<AppState>()(
 
   setConsoleCollapsed: (collapsed) => {
     set({ consoleCollapsed: collapsed });
+  },
+
+  // Streaming state control
+  setIsStreaming: (streaming: boolean) => {
+    set({ isStreaming: streaming });
   },
 
   // Job actions

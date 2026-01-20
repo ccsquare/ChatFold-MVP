@@ -33,12 +33,29 @@ export function ChatView() {
     activeFolderId,
     createFolder,
     addFolderInput,
+    isStreaming: storeIsStreaming,
+    setIsStreaming,
   } = useAppStore();
 
   // Use shared hooks
-  const { submit } = useFoldingJob();
+  const { submit, cancel: cancelJob } = useFoldingJob();
   const { timeline, isStreaming, timelineByEventType } = useConversationTimeline();
   const availableFiles = useAvailableFiles();
+
+  // Handle stop button click
+  const handleStop = useCallback(async () => {
+    await cancelJob();
+    setIsSending(false);
+    setIsStreaming(false);
+
+    // Add cancellation message to chat
+    if (activeConversationId) {
+      addMessage(activeConversationId, {
+        role: 'assistant',
+        content: '任务已被取消',
+      });
+    }
+  }, [cancelJob, activeConversationId, addMessage, setIsStreaming]);
 
   const [inputValue, setInputValue] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -63,7 +80,11 @@ export function ChatView() {
     // Allow sending if there's content OR fasta files attached
     const hasFastaFiles = mentionedFiles?.some(f => f.type === 'fasta' && f.content);
     if (!content.trim() && !hasFastaFiles) return;
-    if (isSending) return;
+    // Use storeIsStreaming as the source of truth for preventing duplicate submissions
+    if (storeIsStreaming) return;
+
+    // Set streaming state immediately to show stop button
+    setIsStreaming(true);
 
     // Get fresh values from store to avoid stale closure issues
     const storeState = useAppStore.getState();
@@ -201,8 +222,10 @@ export function ChatView() {
       }
     } finally {
       setIsSending(false);
+      // Note: Don't reset setIsStreaming(false) here because the job
+      // is still running. The store will update isStreaming when the job completes.
     }
-  }, [addMessage, createConversation, isSending, submit, setMentionedFiles]);
+  }, [addMessage, createConversation, storeIsStreaming, setIsStreaming, submit, setMentionedFiles]);
 
   // Handle clicking an example sequence - prepare file for display, don't upload yet
   const handleExampleClick = useCallback((example: ExampleSequence) => {
@@ -346,11 +369,13 @@ export function ChatView() {
               value={inputValue}
               onChange={setInputValue}
               onSend={handleSendMessage}
+              onStop={handleStop}
               onFileUpload={handleFileUpload}
               availableFiles={availableFiles}
               mentionedFiles={mentionedFiles}
               onMentionedFilesChange={setMentionedFiles}
               placeholder="上传 FASTA 文件并输入约束需求"
+              isSending={storeIsStreaming}
               enableFileMentions={false}
               showDisclaimer
             />

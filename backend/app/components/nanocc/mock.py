@@ -23,6 +23,7 @@ from app.components.nanocc.client import (
     NanoCCEvent,
     NanoCCInstance,
     NanoCCSession,
+    TOSConfig,
 )
 
 logger = logging.getLogger(__name__)
@@ -250,8 +251,9 @@ class MockNanoCCClient:
         self,
         session_id: str,
         content: str,
-        tos_config: dict | None = None,
+        tos: TOSConfig | None = None,
         files: list[str] | None = None,
+        timeout: float | None = None,
     ) -> AsyncGenerator[NanoCCEvent, None]:
         """Stream mock CoT messages as SSE-like events.
 
@@ -264,8 +266,9 @@ class MockNanoCCClient:
         Args:
             session_id: The session ID
             content: The message content (used for logging)
-            tos_config: Optional TOS config (ignored in mock)
+            tos: Optional TOS sync configuration (ignored in mock)
             files: Optional files list (ignored in mock)
+            timeout: Optional timeout override (ignored in mock)
 
         Yields:
             NanoCCEvent objects matching real NanoCC format
@@ -274,21 +277,18 @@ class MockNanoCCClient:
         logger.info(f"Mock: Sending message to session {session_id}, content length: {len(content)}")
 
         block_index = 0
-        accumulated_text = ""
 
         for msg in messages:
             # Random delay to simulate generation
             delay = random.uniform(self.delay_min, self.delay_max)
             await asyncio.sleep(delay)
 
-            # Build accumulated text (matching real NanoCC behavior)
-            accumulated_text += msg.message + "\n"
-
             # Yield text content with type and block_index
+            # Each event contains only its own message (not accumulated)
             yield NanoCCEvent(
                 event_type="text",
                 data={
-                    "content": accumulated_text.strip(),
+                    "content": msg.message,
                     "block_index": block_index,
                     # Additional fields matching JSONL format
                     "type": msg.type,  # PROLOGUE, ANNOTATION, THINKING, CONCLUSION
