@@ -311,6 +311,7 @@ export function ChatPanel() {
     // Use shared hook to cancel the job
     await cancelJob();
     setIsSending(false);
+    setIsStreaming(false);
 
     // Add cancellation message to chat
     if (activeConversationId) {
@@ -319,7 +320,7 @@ export function ChatPanel() {
         content: '任务已被取消',
       });
     }
-  }, [cancelJob, activeConversationId, addMessage]);
+  }, [cancelJob, activeConversationId, addMessage, setIsStreaming]);
 
   // Handler to prepare example sequence - prepare file for display, don't upload yet
   const handleExampleClick = useCallback((example: ExampleSequence) => {
