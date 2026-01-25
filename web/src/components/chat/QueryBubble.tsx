@@ -3,11 +3,11 @@
 import { ChatMessage } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
-interface MessageBubbleProps {
+interface QueryBubbleProps {
   message: ChatMessage;
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
+export function QueryBubble({ message }: QueryBubbleProps) {
   const isUser = message.role === 'user';
 
   return (

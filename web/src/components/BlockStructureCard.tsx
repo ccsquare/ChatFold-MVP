@@ -57,7 +57,7 @@ function useIsDisplayedInCanvas(structureId: string): boolean {
   });
 }
 
-interface StructureArtifactCardProps {
+interface BlockStructureCardProps {
   artifact: StructureArtifact;
   /** Previous artifact for comparison (if available) */
   previousArtifact?: StructureArtifact | null;
@@ -82,7 +82,7 @@ const getIterationLabel = (
   return `Refinement ${index}`;
 };
 
-export function StructureArtifactCard({
+export function BlockStructureCard({
   artifact,
   previousArtifact,
   timestamp,
@@ -91,7 +91,7 @@ export function StructureArtifactCard({
   showPreview = true,
   syncGroupId = null,
   syncEnabled = false,
-}: StructureArtifactCardProps) {
+}: BlockStructureCardProps) {
   const { openStructureTab, openCompareTab, selectForCompare } = useAppStore();
   const isFinal = artifact.label?.toLowerCase() === 'final';
 

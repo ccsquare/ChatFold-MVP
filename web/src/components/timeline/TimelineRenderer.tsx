@@ -6,7 +6,7 @@ import { StructureArtifact, ChatMessage } from '@/lib/types';
 import { cn, formatTimestamp } from '@/lib/utils';
 import { Link2, Link2Off, RotateCcw, ChevronDown, CheckCircle2, Sparkle, Sparkles, FileText } from 'lucide-react';
 import { HelixIcon } from '@/components/icons/ProteinIcon';
-import { StructureArtifactCard } from '@/components/StructureArtifactCard';
+import { BlockStructureCard } from '@/components/BlockStructureCard';
 import { resetSyncGroupCamera } from '@/hooks/useCameraSync';
 import { useAppStore } from '@/lib/store';
 import {
@@ -144,13 +144,13 @@ export function TimelineRenderer({
           const isUserMessage = group.data.role === 'user';
           return (
             <React.Fragment key={group.data.id}>
-              <MessageBubble
+              <QueryBubble
                 message={group.data}
                 isCompact={isCompact}
               />
-              {/* Show PROLOGUE as message bubble after user message */}
+              {/* Show PROLOGUE as annotation bubble after user message */}
               {isUserMessage && prologueContent && (
-                <PrologueBubble text={prologueContent} isCompact={isCompact} />
+                <PrologueAnnotationBubble text={prologueContent} isCompact={isCompact} />
               )}
             </React.Fragment>
           );
@@ -198,9 +198,9 @@ export function TimelineRenderer({
 }
 
 /**
- * Message bubble component
+ * Query bubble component
  */
-function MessageBubble({
+function QueryBubble({
   message,
   isCompact,
 }: {
@@ -280,7 +280,7 @@ function MessageBubble({
  * PROLOGUE/ANNOTATION bubble component - message bubble style (left-aligned, gray bg)
  * Shows the verification points and annotations from the backend
  */
-function PrologueBubble({
+function PrologueAnnotationBubble({
   text,
   isCompact,
 }: {
@@ -360,7 +360,7 @@ function BestBlock({
 
         {/* Structure card */}
         <div className="p-3">
-          <StructureArtifactCard
+          <BlockStructureCard
             artifact={artifact}
             timestamp={timestamp}
             showPreview={true}
@@ -372,11 +372,11 @@ function BestBlock({
 }
 
 /**
- * Header thinking text with ChatGPT-style continuous scrolling
+ * Timeline head text with ChatGPT-style continuous scrolling
  * Fixed height container, content auto-scrolls to bottom as new text arrives
  * When expanded: shows all text
  */
-function HeaderThinkingText({
+function TimelineHeadText({
   text,
   isExpanded,
 }: {
@@ -428,7 +428,7 @@ function HeaderThinkingText({
  * Single line with sparkle icon, truncated with "...", expandable via chevron
  * Icon blinks between Sparkle and Sparkles when thinking, shows Sparkles when done
  */
-function ThinkingBubble({ text, isThinking = false }: { text: string; isThinking?: boolean }) {
+function BlockTextBubble({ text, isThinking = false }: { text: string; isThinking?: boolean }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showSparkles, setShowSparkles] = useState(false);
 
@@ -577,7 +577,7 @@ function ArtifactGroup({
   // Header expand state for thinking summary
   const [headerExpanded, setHeaderExpanded] = useState(false);
 
-  // Blinking icon state for header (same as ThinkingBubble)
+  // Blinking icon state for header (same as BlockTextBubble)
   const [showHeaderSparkles, setShowHeaderSparkles] = useState(false);
 
   // Blinking effect for header icon when streaming
@@ -626,7 +626,7 @@ function ArtifactGroup({
           </div>
 
           {/* Middle: Thinking text - scrolling container showing latest 2 lines */}
-          <HeaderThinkingText
+          <TimelineHeadText
             text={allThinkingText || currentThinkingText || 'Thinking...'}
             isExpanded={headerExpanded}
           />
@@ -711,10 +711,10 @@ function ArtifactGroup({
                 >
                   {/* Block text before each structure - no border, close to structure */}
                   {thinkingText && (
-                    <ThinkingBubble text={thinkingText} isThinking={isBlockThinking} />
+                    <BlockTextBubble text={thinkingText} isThinking={isBlockThinking} />
                   )}
                   {/* Structure Card - now directly clickable for compare selection */}
-                  <StructureArtifactCard
+                  <BlockStructureCard
                     artifact={artifact}
                     previousArtifact={currentIndex > 0 ? allArtifacts[currentIndex - 1]?.data : null}
                     timestamp={artifactItem.timestamp}
@@ -732,4 +732,3 @@ function ArtifactGroup({
     </div>
   );
 }
-
