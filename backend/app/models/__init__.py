@@ -25,7 +25,7 @@ from app.models.schemas import (
     StageType,
     StatusType,
     StepEvent,
-    StructureArtifact,
+    Structure,
     User,
     UserPlan,
 )
@@ -51,7 +51,7 @@ __all__ = [
     "Asset",
     "User",
     "UserPlan",
-    "StructureArtifact",
+    "Structure",
     "CreateFolderRequest",
     "AddFolderInputRequest",
 ]

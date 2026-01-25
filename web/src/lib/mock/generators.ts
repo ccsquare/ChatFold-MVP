@@ -1,6 +1,6 @@
 // Mock data generators for protein folding simulation
 
-import { StepEvent, StructureArtifact, StageType, StatusType } from '../types';
+import { StepEvent, Structure, StageType, StatusType } from '../types';
 
 // Simple pseudo-random generator for deterministic results
 function seededRandom(seed: number): () => number {
@@ -181,7 +181,7 @@ export function* generateStepEvents(jobId: string, sequence: string): Generator<
       const status: StatusType = stage === 'DONE' ? 'complete' :
         (i === messagesCount - 1 && stageIdx < stages.length - 1 ? 'complete' : 'running');
 
-      const artifacts: StructureArtifact[] = [];
+      const artifacts: Structure[] = [];
 
       // Generate structure artifacts at MODEL stage (5 candidates)
       // Messages: 0=init, 1=inference, 2-6=generating candidates

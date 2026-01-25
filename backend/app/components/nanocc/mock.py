@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 # Configuration
 _BACKEND_DIR = Path(__file__).resolve().parent.parent.parent.parent
-_DEFAULT_MOCK_DATA = _BACKEND_DIR / "tests" / "fixtures" / "Mocking_CoT.nanocc.jsonl"
+_DEFAULT_MOCK_DATA = _BACKEND_DIR / "tests" / "fixtures" / "Mocking_CoT.nanocc.sse.jsonl"
 MOCK_DATA_PATH = os.getenv("MOCK_NANOCC_DATA_PATH", str(_DEFAULT_MOCK_DATA))
 MOCK_DELAY_MIN = float(os.getenv("MOCK_NANOCC_DELAY_MIN", "1.0"))
 MOCK_DELAY_MAX = float(os.getenv("MOCK_NANOCC_DELAY_MAX", "5.0"))
@@ -257,10 +257,8 @@ class MockNanoCCClient:
     ) -> AsyncGenerator[NanoCCEvent, None]:
         """Stream mock CoT messages as SSE-like events.
 
-        Follows the same event format as real NanoCC:
-        - event_type: "text" for content messages (with block_index)
-        - event_type: "tool_use" for tool invocations
-        - event_type: "tool_result" for structure artifacts
+        Follows the same event format as NanoCC cot_step streaming:
+        - event_type: "cot_step" with STATE/MESSAGE/pdb_file/label
         - event_type: "done" when complete
 
         Args:
@@ -276,58 +274,21 @@ class MockNanoCCClient:
         messages = self._load_messages()
         logger.info(f"Mock: Sending message to session {session_id}, content length: {len(content)}")
 
-        block_index = 0
-
         for msg in messages:
             # Random delay to simulate generation
             delay = random.uniform(self.delay_min, self.delay_max)
             await asyncio.sleep(delay)
 
-            # Yield text content with type and block_index
-            # Each event contains only its own message (not accumulated)
+            # Yield normalized cot_step message
             yield NanoCCEvent(
-                event_type="text",
+                event_type="cot_step",
                 data={
-                    "content": msg.message,
-                    "block_index": block_index,
-                    # Additional fields matching JSONL format
-                    "type": msg.type,  # PROLOGUE, ANNOTATION, THINKING, CONCLUSION
-                    "state": msg.state,  # MODEL or DONE
+                    "STATE": msg.type.lower(),  # prologue|annotation|thinking|conclusion
+                    "MESSAGE": msg.message,
+                    "pdb_file": msg.pdb_file,
+                    "label": msg.label,
                 },
             )
-
-            # If there's a PDB file, yield tool_use then tool_result
-            if msg.pdb_file:
-                block_index += 1
-                accumulated_text = ""
-
-                # Yield tool_use event (matching real NanoCC)
-                yield NanoCCEvent(
-                    event_type="tool_use",
-                    data={
-                        "name": "structure_prediction",
-                        "input": {"pdb_file": msg.pdb_file, "label": msg.label or "structure"},
-                        "id": f"tool_{uuid.uuid4().hex[:8]}",
-                        "block_index": block_index,
-                    },
-                )
-
-                block_index += 1
-
-                # Yield tool_result event
-                yield NanoCCEvent(
-                    event_type="tool_result",
-                    data={
-                        "tool_use_id": f"tool_{uuid.uuid4().hex[:8]}",
-                        "content": f"Structure generated: {msg.label or 'structure'}",
-                        "is_error": False,
-                        "block_index": block_index,
-                        # Additional fields for structure handling
-                        "pdb_file": msg.pdb_file,
-                        "label": msg.label or "structure",
-                        "message": msg.message,
-                    },
-                )
 
         # Signal completion with stats (matching real NanoCC done event)
         yield NanoCCEvent(

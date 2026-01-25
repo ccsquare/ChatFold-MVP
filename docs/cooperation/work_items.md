@@ -165,7 +165,7 @@ interface StepEvent {
   progress: number;
   message: string;
   blockIndex?: number;  // THINKING 分组
-  artifacts?: StructureArtifact[];
+  artifacts?: Structure[];
 }
 ```
 

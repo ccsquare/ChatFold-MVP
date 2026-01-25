@@ -10,7 +10,7 @@ import random
 from collections.abc import Generator
 
 from app.components.nanocc.job import JobEvent, StageType, StatusType
-from app.components.workspace.models import StructureArtifact
+from app.components.workspace.models import Structure
 from app.utils import generate_mock_pdb, get_timestamp_ms
 
 # Chain-of-thought templates for each candidate structure
@@ -102,7 +102,7 @@ def generate_step_events(job_id: str, sequence: str) -> Generator[JobEvent, None
             else:
                 status = StatusType.running
 
-            artifacts: list[StructureArtifact] = []
+            artifacts: list[Structure] = []
 
             # Generate structure artifacts at MODEL stage (5 candidates)
             # Messages: 0=init, 1=inference, 2-6=generating candidates
@@ -119,7 +119,7 @@ def generate_step_events(job_id: str, sequence: str) -> Generator[JobEvent, None
                 cot = random.choice(cot_options)
 
                 artifacts.append(
-                    StructureArtifact(
+                    Structure(
                         type="structure",
                         structureId=structure_id,
                         label=f"candidate-{candidate_num}",
@@ -142,7 +142,7 @@ def generate_step_events(job_id: str, sequence: str) -> Generator[JobEvent, None
                 cot = random.choice(COT_TEMPLATES["final"])
 
                 artifacts.append(
-                    StructureArtifact(
+                    Structure(
                         type="structure",
                         structureId=structure_id,
                         label="final",

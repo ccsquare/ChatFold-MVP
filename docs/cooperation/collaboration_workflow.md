@@ -133,7 +133,7 @@ data: {"jobId":"job_xxx","message":"折叠失败"}
 |-------------------|---------------|
 | `StepEvent` | `JobEvent` |
 | `Job` | `NanoCCJob` |
-| `StructureArtifact` | `StructureArtifact` |
+| `Structure` | `Structure` |
 | `StageType` | `StageType` |
 | `EventType` | `EventType` |
 

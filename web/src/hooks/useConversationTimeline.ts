@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { useAppStore } from '@/lib/store';
-import { ChatMessage, StructureArtifact, StepEvent, EventType } from '@/lib/types';
+import { ChatMessage, Structure, StepEvent, EventType } from '@/lib/types';
 
 /**
  * Timeline item types for unified rendering.
@@ -10,7 +10,7 @@ import { ChatMessage, StructureArtifact, StepEvent, EventType } from '@/lib/type
  */
 export type TimelineItem =
   | { type: 'message'; data: ChatMessage }
-  | { type: 'artifact'; data: StructureArtifact; timestamp: number }
+  | { type: 'artifact'; data: Structure; timestamp: number }
   | { type: 'step'; data: StepEvent };  // NEW: Step events with eventType for UI area mapping
 
 /**
@@ -20,7 +20,7 @@ export type TimelineItem =
 export interface ThinkingBlock {
   blockIndex: number;
   events: StepEvent[];
-  artifact?: StructureArtifact;  // The structure from THINKING_PDB
+  artifact?: Structure;  // The structure from THINKING_PDB
 }
 
 /**
@@ -165,7 +165,7 @@ export function useConversationTimeline(options: TimelineOptions = {}) {
       return [];
     }
 
-    const result: StructureArtifact[] = [];
+    const result: Structure[] = [];
     activeJob.steps.forEach(step => {
       step.artifacts?.forEach(artifact => result.push(artifact));
     });

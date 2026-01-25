@@ -39,7 +39,7 @@ from app.components.nanocc.mock import (
     MockNanoCCClient,
     MockNanoCCSchedulerClient,
 )
-from app.components.workspace.models import StructureArtifact
+from app.components.workspace.models import Structure
 from app.services.job_state import job_state_service
 from app.services.session_store import TOS_BUCKET, SessionPaths, get_session_store
 from app.services.structure_storage import structure_storage
@@ -120,35 +120,26 @@ def _read_pdb_file_from_tos(session_id: str, pdb_path: str) -> str | None:
         return None
 
 
-def _map_event_type(event_type: str, data: dict) -> EventType:
-    """Map NanoCC event type to JobEvent EventType.
+def _map_cot_step_event_type(state: str, has_pdb: bool) -> EventType:
+    """Map NanoCC cot_step state to JobEvent EventType.
 
-    Args:
-        event_type: The SSE event type (text, tool_use, tool_result, done)
-        data: The event data
-
-    Returns:
-        Corresponding EventType enum value
+    Mapping rule:
+    - STATE=prologue -> PROLOGUE
+    - STATE=annotation -> ANNOTATION
+    - STATE=conclusion -> CONCLUSION
+    - STATE=thinking + pdb_file -> THINKING_PDB
+    - STATE=thinking + no pdb_file -> THINKING_TEXT
     """
-    if event_type == "text":
-        msg_type = data.get("type", "THINKING")
-        if msg_type == "PROLOGUE":
-            return EventType.PROLOGUE
-        elif msg_type == "ANNOTATION":
-            return EventType.ANNOTATION
-        elif msg_type == "CONCLUSION":
-            return EventType.CONCLUSION
-        else:
-            return EventType.THINKING_TEXT
-    elif event_type == "tool_result":
-        # Tool result with PDB file
-        if data.get("pdb_file"):
-            return EventType.THINKING_PDB
-        return EventType.THINKING_TEXT
-    elif event_type == "thinking":
-        return EventType.THINKING_TEXT
-    else:
-        return EventType.THINKING_TEXT
+    normalized = state.strip().lower()
+    if normalized == "prologue":
+        return EventType.PROLOGUE
+    if normalized == "annotation":
+        return EventType.ANNOTATION
+    if normalized == "conclusion":
+        return EventType.CONCLUSION
+    if normalized == "thinking" and has_pdb:
+        return EventType.THINKING_PDB
+    return EventType.THINKING_TEXT
 
 
 async def generate_real_cot_events(
@@ -177,6 +168,7 @@ async def generate_real_cot_events(
     event_num = 0
     structure_count = 0
     block_index = 0
+    prev_was_pdb = False
     instance = None
     session = None
 
@@ -275,12 +267,17 @@ async def generate_real_cot_events(
             # Debug: Log received SSE event
             logger.debug(f"[NanoCC Event] type={event_type}, data={data}")
 
-            if event_type == "text":
-                content = data.get("content", "")
-                state = data.get("state", "MODEL")
+            if event_type == "cot_step":
+                state = data.get("STATE", "thinking")
+                message = data.get("MESSAGE", "")
+                pdb_path = data.get("pdb_file")
+                label = data.get("label", "structure")
 
-                # Determine stage and status
-                if state == "DONE":
+                has_pdb = bool(pdb_path)
+                nanocc_event_type = _map_cot_step_event_type(state, has_pdb)
+
+                # Default stage/status
+                if nanocc_event_type == EventType.CONCLUSION:
                     stage = StageType.DONE
                     status = StatusType.complete
                     progress = 100
@@ -289,10 +286,54 @@ async def generate_real_cot_events(
                     status = StatusType.running
                     progress = min(95, 10 + block_index * 10)
 
-                nanocc_event_type = _map_event_type(event_type, data)
-
+                artifacts = None
                 current_block_index = None
-                if nanocc_event_type in (EventType.THINKING_TEXT, EventType.THINKING_PDB):
+
+                if nanocc_event_type == EventType.THINKING_PDB and pdb_path:
+                    structure_count += 1
+                    structure_id = f"str_{job_id}_{structure_count}"
+                    pdb_data = _read_pdb_file_from_tos(session_id, pdb_path)
+
+                    # Use current block index for this event
+                    current_block_index = block_index
+
+                    if pdb_data:
+                        filename_ext = Path(pdb_path).suffix or ".cif"
+                        filename = f"{label}{filename_ext}"
+
+                        structure_storage.save_structure(
+                            structure_id=structure_id,
+                            pdb_data=pdb_data,
+                            job_id=job_id,
+                            filename=filename,
+                        )
+
+                        artifacts = [
+                            Structure(
+                                type="structure",
+                                structureId=structure_id,
+                                label=label,
+                                filename=filename,
+                                pdbData=pdb_data,
+                                createdAt=get_timestamp_ms(),
+                                cot=message.strip() if message else f"Structure prediction: {label}",
+                            )
+                        ]
+                    else:
+                        # File read failed - emit as THINKING_TEXT but still close block
+                        nanocc_event_type = EventType.THINKING_TEXT
+                        logger.warning(
+                            f"THINKING_PDB file read failed for job {job_id}, "
+                            f"pdb_path={pdb_path}, falling back to THINKING_TEXT"
+                        )
+
+                    # Always close block when pdb_file was set (NanoCC intended a structure here)
+                    block_index += 1
+                    prev_was_pdb = True
+
+                elif nanocc_event_type == EventType.THINKING_TEXT:
+                    if prev_was_pdb:
+                        prev_was_pdb = False
                     current_block_index = block_index
 
                 event_num += 1
@@ -304,63 +345,13 @@ async def generate_real_cot_events(
                     stage=stage,
                     status=status,
                     progress=progress,
-                    message=content.strip() if content else "",
+                    message=message.strip() if message else "",
                     blockIndex=current_block_index,
-                    artifacts=None,
+                    artifacts=artifacts,
                 )
 
-            elif event_type == "tool_result":
-                pdb_path = data.get("pdb_file")
-                label = data.get("label", "structure")
-                message_content = data.get("message", "")
-
-                if pdb_path:
-                    structure_count += 1
-                    structure_id = f"str_{job_id}_{structure_count}"
-
-                    # Download PDB content from TOS
-                    # pdb_path is relative to session root on TOS
-                    pdb_data = _read_pdb_file_from_tos(session_id, pdb_path)
-
-                    if pdb_data:
-                        filename_ext = Path(pdb_path).suffix or ".cif"
-                        filename = f"{label}{filename_ext}"
-
-                        # Save structure
-                        structure_storage.save_structure(
-                            structure_id=structure_id,
-                            pdb_data=pdb_data,
-                            job_id=job_id,
-                            filename=filename,
-                        )
-
-                        event_num += 1
-                        yield JobEvent(
-                            eventId=f"evt_{job_id}_{event_num:04d}",
-                            jobId=job_id,
-                            ts=get_timestamp_ms(),
-                            eventType=EventType.THINKING_PDB,
-                            stage=StageType.MODEL,
-                            status=StatusType.running,
-                            progress=min(95, 10 + block_index * 10),
-                            message=message_content.strip() if message_content else f"Generated structure: {label}",
-                            blockIndex=block_index,
-                            artifacts=[
-                                StructureArtifact(
-                                    type="structure",
-                                    structureId=structure_id,
-                                    label=label,
-                                    filename=filename,
-                                    pdbData=pdb_data,
-                                    createdAt=get_timestamp_ms(),
-                                    cot=message_content.strip()
-                                    if message_content
-                                    else f"Structure prediction: {label}",
-                                )
-                            ],
-                        )
-
-                        block_index += 1
+            elif event_type == "error":
+                logger.warning(f"NanoCC SSE error for job {job_id}: {data}")
 
             elif event_type == "done":
                 # Final done event handled after loop
@@ -421,6 +412,7 @@ async def generate_mock_cot_events(
     event_num = 0
     structure_count = 0
     block_index = 0
+    prev_was_pdb = False
 
     # Initialize mock clients
     scheduler = MockNanoCCSchedulerClient()
@@ -497,11 +489,16 @@ async def generate_mock_cot_events(
         # Debug: Log received SSE event
         logger.debug(f"[NanoCC Mock Event] type={event_type}, data={data}")
 
-        if event_type == "text":
-            content = data.get("content", "")
-            state = data.get("state", "MODEL")
+        if event_type == "cot_step":
+            state = data.get("STATE", "thinking")
+            message = data.get("MESSAGE", "")
+            pdb_path = data.get("pdb_file")
+            label = data.get("label", "structure")
 
-            if state == "DONE":
+            has_pdb = bool(pdb_path)
+            nanocc_event_type = _map_cot_step_event_type(state, has_pdb)
+
+            if nanocc_event_type == EventType.CONCLUSION:
                 stage = StageType.DONE
                 status = StatusType.complete
                 progress = 100
@@ -510,38 +507,19 @@ async def generate_mock_cot_events(
                 status = StatusType.running
                 progress = min(95, 10 + block_index * 10)
 
-            nanocc_event_type = _map_event_type(event_type, data)
-
+            artifacts = None
             current_block_index = None
-            if nanocc_event_type in (EventType.THINKING_TEXT, EventType.THINKING_PDB):
-                current_block_index = block_index
 
-            event_num += 1
-            yield JobEvent(
-                eventId=f"evt_{job_id}_{event_num:04d}",
-                jobId=job_id,
-                ts=get_timestamp_ms(),
-                eventType=nanocc_event_type,
-                stage=stage,
-                status=status,
-                progress=progress,
-                message=content.strip() if content else "",
-                blockIndex=current_block_index,
-                artifacts=None,
-            )
-
-        elif event_type == "tool_result":
-            pdb_path = data.get("pdb_file")
-            label = data.get("label", "structure")
-            message_content = data.get("message", "")
-
-            if pdb_path:
+            if nanocc_event_type == EventType.THINKING_PDB and pdb_path:
                 structure_count += 1
                 structure_id = f"str_{job_id}_{structure_count}"
 
                 # Read PDB content from local filesystem
                 # pdb_path is relative to project root (test fixtures)
                 pdb_data = _read_pdb_file_local(pdb_path)
+
+                # Use current block index for this event
+                current_block_index = block_index
 
                 if pdb_data:
                     filename_ext = Path(pdb_path).suffix or ".cif"
@@ -554,31 +532,50 @@ async def generate_mock_cot_events(
                         filename=filename,
                     )
 
-                    event_num += 1
-                    yield JobEvent(
-                        eventId=f"evt_{job_id}_{event_num:04d}",
-                        jobId=job_id,
-                        ts=get_timestamp_ms(),
-                        eventType=EventType.THINKING_PDB,
-                        stage=StageType.MODEL,
-                        status=StatusType.running,
-                        progress=min(95, 10 + block_index * 10),
-                        message=message_content.strip() if message_content else f"Generated structure: {label}",
-                        blockIndex=block_index,
-                        artifacts=[
-                            StructureArtifact(
-                                type="structure",
-                                structureId=structure_id,
-                                label=label,
-                                filename=filename,
-                                pdbData=pdb_data,
-                                createdAt=get_timestamp_ms(),
-                                cot=message_content.strip() if message_content else f"Structure prediction: {label}",
-                            )
-                        ],
+                    artifacts = [
+                        Structure(
+                            type="structure",
+                            structureId=structure_id,
+                            label=label,
+                            filename=filename,
+                            pdbData=pdb_data,
+                            createdAt=get_timestamp_ms(),
+                            cot=message.strip() if message else f"Structure prediction: {label}",
+                        )
+                    ]
+                else:
+                    # File read failed - emit as THINKING_TEXT but still close block
+                    nanocc_event_type = EventType.THINKING_TEXT
+                    logger.warning(
+                        f"Mock THINKING_PDB file read failed for job {job_id}, "
+                        f"pdb_path={pdb_path}, falling back to THINKING_TEXT"
                     )
 
-                    block_index += 1
+                # Always close block when pdb_file was set (NanoCC intended a structure here)
+                block_index += 1
+                prev_was_pdb = True
+
+            elif nanocc_event_type == EventType.THINKING_TEXT:
+                if prev_was_pdb:
+                    prev_was_pdb = False
+                current_block_index = block_index
+
+            event_num += 1
+            yield JobEvent(
+                eventId=f"evt_{job_id}_{event_num:04d}",
+                jobId=job_id,
+                ts=get_timestamp_ms(),
+                eventType=nanocc_event_type,
+                stage=stage,
+                status=status,
+                progress=progress,
+                message=message.strip() if message else "",
+                blockIndex=current_block_index,
+                artifacts=artifacts,
+            )
+
+        elif event_type == "error":
+            logger.warning(f"Mock NanoCC SSE error for job {job_id}: {data}")
 
         elif event_type == "done":
             break

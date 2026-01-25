@@ -2,7 +2,7 @@
 
 import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react';
 import { TimelineItem, TimelineByEventType, ThinkingBlock } from '@/hooks/useConversationTimeline';
-import { StructureArtifact, ChatMessage } from '@/lib/types';
+import { Structure, ChatMessage } from '@/lib/types';
 import { cn, formatTimestamp } from '@/lib/utils';
 import { Link2, Link2Off, RotateCcw, ChevronDown, CheckCircle2, Sparkle, Sparkles, FileText } from 'lucide-react';
 import { HelixIcon } from '@/components/icons/ProteinIcon';
@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button';
  */
 type TimelineGroup =
   | { type: 'message'; data: ChatMessage }
-  | { type: 'artifact-group'; artifacts: Array<{ data: StructureArtifact; timestamp: number; index: number }> };
+  | { type: 'artifact-group'; artifacts: Array<{ data: Structure; timestamp: number; index: number }> };
 
 interface TimelineRendererProps {
   /** Timeline items to render */
@@ -63,7 +63,7 @@ export function TimelineRenderer({
   }, [timeline.length]);
 
   // Pre-calculate all artifacts for step numbering and delta calculation
-  const allArtifacts = useMemo(() =>
+  const allStructures = useMemo(() =>
     timeline.filter((item): item is TimelineItem & { type: 'artifact' } =>
       item.type === 'artifact'
     ),
@@ -73,19 +73,19 @@ export function TimelineRenderer({
   // Group timeline: messages standalone, artifacts grouped together
   const groups = useMemo(() => {
     const result: TimelineGroup[] = [];
-    let currentArtifactGroup: Array<{ data: StructureArtifact; timestamp: number; index: number }> = [];
+    let currentFoldingProgress: Array<{ data: Structure; timestamp: number; index: number }> = [];
     let globalArtifactIndex = 0;
 
     timeline.forEach((item) => {
       if (item.type === 'message') {
         // Flush pending artifact group
-        if (currentArtifactGroup.length > 0) {
-          result.push({ type: 'artifact-group', artifacts: currentArtifactGroup });
-          currentArtifactGroup = [];
+        if (currentFoldingProgress.length > 0) {
+          result.push({ type: 'artifact-group', artifacts: currentFoldingProgress });
+          currentFoldingProgress = [];
         }
         result.push({ type: 'message', data: item.data });
       } else if (item.type === 'artifact') {
-        currentArtifactGroup.push({
+        currentFoldingProgress.push({
           data: item.data,
           timestamp: item.timestamp,
           index: globalArtifactIndex++,
@@ -95,8 +95,8 @@ export function TimelineRenderer({
     });
 
     // Flush remaining artifacts
-    if (currentArtifactGroup.length > 0) {
-      result.push({ type: 'artifact-group', artifacts: currentArtifactGroup });
+    if (currentFoldingProgress.length > 0) {
+      result.push({ type: 'artifact-group', artifacts: currentFoldingProgress });
     }
 
     return result;
@@ -158,23 +158,24 @@ export function TimelineRenderer({
         if (group.type === 'artifact-group') {
           return (
             <React.Fragment key={`artifact-group-${groupIndex}`}>
-              <ArtifactGroup
+              <FoldingProgress
                 groupIndex={groupIndex}
                 artifacts={group.artifacts}
-                allArtifacts={allArtifacts}
+                allStructures={allStructures}
                 isStreaming={isStreaming}
                 thinkingBlocks={thinkingBlocks}
                 currentThinkingText={currentThinkingText}
+                conclusionMessage={conclusionContent}
               />
               {/* Show CONCLUSION as message bubble after artifact group when complete */}
               {!isStreaming && conclusionContent && (
                 <ConclusionBubble text={conclusionContent} isCompact={isCompact} />
               )}
               {/* Show Best Block after conclusion - use the last artifact from the entire timeline */}
-              {!isStreaming && allArtifacts.length > 0 && (
+              {!isStreaming && allStructures.length > 0 && (
                 <BestBlock
-                  artifact={allArtifacts[allArtifacts.length - 1].data}
-                  timestamp={allArtifacts[allArtifacts.length - 1].timestamp}
+                  artifact={allStructures[allStructures.length - 1].data}
+                  timestamp={allStructures[allStructures.length - 1].timestamp}
                 />
               )}
             </React.Fragment>
@@ -343,7 +344,7 @@ function BestBlock({
   artifact,
   timestamp,
 }: {
-  artifact: StructureArtifact;
+  artifact: Structure;
   timestamp: number;
 }) {
   return (
@@ -488,21 +489,24 @@ function BlockTextBubble({ text, isThinking = false }: { text: string; isThinkin
 /**
  * Artifact group with timeline visualization wrapped in a container
  */
-function ArtifactGroup({
+function FoldingProgress({
   groupIndex,
   artifacts,
-  allArtifacts,
+  allStructures,
   isStreaming,
   thinkingBlocks,
   currentThinkingText,
+  conclusionMessage,
 }: {
   groupIndex: number;
-  artifacts: Array<{ data: StructureArtifact; timestamp: number; index: number }>;
-  allArtifacts: Array<{ type: 'artifact'; data: StructureArtifact; timestamp: number }>;
+  artifacts: Array<{ data: Structure; timestamp: number; index: number }>;
+  allStructures: Array<{ type: 'artifact'; data: Structure; timestamp: number }>;
   isStreaming: boolean;
   thinkingBlocks?: ThinkingBlock[];
   /** Current streaming thinking text for typewriter display */
   currentThinkingText?: string | null;
+  /** CONCLUSION message for header summary */
+  conclusionMessage?: string | null;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -551,28 +555,44 @@ function ArtifactGroup({
   }, [artifacts.length, isExpanded]);
 
   // Helper function to get thinking text for a specific block index
+  // Includes: THINKING_TEXT + THINKING_PDB messages for this block
   const getThinkingTextForBlock = useCallback((blockIndex: number): string | null => {
     if (!thinkingBlocks) return null;
     const block = thinkingBlocks.find(b => b.blockIndex === blockIndex);
     if (!block || !block.events || block.events.length === 0) return null;
-    // Combine all THINKING_TEXT events in this block
+    // Combine all THINKING_TEXT and THINKING_PDB messages in this block
     const thinkingTexts = block.events
-      .filter(e => e.eventType === 'THINKING_TEXT')
-      .map(e => e.message);
+      .filter(e => e.eventType === 'THINKING_TEXT' || e.eventType === 'THINKING_PDB')
+      .map(e => e.message)
+      .filter(msg => msg); // Filter out empty messages
     return thinkingTexts.length > 0 ? thinkingTexts.join('\n') : null;
   }, [thinkingBlocks]);
 
-  // Get ALL thinking text combined for the header summary display
+  // Get all thinking text for the header summary display
+  // Includes: THINKING_TEXT + THINKING_PDB + CONCLUSION messages
+  // Excludes: PROLOGUE + ANNOTATION (shown separately)
+  // Note: Duplication with BlockTextBubble is expected
   const allThinkingText = useMemo(() => {
-    if (!thinkingBlocks || thinkingBlocks.length === 0) return null;
     const allTexts: string[] = [];
-    thinkingBlocks.forEach(block => {
-      block.events
-        .filter(e => e.eventType === 'THINKING_TEXT')
-        .forEach(e => allTexts.push(e.message));
-    });
+
+    // Include all THINKING_TEXT and THINKING_PDB messages from all blocks
+    if (thinkingBlocks && thinkingBlocks.length > 0) {
+      thinkingBlocks.forEach(block => {
+        block.events
+          .filter(e => e.eventType === 'THINKING_TEXT' || e.eventType === 'THINKING_PDB')
+          .forEach(e => {
+            if (e.message) allTexts.push(e.message);
+          });
+      });
+    }
+
+    // Include CONCLUSION message
+    if (conclusionMessage) {
+      allTexts.push(conclusionMessage);
+    }
+
     return allTexts.length > 0 ? allTexts.join('\n') : null;
-  }, [thinkingBlocks]);
+  }, [thinkingBlocks, conclusionMessage]);
 
   // Header expand state for thinking summary
   const [headerExpanded, setHeaderExpanded] = useState(false);
@@ -699,8 +719,14 @@ function ArtifactGroup({
           <div className="flex flex-col gap-3">
             {artifacts.map((artifactItem, idx) => {
               const artifact = artifactItem.data;
-              const currentIndex = artifactItem.index;
-              const thinkingText = getThinkingTextForBlock(currentIndex);
+              const currentIndex = artifactItem.index;  // Timeline index for stepNumber and previousArtifact
+              // Find the actual blockIndex for this artifact by matching structureId in thinkingBlocks
+              // This is necessary because artifactItem.index is the timeline position, not the blockIndex from backend
+              const artifactBlock = thinkingBlocks?.find(
+                b => b.artifact?.structureId === artifact.structureId
+              );
+              const blockIndex = artifactBlock?.blockIndex;
+              const thinkingText = blockIndex !== undefined ? getThinkingTextForBlock(blockIndex) : null;
               // This block is still thinking if streaming and it's the last artifact
               const isBlockThinking = isStreaming && idx === artifacts.length - 1;
 
@@ -716,7 +742,7 @@ function ArtifactGroup({
                   {/* Structure Card - now directly clickable for compare selection */}
                   <BlockStructureCard
                     artifact={artifact}
-                    previousArtifact={currentIndex > 0 ? allArtifacts[currentIndex - 1]?.data : null}
+                    previousArtifact={currentIndex > 0 ? allStructures[currentIndex - 1]?.data : null}
                     timestamp={artifactItem.timestamp}
                     stepNumber={currentIndex + 1}
                     showPreview={true}

@@ -10,7 +10,7 @@ from enum import Enum
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.components.workspace.models import StructureArtifact
+from app.components.workspace.models import Structure
 from app.utils.fasta_parser import parse_fasta
 from app.utils.sequence_validator import normalize_sequence, validate_amino_acid_sequence
 
@@ -85,7 +85,7 @@ class JobEvent(BaseModel):
     progress: int = Field(..., ge=0, le=100)
     message: str
     blockIndex: int | None = None  # Thinking block index (for THINKING_TEXT/THINKING_PDB grouping)
-    artifacts: list[StructureArtifact] | None = None
+    artifacts: list[Structure] | None = None
 
 
 class NanoCCJob(BaseModel):
@@ -105,7 +105,7 @@ class NanoCCJob(BaseModel):
     createdAt: int
     completedAt: int | None = None
     steps: list[JobEvent] = Field(default_factory=list, serialization_alias="steps")
-    structures: list[StructureArtifact] = Field(default_factory=list)
+    structures: list[Structure] = Field(default_factory=list)
 
 
 # Request models

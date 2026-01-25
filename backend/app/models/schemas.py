@@ -28,7 +28,7 @@ from app.components.workspace.models import (
     CreateFolderRequest,
     Folder,
     Project,
-    StructureArtifact,
+    Structure,
     User,
     UserPlan,
 )
@@ -43,7 +43,7 @@ class ChatMessage(BaseModel):
     role: Literal["user", "assistant", "tool"]
     content: str
     timestamp: int
-    artifacts: list[StructureArtifact] | None = None
+    artifacts: list[Structure] | None = None
 
 
 class Conversation(BaseModel):
@@ -82,7 +82,7 @@ __all__ = [
     "CreateFolderRequest",
     "Folder",
     "Project",
-    "StructureArtifact",
+    "Structure",
     "User",
     "UserPlan",
     # Aliases

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { StructureArtifact } from '@/lib/types';
+import { Structure } from '@/lib/types';
 import { useAppStore } from '@/lib/store';
 import { cn, downloadPDBFile, formatTimestamp } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -58,9 +58,9 @@ function useIsDisplayedInCanvas(structureId: string): boolean {
 }
 
 interface BlockStructureCardProps {
-  artifact: StructureArtifact;
+  artifact: Structure;
   /** Previous artifact for comparison (if available) */
-  previousArtifact?: StructureArtifact | null;
+  previousArtifact?: Structure | null;
   timestamp?: number;
   isLast?: boolean;
   stepNumber?: number;

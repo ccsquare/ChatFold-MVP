@@ -32,7 +32,7 @@ export type EventType =
   | 'THINKING_PDB'   // Area 4: Thinking with structure output (ends a block)
   | 'CONCLUSION';    // Area 5: Final conclusion message
 
-export interface StructureArtifact {
+export interface Structure {
   type: 'structure';
   structureId: string;
   label: 'candidate' | 'intermediate' | 'final' | string;
@@ -53,7 +53,7 @@ export interface StepEvent {
   progress: number; // 0-100
   message: string;
   blockIndex?: number | null;  // Thinking block index (for THINKING_TEXT/THINKING_PDB grouping)
-  artifacts?: StructureArtifact[];
+  artifacts?: Structure[];
 }
 
 export interface Asset {
@@ -83,7 +83,7 @@ export interface Folder {
   updatedAt: number;
   isExpanded: boolean;    // For tree view
   inputs: Asset[];        // Input sequence files (uploaded or created from chat)
-  outputs: StructureArtifact[]; // Generated structure files
+  outputs: Structure[]; // Generated structure files
   jobId?: string;         // Associated job ID if any
   conversationId?: string; // 1:1 association with Conversation
 }
@@ -99,7 +99,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant' | 'tool';
   content: string;
   timestamp: number;
-  artifacts?: StructureArtifact[];
+  artifacts?: Structure[];
   /** Files attached to this message (displayed as chips) */
   attachedFiles?: AttachedFile[];
 }
@@ -112,7 +112,7 @@ export interface Job {
   createdAt: number;
   completedAt?: number;
   steps: StepEvent[];
-  structures: StructureArtifact[];
+  structures: Structure[];
 }
 
 export interface Conversation {
@@ -224,7 +224,7 @@ export interface AppState {
   isMolstarExpanded: boolean;
 
   // Compare selection (for two-click compare from timeline)
-  compareSelection: StructureArtifact | null;
+  compareSelection: Structure | null;
 
   // Actions
   createConversation: (folderId?: string) => string;
@@ -239,15 +239,15 @@ export interface AppState {
   renameFolder: (id: string, name: string) => void;
   toggleFolderExpanded: (id: string) => void;
   addFolderInput: (folderId: string, asset: Omit<Asset, 'id' | 'uploadedAt'>) => void;
-  addFolderOutput: (folderId: string, artifact: StructureArtifact) => void;
+  addFolderOutput: (folderId: string, artifact: Structure) => void;
   deleteFolder: (id: string) => void;
 
   // Sidebar actions
   setSidebarWidth: (width: number) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
 
-  openStructureTab: (structure: StructureArtifact, pdbData: string) => void;
-  openCompareTab: (current: StructureArtifact, previous: StructureArtifact) => void;
+  openStructureTab: (structure: Structure, pdbData: string) => void;
+  openCompareTab: (current: Structure, previous: Structure) => void;
   closeTab: (tabId: string) => void;
   setActiveTab: (tabId: string) => void;
   setTabSelection: (tabId: string, selection: AtomInfo | null) => void;
@@ -271,6 +271,6 @@ export interface AppState {
   switchToChatMode: () => void;
 
   // Compare selection actions (two-click compare from timeline)
-  selectForCompare: (artifact: StructureArtifact) => void;
+  selectForCompare: (artifact: Structure) => void;
   clearCompareSelection: () => void;
 }

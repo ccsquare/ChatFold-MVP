@@ -16,11 +16,11 @@
 │  └── Project (project_default)                                      │
 │      └── Folder ◄──► Conversation                                   │
 │          ├── inputs: Asset[]                                        │
-│          └── outputs: StructureArtifact[]                           │
+│          └── outputs: Structure[]                           │
 │                          ↑                                          │
 │                    NanoCCJob                                        │
 │                    ├── events: JobEvent[] (SSE 推送)                │
-│                    └── structures: StructureArtifact[]              │
+│                    └── structures: Structure[]              │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -40,7 +40,7 @@
 | **Asset** | 用户上传文件 | `id`, `name`, `type`, `content`, `uploadedAt` |
 | **NanoCCJob** | 折叠任务 | `id`, `conversationId`, `sequence`, `status`, `steps`, `structures` |
 | **JobEvent** | 任务进度事件 | `eventId`, `jobId`, `eventType`, `stage`, `status`, `progress`, `message`, `blockIndex?`, `artifacts?` |
-| **StructureArtifact** | 结构文件 | `structureId`, `label`, `filename`, `pdbData?`, `thumbnail?`, `cot?` |
+| **Structure** | 结构文件 | `structureId`, `label`, `filename`, `pdbData?`, `thumbnail?`, `cot?` |
 
 ### 2.2 关系说明
 
@@ -49,9 +49,9 @@ User 1:N Project (MVP: 单项目)
 Project 1:N Folder
 Folder 1:1 Conversation (双向关联)
 Conversation 1:N ChatMessage
-ChatMessage 0:N StructureArtifact (assistant 消息可携带)
+ChatMessage 0:N Structure (assistant 消息可携带)
 NanoCCJob 1:N JobEvent
-NanoCCJob 1:N StructureArtifact
+NanoCCJob 1:N Structure
 ```
 
 ---
@@ -130,7 +130,7 @@ interface JobEvent {
   progress: number;          // 0-100
   message: string;           // CoT 消息文本
   blockIndex?: number;       // Thinking block 分组 (仅 THINKING_* 类型)
-  artifacts?: StructureArtifact[];  // 生成的结构 (仅 THINKING_PDB)
+  artifacts?: Structure[];  // 生成的结构 (仅 THINKING_PDB)
 }
 ```
 

@@ -50,7 +50,7 @@ class Asset(BaseModel):
     uploadedAt: int
 
 
-class StructureArtifact(BaseModel):
+class Structure(BaseModel):
     """Generated structure file model.
 
     Path is relative to the outputs root directory:
@@ -86,7 +86,7 @@ class Folder(BaseModel):
     updatedAt: int
     isExpanded: bool = True
     inputs: list[Asset] = Field(default_factory=list)
-    outputs: list[StructureArtifact] = Field(default_factory=list)
+    outputs: list[Structure] = Field(default_factory=list)
     jobId: str | None = None
     conversationId: str | None = None  # 1:1 association with Conversation
 

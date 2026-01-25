@@ -32,7 +32,7 @@ import {
 import { HelixIcon } from '@/components/icons/ProteinIcon';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { UserMenu } from '@/components/UserMenu';
-import { Folder, Asset, StructureArtifact } from '@/lib/types';
+import { Folder, Asset, Structure } from '@/lib/types';
 import { pdbCache } from '@/hooks/useLazyPdb';
 
 interface FolderItemProps {
@@ -42,7 +42,7 @@ interface FolderItemProps {
   onToggle: () => void;
   onRename: (name: string) => void;
   onDelete: () => void;
-  onOpenStructure: (structure: StructureArtifact) => void;
+  onOpenStructure: (structure: Structure) => void;
   onOpenAsset: (asset: Asset) => void;
   onUpload: (folderId: string) => void;
 }
@@ -100,7 +100,7 @@ function FolderItem({
     URL.revokeObjectURL(url);
   }, []);
 
-  const handleDownloadStructure = useCallback(async (structure: StructureArtifact) => {
+  const handleDownloadStructure = useCallback(async (structure: Structure) => {
     let pdbData: string | undefined = structure.pdbData;
     if (!pdbData) {
       // Lazy load PDB data
@@ -389,7 +389,7 @@ export function Sidebar() {
   );
 
   const handleOpenStructure = useCallback(
-    async (structure: StructureArtifact) => {
+    async (structure: Structure) => {
       let pdbData: string | undefined = structure.pdbData;
       if (!pdbData) {
         // Lazy load PDB data
@@ -406,7 +406,7 @@ export function Sidebar() {
   const handleOpenAsset = useCallback(
     (asset: Asset) => {
       // Convert Asset to a structure-like object for the viewer
-      const structure: StructureArtifact = {
+      const structure: Structure = {
         type: 'structure',
         structureId: asset.id,
         label: asset.name,

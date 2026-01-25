@@ -194,7 +194,7 @@ web/src/
 │   ├── Canvas.tsx            # 画布区域 (Mol* 容器)
 │   ├── ChatPanel.tsx         # ⭐ 聊天面板 (右侧)
 │   ├── StepsPanel.tsx        # 步骤面板 (折叠进度)
-│   ├── StructureArtifactCard.tsx # 结构卡片
+│   ├── StructureCard.tsx # 结构卡片
 │   └── ThinkingSummary.tsx   # CoT 思考摘要
 │
 ├── hooks/                    # 自定义 Hooks
@@ -227,7 +227,7 @@ User → Project → Folder ◄──► Conversation → Message → Job → St
 | **Message** | 聊天消息 | `ChatMessage` |
 | **Job** | 折叠任务 | `Job` |
 | **StepEvent** | 任务进度事件 | `StepEvent` |
-| **StructureArtifact** | PDB 结构文件 | `StructureArtifact` |
+| **Structure** | PDB 结构文件 | `Structure` |
 
 ### 5.2 三栏布局
 
@@ -276,7 +276,7 @@ interface StepEvent {
   status: StatusType;            // queued | running | complete | failed
   progress: number;              // 0-100
   message: string;               // CoT 消息文本
-  artifacts?: StructureArtifact[]; // 生成的结构
+  artifacts?: Structure[]; // 生成的结构
 }
 ```
 
@@ -327,7 +327,7 @@ export const useStore = create<AppState>()(
 核心类型:
 - `User`, `Project`, `Folder` - 组织结构
 - `Conversation`, `ChatMessage` - 对话
-- `Job`, `StepEvent`, `StructureArtifact` - 折叠任务
+- `Job`, `StepEvent`, `Structure` - 折叠任务
 - `EventType`, `StageType`, `StatusType` - 枚举
 - `AppState` - Zustand store 类型
 

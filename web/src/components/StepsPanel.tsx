@@ -2,7 +2,7 @@
 
 import { useAppStore } from '@/lib/store';
 import { cn, downloadPDBFile } from '@/lib/utils';
-import { StepEvent, StructureArtifact } from '@/lib/types';
+import { StepEvent, Structure } from '@/lib/types';
 import { useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -37,7 +37,7 @@ export function StepsPanel() {
   }, [activeJob?.steps]);
 
   // Must define callbacks before early return to follow rules of hooks
-  const handleOpenStructure = useCallback(async (artifact: StructureArtifact) => {
+  const handleOpenStructure = useCallback(async (artifact: Structure) => {
     let pdbData: string | undefined = artifact.pdbData;
     if (!pdbData) {
       // Lazy load PDB data
@@ -49,7 +49,7 @@ export function StepsPanel() {
     }
   }, [openStructureTab]);
 
-  const handleDownload = useCallback(async (artifact: StructureArtifact) => {
+  const handleDownload = useCallback(async (artifact: Structure) => {
     let pdbData: string | undefined = artifact.pdbData;
     if (!pdbData) {
       // Lazy load PDB data
@@ -61,7 +61,7 @@ export function StepsPanel() {
     }
   }, []);
 
-  const handleCompare = useCallback(async (artifact: StructureArtifact, previousArtifact: StructureArtifact) => {
+  const handleCompare = useCallback(async (artifact: Structure, previousArtifact: Structure) => {
     // Load current structure
     let currentPdb: string | undefined = artifact.pdbData;
     if (!currentPdb) {
@@ -111,7 +111,7 @@ export function StepsPanel() {
   const currentStage = stages[stages.length - 1] || 'QUEUED';
 
   // Collect all artifacts in order for comparison
-  const allArtifacts: StructureArtifact[] = (activeJob.steps || []).flatMap(
+  const allArtifacts: Structure[] = (activeJob.steps || []).flatMap(
     step => step.artifacts || []
   );
 

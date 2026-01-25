@@ -204,7 +204,7 @@ User → Project → Folder ◄──► Conversation → Message → Task → S
   status: 'queued' | 'running' | 'partial' | 'complete' | 'failed';
   progress: number; // 0-100
   message: string;
-  artifacts?: StructureArtifact[];
+  artifacts?: Structure[];
 }
 ```
 

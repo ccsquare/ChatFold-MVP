@@ -18,7 +18,7 @@
   - 收益: 消除 20 行重复代码
 
 - [x] **1.4 用 downloadFile() 替换所有 PDB 下载代码**
-  - 受影响文件: `Sidebar.tsx`, `StructureArtifactCard.tsx`, `StepsPanel.tsx`, `FoldingTimelineViewer.tsx`
+  - 受影响文件: `Sidebar.tsx`, `BlockStructureCard.tsx`, `StepsPanel.tsx`, `FoldingTimelineViewer.tsx`
   - 方案: 使用已有的 `utils.ts:downloadFile()` 并新增 `downloadPDBFile()` 便捷函数
   - 收益: 消除 25 行重复代码
 
@@ -30,12 +30,12 @@
   - 收益: 消除 60 行重复代码
 
 - [x] **2.2 合并时间格式化函数**
-  - 受影响文件: `utils.ts`, `StructureArtifactCard.tsx`
+  - 受影响文件: `utils.ts`, `BlockStructureCard.tsx`
   - 方案: 统一到 `formatTimestamp()` 并支持不同格式
   - 收益: 消除 12 行重复代码
 
 - [x] **2.3 抽取质量评估函数到 utils**
-  - 受影响文件: `StructureArtifactCard.tsx`
+  - 受影响文件: `BlockStructureCard.tsx`
   - 方案: 移动 `getPlddtQuality`, `getPaeQuality`, `getConstraintQuality` 到 `utils.ts`
   - 收益: 提高复用性，便于其他组件使用
 

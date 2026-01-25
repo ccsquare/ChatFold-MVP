@@ -8,7 +8,7 @@ import {
   Job,
   StepEvent,
   ViewerTab,
-  StructureArtifact,
+  Structure,
   Folder,
   LayoutMode,
   AtomInfo,
@@ -697,7 +697,7 @@ export const useAppStore = create<AppState>()(
       name: 'chatfold-storage',
       partialize: (state) => {
         // Strip large pdbData from artifacts to avoid localStorage quota issues
-        const stripPdbData = (artifact: StructureArtifact): StructureArtifact => ({
+        const stripPdbData = (artifact: Structure): Structure => ({
           ...artifact,
           pdbData: undefined, // Don't persist large PDB data
           thumbnail: artifact.thumbnail // Keep small thumbnails
