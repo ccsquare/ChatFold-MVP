@@ -34,6 +34,7 @@ _DEFAULT_MOCK_DATA = _BACKEND_DIR / "tests" / "fixtures" / "Mocking_CoT.nanocc.s
 MOCK_DATA_PATH = os.getenv("MOCK_NANOCC_DATA_PATH", str(_DEFAULT_MOCK_DATA))
 MOCK_DELAY_MIN = float(os.getenv("MOCK_NANOCC_DELAY_MIN", "1.0"))
 MOCK_DELAY_MAX = float(os.getenv("MOCK_NANOCC_DELAY_MAX", "5.0"))
+MOCK_DELAY_MODE = os.getenv("MOCK_NANOCC_DELAY_MODE", "random").lower()
 
 
 @dataclass
@@ -45,6 +46,7 @@ class MockCoTMessage:
     message: str
     pdb_file: str | None = None
     label: str | None = None
+    timestamp: str | None = None
 
 
 def load_mock_messages(file_path: str | None = None) -> list[MockCoTMessage]:
@@ -76,6 +78,7 @@ def load_mock_messages(file_path: str | None = None) -> list[MockCoTMessage]:
                         message=data.get("MESSAGE", ""),
                         pdb_file=data.get("pdb_file"),
                         label=data.get("label"),
+                        timestamp=data.get("timestamp"),
                     )
                 )
             except json.JSONDecodeError as e:
@@ -89,6 +92,7 @@ async def stream_mock_messages(
     messages: list[MockCoTMessage] | None = None,
     delay_min: float = MOCK_DELAY_MIN,
     delay_max: float = MOCK_DELAY_MAX,
+    delay_mode: str = MOCK_DELAY_MODE,
 ) -> AsyncGenerator[MockCoTMessage, None]:
     """Stream mock messages with random delays.
 
@@ -103,8 +107,17 @@ async def stream_mock_messages(
     if messages is None:
         messages = load_mock_messages()
 
+    prev_ts = None
     for msg in messages:
         delay = random.uniform(delay_min, delay_max)
+        if delay_mode == "real" and msg.timestamp:
+            try:
+                current_ts = datetime.fromisoformat(msg.timestamp)
+                if prev_ts is not None:
+                    delay = max(0.0, (current_ts - prev_ts).total_seconds())
+                prev_ts = current_ts
+            except ValueError:
+                pass
         await asyncio.sleep(delay)
         yield msg
 
@@ -201,6 +214,7 @@ class MockNanoCCClient:
         data_path: str | None = None,
         delay_min: float = MOCK_DELAY_MIN,
         delay_max: float = MOCK_DELAY_MAX,
+        delay_mode: str = MOCK_DELAY_MODE,
     ):
         self.base_url = base_url.rstrip("/")
         self.auth_token = auth_token
@@ -208,6 +222,7 @@ class MockNanoCCClient:
         self.data_path = data_path or MOCK_DATA_PATH
         self.delay_min = delay_min
         self.delay_max = delay_max
+        self.delay_mode = delay_mode
         self._messages: list[MockCoTMessage] | None = None
         self._sessions: dict[str, dict] = {}
         self._session_counter = 0
@@ -274,9 +289,18 @@ class MockNanoCCClient:
         messages = self._load_messages()
         logger.info(f"Mock: Sending message to session {session_id}, content length: {len(content)}")
 
+        prev_ts = None
         for msg in messages:
-            # Random delay to simulate generation
+            # Delay to simulate generation
             delay = random.uniform(self.delay_min, self.delay_max)
+            if self.delay_mode == "real" and msg.timestamp:
+                try:
+                    current_ts = datetime.fromisoformat(msg.timestamp)
+                    if prev_ts is not None:
+                        delay = max(0.0, (current_ts - prev_ts).total_seconds())
+                    prev_ts = current_ts
+                except ValueError:
+                    pass
             await asyncio.sleep(delay)
 
             # Yield normalized cot_step message
@@ -287,6 +311,7 @@ class MockNanoCCClient:
                     "MESSAGE": msg.message,
                     "pdb_file": msg.pdb_file,
                     "label": msg.label,
+                    "timestamp": msg.timestamp,
                 },
             )
 
