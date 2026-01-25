@@ -28,8 +28,10 @@ export interface ThinkingBlock {
  */
 export interface TimelineByEventType {
   prologue: StepEvent[];           // Area 2: PROLOGUE events
-  annotations: StepEvent[];        // Area 2: ANNOTATION events
-  thinkingText: StepEvent[];       // Area 3: THINKING_TEXT (scrolling)
+  annotationText: StepEvent[];     // Annotation text events
+  annotationPdb: StepEvent[];      // Annotation structure events
+  thinkingText: StepEvent[];       // Text stream events (thinking + annotation text)
+  thinkingPdb: StepEvent[];        // Thinking structure events
   thinkingBlocks: ThinkingBlock[]; // Area 4: Grouped thinking blocks
   conclusion: StepEvent | null;    // Area 5: CONCLUSION event
 }
@@ -185,8 +187,10 @@ export function useConversationTimeline(options: TimelineOptions = {}) {
   const timelineByEventType = useMemo((): TimelineByEventType => {
     const result: TimelineByEventType = {
       prologue: [],
-      annotations: [],
+      annotationText: [],
+      annotationPdb: [],
       thinkingText: [],
+      thinkingPdb: [],
       thinkingBlocks: [],
       conclusion: null,
     };
@@ -205,31 +209,50 @@ export function useConversationTimeline(options: TimelineOptions = {}) {
         case 'PROLOGUE':
           result.prologue.push(step);
           break;
+        case 'ANNOTATION_TEXT':
+          result.annotationText.push(step);
+          result.thinkingText.push(step);
+          break;
+        case 'ANNOTATION_PDB':
+          result.annotationPdb.push(step);
+          break;
         case 'ANNOTATION':
-          result.annotations.push(step);
+          result.annotationText.push(step);
+          result.thinkingText.push(step);
           break;
         case 'THINKING_TEXT':
+          result.thinkingText.push(step);
+          break;
         case 'THINKING_PDB':
-          // Group by blockIndex
-          if (step.blockIndex !== undefined && step.blockIndex !== null) {
-            const existing = blockMap.get(step.blockIndex) || [];
-            existing.push(step);
-            blockMap.set(step.blockIndex, existing);
-          }
-          // Also add THINKING_TEXT to scrolling area
-          if (eventType === 'THINKING_TEXT') {
-            result.thinkingText.push(step);
-          }
+          result.thinkingPdb.push(step);
           break;
         case 'CONCLUSION':
           result.conclusion = step;
           break;
       }
+
+      if (
+        step.blockIndex !== undefined &&
+        step.blockIndex !== null &&
+        (
+          eventType === 'THINKING_TEXT' ||
+          eventType === 'THINKING_PDB' ||
+          eventType === 'ANNOTATION_TEXT' ||
+          eventType === 'ANNOTATION_PDB' ||
+          eventType === 'ANNOTATION'
+        )
+      ) {
+        const existing = blockMap.get(step.blockIndex) || [];
+        existing.push(step);
+        blockMap.set(step.blockIndex, existing);
+      }
     });
 
     // Convert blockMap to ThinkingBlock array
     blockMap.forEach((events, blockIndex) => {
-      const pdbEvent = events.find(e => e.eventType === 'THINKING_PDB');
+      const pdbEvent = events.find(e =>
+        e.eventType === 'THINKING_PDB' || e.eventType === 'ANNOTATION_PDB'
+      );
       result.thinkingBlocks.push({
         blockIndex,
         events,

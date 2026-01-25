@@ -27,10 +27,12 @@ export type StatusType = 'queued' | 'running' | 'partial' | 'complete' | 'failed
 // EventType defines how SSE messages map to UI areas
 export type EventType =
   | 'PROLOGUE'       // Area 2: Opening message with key verification points
-  | 'ANNOTATION'     // Area 2: Additional notes/annotations
+  | 'ANNOTATION_TEXT' // Text-only annotations
+  | 'ANNOTATION_PDB'  // Annotation with structure output
   | 'THINKING_TEXT'  // Area 3: Pure text thinking (scrolling, 2 lines visible)
   | 'THINKING_PDB'   // Area 4: Thinking with structure output (ends a block)
-  | 'CONCLUSION';    // Area 5: Final conclusion message
+  | 'CONCLUSION'     // Area 5: Final conclusion message
+  | 'ANNOTATION';    // Legacy: pre-split annotations
 
 export interface Structure {
   type: 'structure';

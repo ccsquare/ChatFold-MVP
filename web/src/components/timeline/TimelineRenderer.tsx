@@ -105,7 +105,7 @@ export function TimelineRenderer({
   // Build prologue content from timelineByEventType
   const prologueContent = useMemo(() => {
     if (!timelineByEventType) return null;
-    const items = [...timelineByEventType.prologue, ...timelineByEventType.annotations];
+    const items = [...timelineByEventType.prologue];
     if (items.length === 0) return null;
     return items.map(e => e.message).join('\n\n');
   }, [timelineByEventType]);
@@ -148,7 +148,7 @@ export function TimelineRenderer({
                 message={group.data}
                 isCompact={isCompact}
               />
-              {/* Show PROLOGUE as annotation bubble after user message */}
+              {/* Show PROLOGUE bubble after user message */}
               {isUserMessage && prologueContent && (
                 <PrologueAnnotationBubble text={prologueContent} isCompact={isCompact} />
               )}
@@ -278,8 +278,8 @@ function QueryBubble({
 }
 
 /**
- * PROLOGUE/ANNOTATION bubble component - message bubble style (left-aligned, gray bg)
- * Shows the verification points and annotations from the backend
+ * PROLOGUE bubble component - message bubble style (left-aligned, gray bg)
+ * Shows the verification points from the backend
  */
 function PrologueAnnotationBubble({
   text,
@@ -377,7 +377,7 @@ function BestBlock({
  * Fixed height container, content auto-scrolls to bottom as new text arrives
  * When expanded: shows all text
  */
-function TimelineHeadText({
+function FoldingProgressHeaderText({
   text,
   isExpanded,
 }: {
@@ -429,7 +429,7 @@ function TimelineHeadText({
  * Single line with sparkle icon, truncated with "...", expandable via chevron
  * Icon blinks between Sparkle and Sparkles when thinking, shows Sparkles when done
  */
-function BlockTextBubble({ text, isThinking = false }: { text: string; isThinking?: boolean }) {
+function BlockBubble({ text, isThinking = false }: { text: string; isThinking?: boolean }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showSparkles, setShowSparkles] = useState(false);
 
@@ -555,31 +555,44 @@ function FoldingProgress({
   }, [artifacts.length, isExpanded]);
 
   // Helper function to get thinking text for a specific block index
-  // Includes: THINKING_TEXT + THINKING_PDB messages for this block
-  const getThinkingTextForBlock = useCallback((blockIndex: number): string | null => {
+  // Includes: All thinking/annotation messages (both text and PDB events have text content)
+  const getBlockText = useCallback((blockIndex: number): string | null => {
     if (!thinkingBlocks) return null;
     const block = thinkingBlocks.find(b => b.blockIndex === blockIndex);
     if (!block || !block.events || block.events.length === 0) return null;
-    // Combine all THINKING_TEXT and THINKING_PDB messages in this block
+    // Combine all thinking/annotation messages in this block
+    // Note: *_PDB events also have text content that should be shown in BlockBubble
     const thinkingTexts = block.events
-      .filter(e => e.eventType === 'THINKING_TEXT' || e.eventType === 'THINKING_PDB')
+      .filter(e =>
+        e.eventType === 'THINKING_TEXT' ||
+        e.eventType === 'THINKING_PDB' ||
+        e.eventType === 'ANNOTATION_TEXT' ||
+        e.eventType === 'ANNOTATION_PDB' ||
+        e.eventType === 'ANNOTATION'
+      )
       .map(e => e.message)
       .filter(msg => msg); // Filter out empty messages
     return thinkingTexts.length > 0 ? thinkingTexts.join('\n') : null;
   }, [thinkingBlocks]);
 
   // Get all thinking text for the header summary display
-  // Includes: THINKING_TEXT + THINKING_PDB + CONCLUSION messages
-  // Excludes: PROLOGUE + ANNOTATION (shown separately)
-  // Note: Duplication with BlockTextBubble is expected
-  const allThinkingText = useMemo(() => {
+  // Includes: ANNOTATION_* + THINKING_* + CONCLUSION messages
+  // Excludes: PROLOGUE (shown separately)
+  // Note: Duplication with BlockBubble is expected
+  const allNonPrologueText = useMemo(() => {
     const allTexts: string[] = [];
 
-    // Include all THINKING_TEXT and THINKING_PDB messages from all blocks
+    // Include all ANNOTATION_* and THINKING_* messages from all blocks
     if (thinkingBlocks && thinkingBlocks.length > 0) {
       thinkingBlocks.forEach(block => {
         block.events
-          .filter(e => e.eventType === 'THINKING_TEXT' || e.eventType === 'THINKING_PDB')
+          .filter(e =>
+            e.eventType === 'THINKING_TEXT' ||
+            e.eventType === 'THINKING_PDB' ||
+            e.eventType === 'ANNOTATION_TEXT' ||
+            e.eventType === 'ANNOTATION_PDB' ||
+            e.eventType === 'ANNOTATION'
+          )
           .forEach(e => {
             if (e.message) allTexts.push(e.message);
           });
@@ -646,8 +659,8 @@ function FoldingProgress({
           </div>
 
           {/* Middle: Thinking text - scrolling container showing latest 2 lines */}
-          <TimelineHeadText
-            text={allThinkingText || currentThinkingText || 'Thinking...'}
+          <FoldingProgressHeaderText
+            text={allNonPrologueText || currentThinkingText || 'Thinking...'}
             isExpanded={headerExpanded}
           />
 
@@ -726,7 +739,7 @@ function FoldingProgress({
                 b => b.artifact?.structureId === artifact.structureId
               );
               const blockIndex = artifactBlock?.blockIndex;
-              const thinkingText = blockIndex !== undefined ? getThinkingTextForBlock(blockIndex) : null;
+              const thinkingText = blockIndex !== undefined ? getBlockText(blockIndex) : null;
               // This block is still thinking if streaming and it's the last artifact
               const isBlockThinking = isStreaming && idx === artifacts.length - 1;
 
@@ -737,7 +750,7 @@ function FoldingProgress({
                 >
                   {/* Block text before each structure - no border, close to structure */}
                   {thinkingText && (
-                    <BlockTextBubble text={thinkingText} isThinking={isBlockThinking} />
+                    <BlockBubble text={thinkingText} isThinking={isBlockThinking} />
                   )}
                   {/* Structure Card - now directly clickable for compare selection */}
                   <BlockStructureCard

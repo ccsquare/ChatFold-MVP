@@ -241,7 +241,16 @@ class JobEvent(Base):
     id = Column(String(64), primary_key=True)
     job_id = Column(String(64), ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False)
     event_type = Column(
-        Enum("PROLOGUE", "ANNOTATION", "THINKING_TEXT", "THINKING_PDB", "CONCLUSION", name="event_type_enum"),
+        Enum(
+            "PROLOGUE",
+            "ANNOTATION_TEXT",
+            "ANNOTATION_PDB",
+            "ANNOTATION",
+            "THINKING_TEXT",
+            "THINKING_PDB",
+            "CONCLUSION",
+            name="event_type_enum",
+        ),
         nullable=False,
     )
     stage = Column(String(32), nullable=False)
