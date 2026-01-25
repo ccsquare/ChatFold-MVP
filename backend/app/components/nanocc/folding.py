@@ -11,7 +11,8 @@ Architecture:
 5. Scheduler releases the instance when done
 
 UI Integration (by EventType):
-- PROLOGUE/ANNOTATION: Display in area 2 (opening section with key verification points)
+- PROLOGUE: Display in area 2 (opening section with key verification points)
+- ANNOTATION_TEXT/ANNOTATION_PDB: Display within folding progress (summary + blocks)
 - THINKING_TEXT: Display in area 3 (scrolling text, 2 visible lines, double-click to expand)
 - THINKING_PDB: Display in area 3+4 as thinking block with structure card
 - CONCLUSION: Display as final completion message
@@ -125,7 +126,8 @@ def _map_cot_step_event_type(state: str, has_pdb: bool) -> EventType:
 
     Mapping rule:
     - STATE=prologue -> PROLOGUE
-    - STATE=annotation -> ANNOTATION
+    - STATE=annotation + pdb_file -> ANNOTATION_PDB
+    - STATE=annotation + no pdb_file -> ANNOTATION_TEXT
     - STATE=conclusion -> CONCLUSION
     - STATE=thinking + pdb_file -> THINKING_PDB
     - STATE=thinking + no pdb_file -> THINKING_TEXT
@@ -134,11 +136,29 @@ def _map_cot_step_event_type(state: str, has_pdb: bool) -> EventType:
     if normalized == "prologue":
         return EventType.PROLOGUE
     if normalized == "annotation":
-        return EventType.ANNOTATION
+        return EventType.ANNOTATION_PDB if has_pdb else EventType.ANNOTATION_TEXT
     if normalized == "conclusion":
         return EventType.CONCLUSION
     if normalized == "thinking" and has_pdb:
         return EventType.THINKING_PDB
+    return EventType.THINKING_TEXT
+
+
+def _is_pdb_event(event_type: EventType) -> bool:
+    return event_type in (EventType.THINKING_PDB, EventType.ANNOTATION_PDB)
+
+
+def _is_text_event(event_type: EventType) -> bool:
+    return event_type in (
+        EventType.THINKING_TEXT,
+        EventType.ANNOTATION_TEXT,
+        EventType.ANNOTATION,
+    )
+
+
+def _fallback_text_type(event_type: EventType) -> EventType:
+    if event_type == EventType.ANNOTATION_PDB:
+        return EventType.ANNOTATION_TEXT
     return EventType.THINKING_TEXT
 
 
@@ -289,7 +309,7 @@ async def generate_real_cot_events(
                 artifacts = None
                 current_block_index = None
 
-                if nanocc_event_type == EventType.THINKING_PDB and pdb_path:
+                if _is_pdb_event(nanocc_event_type) and pdb_path:
                     structure_count += 1
                     structure_id = f"str_{job_id}_{structure_count}"
                     pdb_data = _read_pdb_file_from_tos(session_id, pdb_path)
@@ -320,18 +340,18 @@ async def generate_real_cot_events(
                             )
                         ]
                     else:
-                        # File read failed - emit as THINKING_TEXT but still close block
-                        nanocc_event_type = EventType.THINKING_TEXT
+                        # File read failed - emit as text but still close block
+                        nanocc_event_type = _fallback_text_type(nanocc_event_type)
                         logger.warning(
-                            f"THINKING_PDB file read failed for job {job_id}, "
-                            f"pdb_path={pdb_path}, falling back to THINKING_TEXT"
+                            f"PDB file read failed for job {job_id}, "
+                            f"pdb_path={pdb_path}, falling back to text event"
                         )
 
                     # Always close block when pdb_file was set (NanoCC intended a structure here)
                     block_index += 1
                     prev_was_pdb = True
 
-                elif nanocc_event_type == EventType.THINKING_TEXT:
+                elif _is_text_event(nanocc_event_type):
                     if prev_was_pdb:
                         prev_was_pdb = False
                     current_block_index = block_index
@@ -510,7 +530,7 @@ async def generate_mock_cot_events(
             artifacts = None
             current_block_index = None
 
-            if nanocc_event_type == EventType.THINKING_PDB and pdb_path:
+            if _is_pdb_event(nanocc_event_type) and pdb_path:
                 structure_count += 1
                 structure_id = f"str_{job_id}_{structure_count}"
 
@@ -544,18 +564,18 @@ async def generate_mock_cot_events(
                         )
                     ]
                 else:
-                    # File read failed - emit as THINKING_TEXT but still close block
-                    nanocc_event_type = EventType.THINKING_TEXT
+                    # File read failed - emit as text but still close block
+                    nanocc_event_type = _fallback_text_type(nanocc_event_type)
                     logger.warning(
-                        f"Mock THINKING_PDB file read failed for job {job_id}, "
-                        f"pdb_path={pdb_path}, falling back to THINKING_TEXT"
+                        f"Mock PDB file read failed for job {job_id}, "
+                        f"pdb_path={pdb_path}, falling back to text event"
                     )
 
                 # Always close block when pdb_file was set (NanoCC intended a structure here)
                 block_index += 1
                 prev_was_pdb = True
 
-            elif nanocc_event_type == EventType.THINKING_TEXT:
+            elif _is_text_event(nanocc_event_type):
                 if prev_was_pdb:
                     prev_was_pdb = False
                 current_block_index = block_index

@@ -51,17 +51,20 @@ class EventType(str, Enum):
 
     Defines how messages should be displayed in the frontend:
     - PROLOGUE: Opening message listing key verification points (displayed in area 2)
-    - ANNOTATION: Additional notes/annotations (displayed in area 2)
+    - ANNOTATION_TEXT: Additional notes/annotations (text-only)
+    - ANNOTATION_PDB: An annotation that includes a structure output
     - THINKING_TEXT: Pure text thinking process (displayed in area 3, scrolling)
     - THINKING_PDB: Thinking with structure output (displayed in area 3+4 as thinking block)
     - CONCLUSION: Final conclusion message (displayed as completion message)
     """
 
     PROLOGUE = "PROLOGUE"
-    ANNOTATION = "ANNOTATION"
+    ANNOTATION_TEXT = "ANNOTATION_TEXT"
+    ANNOTATION_PDB = "ANNOTATION_PDB"
     THINKING_TEXT = "THINKING_TEXT"
     THINKING_PDB = "THINKING_PDB"
     CONCLUSION = "CONCLUSION"
+    ANNOTATION = "ANNOTATION"
 
 
 class JobEvent(BaseModel):
@@ -70,7 +73,8 @@ class JobEvent(BaseModel):
     Streamed via SSE to report job progress.
 
     Frontend display rules by eventType:
-    - PROLOGUE/ANNOTATION: Display in area 2 (opening section)
+    - PROLOGUE: Display in area 2 (opening section)
+    - ANNOTATION_TEXT/ANNOTATION_PDB: Display within folding progress (summary + blocks)
     - THINKING_TEXT: Display in area 3 (scrolling, 2 visible lines, double-click to expand)
     - THINKING_PDB: Display in area 3+4 as thinking block with structure card
     - CONCLUSION: Display as final completion message
@@ -84,7 +88,7 @@ class JobEvent(BaseModel):
     status: StatusType
     progress: int = Field(..., ge=0, le=100)
     message: str
-    blockIndex: int | None = None  # Thinking block index (for THINKING_TEXT/THINKING_PDB grouping)
+    blockIndex: int | None = None  # Thinking/annotation block index for grouping
     artifacts: list[Structure] | None = None
 
 
