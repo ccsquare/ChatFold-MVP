@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { Structure } from '@/lib/types';
 import { useAppStore } from '@/lib/store';
 import { cn, downloadPDBFile, formatTimestamp } from '@/lib/utils';
@@ -92,7 +92,8 @@ export function BlockStructureCard({
   syncGroupId = null,
   syncEnabled = false,
 }: BlockStructureCardProps) {
-  const { openStructureTab, openCompareTab, selectForCompare } = useAppStore();
+  const { openStructureTab, openCompareTab, selectForCompare, clearCompareSelection } = useAppStore();
+  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFinal = artifact.label?.toLowerCase() === 'final';
 
   // Check if this structure is currently displayed in the Canvas
@@ -106,6 +107,15 @@ export function BlockStructureCard({
   const [loadedPdbData, setLoadedPdbData] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Cleanup click timer on unmount
+  useEffect(() => {
+    return () => {
+      if (clickTimerRef.current) {
+        clearTimeout(clickTimerRef.current);
+      }
+    };
+  }, []);
 
   // Detect format from filename extension
   const getFormat = (): 'pdb' | 'mmcif' | 'cif' => {
@@ -195,10 +205,35 @@ export function BlockStructureCard({
   const canShowPreviewPlaceholder = showPreview && needsLazyLoad;
   const canCompare = !!previousArtifact;
 
-  // Handle card click for compare selection
+  // Handle double-click: open structure in viewer
+  const handleDoubleClick = useCallback(async () => {
+    clearCompareSelection();
+    let pdbData = effectivePdbData;
+    if (!pdbData) {
+      pdbData = await loadPdbData();
+    }
+    if (pdbData) {
+      openStructureTab({ ...artifact, pdbData }, pdbData);
+    }
+  }, [artifact, effectivePdbData, loadPdbData, openStructureTab, clearCompareSelection]);
+
+  // Handle card click with timer to distinguish single/double click
+  const DOUBLE_CLICK_DELAY = 250;
+
   const handleCardClick = useCallback(() => {
-    selectForCompare(artifact);
-  }, [artifact, selectForCompare]);
+    if (clickTimerRef.current) {
+      // Second click (double-click) → cancel timer, open viewer
+      clearTimeout(clickTimerRef.current);
+      clickTimerRef.current = null;
+      handleDoubleClick();
+    } else {
+      // First click → start timer, execute single-click on timeout
+      clickTimerRef.current = setTimeout(() => {
+        clickTimerRef.current = null;
+        selectForCompare(artifact);
+      }, DOUBLE_CLICK_DELAY);
+    }
+  }, [artifact, selectForCompare, handleDoubleClick]);
 
   return (
     <div
