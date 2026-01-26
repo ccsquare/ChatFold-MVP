@@ -4,7 +4,7 @@ import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react'
 import { TimelineItem, TimelineByEventType, ThinkingBlock } from '@/hooks/useConversationTimeline';
 import { Structure, ChatMessage } from '@/lib/types';
 import { cn, formatTimestamp } from '@/lib/utils';
-import { Link2, Link2Off, RotateCcw, ChevronDown, CheckCircle2, Sparkle, Sparkles, FileText } from 'lucide-react';
+import { Link2, Link2Off, RotateCcw, ChevronDown, CheckCircle2, Sparkle, Sparkles, FileText, Copy, Check } from 'lucide-react';
 import { HelixIcon } from '@/components/icons/ProteinIcon';
 import { BlockStructureCard } from '@/components/BlockStructureCard';
 import { resetSyncGroupCamera } from '@/hooks/useCameraSync';
@@ -199,6 +199,45 @@ export function TimelineRenderer({
 }
 
 /**
+ * Copy button that appears on hover over a bubble.
+ * Copies the given text to clipboard with brief "Copied!" feedback.
+ */
+function BubbleCopyButton({ text, light = false, className }: { text: string; light?: boolean; className?: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // clipboard API may fail in non-secure contexts
+    }
+  }, [text]);
+
+  return (
+    <button
+      onClick={handleCopy}
+      className={cn(
+        "absolute top-1.5 right-1.5 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-10",
+        light
+          ? "hover:bg-white/20 text-white/60 hover:text-white"
+          : "hover:bg-cf-highlight text-cf-text-muted hover:text-cf-text",
+        className
+      )}
+      title={copied ? "Copied!" : "Copy text"}
+    >
+      {copied ? (
+        <Check className="w-3.5 h-3.5 text-cf-success" />
+      ) : (
+        <Copy className="w-3.5 h-3.5" />
+      )}
+    </button>
+  );
+}
+
+/**
  * Query bubble component
  */
 function QueryBubble({
@@ -216,13 +255,14 @@ function QueryBubble({
     <div className={cn("flex pb-3", isUser ? "justify-end" : "justify-start")}>
       <div
         className={cn(
-          "rounded-lg px-3 py-2 overflow-hidden shadow-sm",
+          "rounded-lg px-3 py-2 overflow-hidden shadow-sm group relative",
           isCompact ? "max-w-[85%]" : "max-w-[70%]",
           isUser
             ? "bg-cf-accent text-white"
             : "bg-cf-bg border border-cf-border text-cf-text"
         )}
       >
+        <BubbleCopyButton text={message.content} light={isUser} />
         {/* Text content */}
         {hasContent && (
           <p className="text-sm whitespace-pre-wrap break-all [overflow-wrap:anywhere]">
@@ -292,11 +332,12 @@ function PrologueAnnotationBubble({
     <div className="flex pb-3 justify-start">
       <div
         className={cn(
-          "rounded-lg px-3 py-2 overflow-hidden shadow-sm",
+          "rounded-lg px-3 py-2 overflow-hidden shadow-sm group relative",
           isCompact ? "max-w-[85%]" : "max-w-[70%]",
           "bg-cf-bg border border-cf-border text-cf-text"
         )}
       >
+        <BubbleCopyButton text={text} />
         <p className="text-sm whitespace-pre-wrap break-all [overflow-wrap:anywhere]">
           {text}
         </p>
@@ -320,11 +361,12 @@ function ConclusionBubble({
     <div className="flex pb-3 justify-start">
       <div
         className={cn(
-          "rounded-lg px-3 py-2 overflow-hidden shadow-sm",
+          "rounded-lg px-3 py-2 overflow-hidden shadow-sm group relative",
           isCompact ? "max-w-[85%]" : "max-w-[70%]",
           "bg-cf-bg border border-cf-border text-cf-text"
         )}
       >
+        <BubbleCopyButton text={text} />
         <p className="text-sm whitespace-pre-wrap break-all [overflow-wrap:anywhere]">
           {text}
         </p>
@@ -451,11 +493,12 @@ function BlockBubble({ text, isThinking = false }: { text: string; isThinking?: 
   return (
     <div
       className={cn(
-        "flex items-start gap-2 px-1 py-1 cursor-pointer transition-all",
+        "flex items-start gap-2 px-1 py-1 cursor-pointer transition-all group relative",
         "hover:bg-cf-bg-secondary/50 rounded"
       )}
       onClick={() => setIsExpanded(!isExpanded)}
     >
+      <BubbleCopyButton text={text} className="right-7" />
       {/* Sparkle/Sparkles icon - blinks when thinking, Sparkles when done */}
       {showSparkles ? (
         <Sparkles className="w-4 h-4 text-cf-accent flex-shrink-0 mt-0.5" />
