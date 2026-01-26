@@ -4,7 +4,7 @@ Application Settings Management
 
 IMPORTANT:
 - 敏感信息应该通过环境变量设置，不要硬编码在代码中
-- 创建 .env 文件（基于 .env.example）来配置本地开发环境
+- 创建 .env.local 文件（基于 .env.example）来配置本地开发环境: cp .env.example .env.local
 - 生产环境使用系统环境变量或密钥管理服务
 """
 
@@ -22,8 +22,9 @@ DEFAULT_PROJECT_ID = "project_default"
 # backend/app/settings.py -> backend/app/ -> backend/ -> project root
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
-# 优先使用 .env.local（本地开发配置），如果不存在则使用 .env
-ENV_FILE = PROJECT_ROOT / ".env.local" if (PROJECT_ROOT / ".env.local").exists() else PROJECT_ROOT / ".env"
+# 使用 .env.local 作为本地开发配置文件
+# 基于 .env.example 模板创建: cp .env.example .env.local
+ENV_FILE = PROJECT_ROOT / ".env.local"
 
 
 class Settings(BaseSettings):

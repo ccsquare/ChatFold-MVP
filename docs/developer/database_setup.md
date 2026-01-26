@@ -9,7 +9,7 @@
 **优点**: 无需 Docker 容器，1 秒启动，适合快速开发
 
 ```bash
-# 1. 确保 .env 配置（或使用默认值）
+# 1. 确保 .env.local 配置（或使用默认值）
 # CHATFOLD_DATABASE_TYPE=sqlite (默认)
 # CHATFOLD_REDIS_TYPE=fake (默认)
 # CHATFOLD_USE_MEMORY_STORE=true (可选，数据不持久化)
@@ -35,8 +35,8 @@ uv run uvicorn app.main:app --reload
 **优点**: 环境一致性高，支持多实例
 
 ```bash
-# 1. 创建 .env 文件
-cat > .env << EOF
+# 1. 创建 .env.local 文件
+cat > .env.local << EOF
 CHATFOLD_DATABASE_TYPE=mysql
 CHATFOLD_REDIS_TYPE=docker
 EOF

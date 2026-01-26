@@ -15,16 +15,11 @@ BACKEND_DIR="$PROJECT_ROOT/backend"
 log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
 
 # Load environment configuration files in order of priority
+# Loading order: .env.{NODE_ENV} → .env.local
 load_env_config() {
     local env_file=""
 
-    # 1. Load .env.defaults first (base configuration)
-    if [ -f "$PROJECT_ROOT/.env.defaults" ]; then
-        export $(cat "$PROJECT_ROOT/.env.defaults" | grep -v '^#' | grep -v '^$' | xargs)
-        log_info "Loaded .env.defaults"
-    fi
-
-    # 2. Load environment-specific file (.env.development by default)
+    # 1. Load environment-specific file (.env.development by default)
     local node_env="${NODE_ENV:-development}"
     env_file="$PROJECT_ROOT/.env.$node_env"
     if [ -f "$env_file" ]; then
@@ -32,7 +27,7 @@ load_env_config() {
         log_info "Loaded .env.$node_env"
     fi
 
-    # 3. Load .env.local for local overrides (highest priority)
+    # 2. Load .env.local for local overrides (highest priority)
     if [ -f "$PROJECT_ROOT/.env.local" ]; then
         export $(cat "$PROJECT_ROOT/.env.local" | grep -v '^#' | grep -v '^$' | xargs)
         log_info "Loaded .env.local"
@@ -151,15 +146,16 @@ start_backend() {
     log_info "Starting backend server..."
     cd "$BACKEND_DIR"
 
-    # Sync dependencies using uv
-    log_info "Syncing backend dependencies with uv..."
-    uv sync
+    # Unset proxy env vars to avoid SOCKS proxy errors in httpx
+    unset http_proxy https_proxy all_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY
+    log_info "Proxy environment variables cleared"
 
     # Kill existing process on backend port
     kill_port $BACKEND_PORT
 
-    # Start FastAPI server using uv
-    uv run uvicorn app.main:app --reload --host 0.0.0.0 --port $BACKEND_PORT &
+    # Start FastAPI server using the project venv directly
+    log_info "Using venv: $BACKEND_DIR/.venv"
+    .venv/bin/python -m uvicorn app.main:app --reload --host 0.0.0.0 --port $BACKEND_PORT &
     BACKEND_PID=$!
 
     # Wait for server to be ready

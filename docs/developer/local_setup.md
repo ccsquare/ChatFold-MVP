@@ -43,10 +43,10 @@ cd ChatFold-MVP
 
 ```bash
 # 复制环境变量模板
-cp .env.example .env
+cp .env.example .env.local
 
 # 编辑配置（可选）
-vim .env
+vim .env.local
 ```
 
 关键配置项：
@@ -135,7 +135,7 @@ npm run dev
 
 ```
 ChatFold-MVP/
-├── .env                 # 环境变量
+├── .env.local           # 本地环境变量 (gitignored)
 ├── backend/
 │   ├── .venv/           # Python 虚拟环境
 │   ├── pyproject.toml   # 依赖配置
