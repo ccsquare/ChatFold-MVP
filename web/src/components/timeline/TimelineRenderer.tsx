@@ -184,13 +184,28 @@ export function TimelineRenderer({
         return null;
       })}
 
-      {/* Streaming indicator at bottom - only show when no artifacts yet */}
-      {isStreaming && groups.every(g => g.type !== 'artifact-group') && (
-        <div className="flex items-center gap-2 py-2 text-cf-text-secondary">
-          <Sparkle className="w-4 h-4 text-cf-accent" />
-          <span className="text-sm">Thinking...</span>
-        </div>
-      )}
+      {/* Streaming: in-progress BlockBubble ONLY when no FoldingProgress exists yet.
+          Once artifact-group exists, FoldingProgress renders the in-progress block internally. */}
+      {isStreaming && (() => {
+        const hasArtifactGroup = groups.some(g => g.type === 'artifact-group');
+        if (hasArtifactGroup) return null; // FoldingProgress handles in-progress blocks
+
+        const inProgressBlock = thinkingBlocks.find(b => !b.artifact && b.events.length > 0);
+        if (!inProgressBlock) {
+          return (
+            <div className="flex items-center gap-2 py-2 text-cf-text-secondary">
+              <Sparkle className="w-4 h-4 text-cf-accent" />
+              <span className="text-sm">Thinking...</span>
+            </div>
+          );
+        }
+        const text = inProgressBlock.events
+          .map(e => e.message)
+          .filter(Boolean)
+          .join('\n');
+        if (!text) return null;
+        return <BlockBubble text={text} isThinking={true} />;
+      })()}
 
       {/* Auto-scroll anchor */}
       <div ref={endRef} />
@@ -506,7 +521,7 @@ function BlockBubble({ text, isThinking = false }: { text: string; isThinking?: 
         <Sparkle className="w-4 h-4 text-cf-accent flex-shrink-0 mt-0.5" />
       )}
 
-      {/* Text content - single line truncated or expanded */}
+      {/* Text content - collapsed shows last line (latest thinking), expanded shows all */}
       <p
         className={cn(
           "flex-1 text-sm text-cf-text-secondary",
@@ -515,7 +530,10 @@ function BlockBubble({ text, isThinking = false }: { text: string; isThinking?: 
             : "truncate"
         )}
       >
-        {text}{!isExpanded && '...'}
+        {isExpanded
+          ? text
+          : (text.split('\n').filter(Boolean).pop() || text) + '...'
+        }
       </p>
 
       {/* Expand/collapse chevron */}
@@ -783,8 +801,6 @@ function FoldingProgress({
               );
               const blockIndex = artifactBlock?.blockIndex;
               const thinkingText = blockIndex !== undefined ? getBlockText(blockIndex) : null;
-              // This block is still thinking if streaming and it's the last artifact
-              const isBlockThinking = isStreaming && idx === artifacts.length - 1;
 
               return (
                 <div
@@ -793,7 +809,7 @@ function FoldingProgress({
                 >
                   {/* Block text before each structure - no border, close to structure */}
                   {thinkingText && (
-                    <BlockBubble text={thinkingText} isThinking={isBlockThinking} />
+                    <BlockBubble text={thinkingText} isThinking={false} />
                   )}
                   {/* Structure Card - now directly clickable for compare selection */}
                   <BlockStructureCard
@@ -808,6 +824,19 @@ function FoldingProgress({
                 </div>
               );
             })}
+            {/* In-progress block: standalone BlockBubble for the block currently being
+                thought about (has THINKING_TEXT events but no structure yet) */}
+            {isStreaming && (() => {
+              const inProgressBlock = thinkingBlocks?.find(b => !b.artifact && b.events.length > 0);
+              if (!inProgressBlock) return null;
+              const text = getBlockText(inProgressBlock.blockIndex);
+              if (!text) return null;
+              return (
+                <div className="flex flex-col gap-1">
+                  <BlockBubble text={text} isThinking={true} />
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>
