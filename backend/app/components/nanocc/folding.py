@@ -87,12 +87,13 @@ def _read_pdb_file_local(pdb_path: str) -> str | None:
 def _read_pdb_file_from_tos(session_id: str, pdb_path: str) -> str | None:
     """Download and read PDB/CIF file content from TOS.
 
-    Used by Real NanoCC flow where pdb_file paths are relative to session root on TOS.
-    The full TOS path is: sessions/{session_id}/{pdb_path}
+    Used by Real NanoCC flow where pdb_file paths are relative to the output
+    directory on TOS. NanoCC uploads PDB files to sessions/{session_id}/output/,
+    and pdb_path is relative to that output directory.
 
     Args:
         session_id: The NanoCC session ID
-        pdb_path: Path to the PDB or CIF file, relative to session root
+        pdb_path: Path to the PDB or CIF file, relative to output directory
 
     Returns:
         File content as string, or None if download fails
@@ -101,11 +102,10 @@ def _read_pdb_file_from_tos(session_id: str, pdb_path: str) -> str | None:
         store = get_session_store()
         tos_client = store._get_tos_client()
 
-        # Build full TOS key: sessions/{session_id}/{pdb_path}
+        # Build full TOS key: sessions/{session_id}/output/{pdb_path}
+        # NanoCC uploads PDB files under the output/ prefix via _upload_pdb_to_tos_immediate()
         paths = SessionPaths(session_id)
-        # pdb_path is relative to session root, e.g., "output/structure.cif"
-        # Full key: sessions/{session_id}/output/structure.cif
-        full_key = f"{paths.base}/{pdb_path}"
+        full_key = f"{paths.output}{pdb_path}"
 
         logger.info(f"Downloading PDB from TOS: tos://{TOS_BUCKET}/{full_key}")
 
@@ -295,6 +295,11 @@ async def generate_real_cot_events(
 
                 has_pdb = bool(pdb_path)
                 nanocc_event_type = _map_cot_step_event_type(state, has_pdb)
+                logger.info(
+                    f"[NanoCC cot_step] state={state}, label={label}, "
+                    f"has_pdb={has_pdb}, pdb_path={pdb_path}, "
+                    f"mapped_type={nanocc_event_type.value}"
+                )
 
                 # Default stage/status
                 if nanocc_event_type == EventType.CONCLUSION:
