@@ -71,10 +71,10 @@ class Settings(BaseSettings):
     mysql_pool_pre_ping: bool = True
 
     # ==================== Redis 配置 ====================
-    # Redis 类型: "fake" | "docker"
-    # - fake: 内存模拟 Redis，无需 Docker 容器
-    # - docker: 真实 Redis，需要 Docker 容器或远程服务
-    redis_type: str = "fake"
+    # Redis 类型: "in_memory" | "redis"
+    # - in_memory: 内存模拟 (FakeRedis)，无需外部服务
+    # - redis: 真实 Redis 实例（Docker 容器、云托管等）
+    redis_type: str = "in_memory"
 
     redis_host: str = "localhost"
     redis_port: int = 6379
@@ -82,16 +82,6 @@ class Settings(BaseSettings):
     redis_password: str | None = None
     redis_socket_timeout: int = 5
     redis_socket_connect_timeout: int = 5
-
-    # ==================== NanoCC 配置 ====================
-    # 蛋白质折叠编排服务 API (Protein Folding Orchestration)
-    nanocc_url: str = ""
-    nanocc_api_key: str = ""
-
-    # ==================== Folding GPU 配置 ====================
-    # 蛋白质折叠 GPU 推理服务 (Direct GPU Inference)
-    folding_gpu_url: str = ""
-    folding_gpu_api_key: str = ""
 
     # ==================== 文件路径配置 ====================
     # 工作空间名称（local-dev 模式下使用）

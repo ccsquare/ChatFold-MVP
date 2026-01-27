@@ -62,9 +62,6 @@ CHATFOLD_REDIS_PORT=6379
 # MySQL
 CHATFOLD_DATABASE_URL=mysql+pymysql://chatfold:chatfold123@127.0.0.1:3306/chatfold
 
-# 外部服务
-CHATFOLD_FOLDING_GPU_URL=https://...
-CHATFOLD_FOLDING_GPU_API_KEY=xxx
 ```
 
 ### 3. 启动基础设施

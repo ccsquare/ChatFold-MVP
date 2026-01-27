@@ -37,6 +37,8 @@ data:
   ## =============================================================================
   ## NanoCC 配置 (蛋白质折叠编排服务)
   ## =============================================================================
+  # NanoCC Scheduler URL
+  NANOCC_SCHEDULER_URL: "https://sd58janoglhtn7o3qa6r0.apigateway-cn-shanghai-inner.volceapi.com"
   # NanoCC 文件系统根路径 (vePFS)
   NANOCC_FS_ROOT: "/SPXvePFS/mewtool/sessions"
   # 是否使用 Mock NanoCC (false = 使用真实 NanoCC 服务)
@@ -46,8 +48,9 @@ data:
   ## 缓存配置 - Redis (Cache - Redis) 火山云测试环境
   ## =============================================================================
   # 用于多实例部署的分布式会话/Token 存储
+  REDIS_TYPE: "redis"
   REDIS_HOST: "redis-shzloqdbx9s7bpvpa.redis.ivolces.com"
   REDIS_PORT: "6379"
-  REDIS_TOKEN_DB: "1"
+  REDIS_INDEX: "1"
   REDIS_SOCKET_TIMEOUT: "5"
   REDIS_SOCKET_CONNECT_TIMEOUT: "5"

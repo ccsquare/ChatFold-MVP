@@ -91,3 +91,7 @@ chatfold-workspace/
 .playwright-mcp/
 .gemini/
 .trees/
+
+# External repos (symlinks, local only)
+Mewtool
+nanocc

@@ -95,8 +95,9 @@ chmod +x init-deploy.sh
 敏感配置项 (base64 编码):
 - `DATABASE_URL`: MySQL 连接字符串
 - `REDIS_PASSWORD`: Redis 密码
-- `NANOCC_URL`: NanoCC API 地址
-- `NANOCC_API_KEY`: NanoCC API 密钥
+- `NANOCC_AUTH_TOKEN`: NanoCC 认证 Token
+- `TOS_ACCESS_KEY`: TOS 访问密钥
+- `TOS_SECRET_KEY`: TOS 密钥
 
 生成 base64 编码:
 ```bash

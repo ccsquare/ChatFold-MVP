@@ -24,8 +24,8 @@ def create_redis_client(db: int = 0) -> "redis.Redis":
     Returns:
         Redis client (either fakeredis or real redis)
     """
-    if settings.redis_type == "fake":
-        # Use FakeRedis for local development (no Docker required)
+    if settings.redis_type == "in_memory":
+        # Use FakeRedis for local development (no external service required)
         try:
             import fakeredis
 
@@ -39,7 +39,7 @@ def create_redis_client(db: int = 0) -> "redis.Redis":
             logger.warning("fakeredis not installed, falling back to real Redis. Install with: uv add fakeredis")
             # Fall through to real Redis
 
-    # Use real Redis (Docker or remote server)
+    # Use real Redis (Docker, cloud managed, or remote server)
     import redis
 
     redis_config = {
