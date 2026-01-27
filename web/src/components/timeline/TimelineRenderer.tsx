@@ -4,7 +4,7 @@ import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react'
 import { TimelineItem, TimelineByEventType, ThinkingBlock } from '@/hooks/useConversationTimeline';
 import { Structure, ChatMessage } from '@/lib/types';
 import { cn, formatTimestamp } from '@/lib/utils';
-import { Link2, Link2Off, RotateCcw, ChevronDown, CheckCircle2, Sparkle, Sparkles, FileText, Copy, Check } from 'lucide-react';
+import { Link2, Link2Off, RotateCcw, ChevronDown, CheckCircle2, Sparkle, Sparkles, FileText, Copy, Check, AlertCircle } from 'lucide-react';
 import { HelixIcon } from '@/components/icons/ProteinIcon';
 import { BlockStructureCard } from '@/components/BlockStructureCard';
 import { resetSyncGroupCamera } from '@/hooks/useCameraSync';
@@ -56,6 +56,7 @@ export function TimelineRenderer({
 }: TimelineRendererProps) {
   const endRef = useRef<HTMLDivElement>(null);
   const isCompact = variant === 'compact';
+  const streamError = useAppStore(state => state.streamError);
 
   // Auto-scroll to bottom when new items arrive
   useEffect(() => {
@@ -150,7 +151,7 @@ export function TimelineRenderer({
               />
               {/* Show PROLOGUE bubble after user message */}
               {isUserMessage && prologueContent && (
-                <PrologueAnnotationBubble text={prologueContent} isCompact={isCompact} />
+                <PrologueBubble text={prologueContent} isCompact={isCompact} />
               )}
             </React.Fragment>
           );
@@ -163,20 +164,25 @@ export function TimelineRenderer({
                 artifacts={group.artifacts}
                 allStructures={allStructures}
                 isStreaming={isStreaming}
+                streamError={streamError}
                 thinkingBlocks={thinkingBlocks}
                 currentThinkingText={currentThinkingText}
                 conclusionMessage={conclusionContent}
               />
               {/* Show CONCLUSION as message bubble after artifact group when complete */}
-              {!isStreaming && conclusionContent && (
+              {!isStreaming && !streamError && conclusionContent && (
                 <ConclusionBubble text={conclusionContent} isCompact={isCompact} />
               )}
               {/* Show Best Block after conclusion - use the last artifact from the entire timeline */}
-              {!isStreaming && allStructures.length > 0 && (
+              {!isStreaming && !streamError && allStructures.length > 0 && (
                 <BestBlock
                   artifact={allStructures[allStructures.length - 1].data}
                   timestamp={allStructures[allStructures.length - 1].timestamp}
                 />
+              )}
+              {/* Show timeout error after artifact group when SSE connection lost */}
+              {!isStreaming && streamError && (
+                <TimeoutErrorBubble isCompact={isCompact} />
               )}
             </React.Fragment>
           );
@@ -184,28 +190,28 @@ export function TimelineRenderer({
         return null;
       })}
 
-      {/* Streaming: in-progress BlockBubble ONLY when no FoldingProgress exists yet.
-          Once artifact-group exists, FoldingProgress renders the in-progress block internally. */}
+      {/* Streaming: render FoldingProgress with empty artifacts before first artifact-group exists.
+          Once artifact-group exists, groups.map renders FoldingProgress with real artifacts. */}
       {isStreaming && (() => {
         const hasArtifactGroup = groups.some(g => g.type === 'artifact-group');
-        if (hasArtifactGroup) return null; // FoldingProgress handles in-progress blocks
-
-        const inProgressBlock = thinkingBlocks.find(b => !b.artifact && b.events.length > 0);
-        if (!inProgressBlock) {
-          return (
-            <div className="flex items-center gap-2 py-2 text-cf-text-secondary">
-              <Sparkle className="w-4 h-4 text-cf-accent" />
-              <span className="text-sm">Thinking...</span>
-            </div>
-          );
-        }
-        const text = inProgressBlock.events
-          .map(e => e.message)
-          .filter(Boolean)
-          .join('\n');
-        if (!text) return null;
-        return <BlockBubble text={text} isThinking={true} />;
+        if (hasArtifactGroup) return null;
+        return (
+          <FoldingProgress
+            groupIndex={0}
+            artifacts={[]}
+            allStructures={allStructures}
+            isStreaming={isStreaming}
+            thinkingBlocks={thinkingBlocks}
+            currentThinkingText={currentThinkingText}
+            conclusionMessage={conclusionContent}
+          />
+        );
       })()}
+
+      {/* Timeout error when no artifact-group exists (timed out before producing structures) */}
+      {!isStreaming && streamError && !groups.some(g => g.type === 'artifact-group') && (
+        <TimeoutErrorBubble isCompact={isCompact} />
+      )}
 
       {/* Auto-scroll anchor */}
       <div ref={endRef} />
@@ -336,7 +342,7 @@ function QueryBubble({
  * PROLOGUE bubble component - message bubble style (left-aligned, gray bg)
  * Shows the verification points from the backend
  */
-function PrologueAnnotationBubble({
+function PrologueBubble({
   text,
   isCompact,
 }: {
@@ -424,6 +430,34 @@ function BestBlock({
             showPreview={true}
           />
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Timeout error bubble - shown when SSE connection is lost unexpectedly.
+ * Red left border, AlertCircle icon, "任务连接超时" message.
+ */
+function TimeoutErrorBubble({ isCompact }: { isCompact: boolean }) {
+  return (
+    <div className="flex pb-3 justify-start">
+      <div
+        className={cn(
+          "rounded-lg px-3 py-2 overflow-hidden shadow-sm",
+          isCompact ? "max-w-[85%]" : "max-w-[70%]",
+          "bg-cf-error/10 border border-cf-error/30 text-cf-text"
+        )}
+      >
+        <div className="flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-cf-error flex-shrink-0" />
+          <p className="text-sm font-medium text-cf-error">
+            Task connection timed out
+          </p>
+        </div>
+        <p className="text-xs text-cf-text-muted mt-1">
+          The connection to the server was lost. The task may still be running on the server.
+        </p>
       </div>
     </div>
   );
@@ -555,6 +589,7 @@ function FoldingProgress({
   artifacts,
   allStructures,
   isStreaming,
+  streamError,
   thinkingBlocks,
   currentThinkingText,
   conclusionMessage,
@@ -563,6 +598,7 @@ function FoldingProgress({
   artifacts: Array<{ data: Structure; timestamp: number; index: number }>;
   allStructures: Array<{ type: 'artifact'; data: Structure; timestamp: number }>;
   isStreaming: boolean;
+  streamError?: string | null;
   thinkingBlocks?: ThinkingBlock[];
   /** Current streaming thinking text for typewriter display */
   currentThinkingText?: string | null;
@@ -691,10 +727,14 @@ function FoldingProgress({
 
   return (
     <div className="pb-4">
-      {/* Container wrapper with border - green when complete, accent when streaming */}
+      {/* Container wrapper with border - green when complete, red on error, accent when streaming */}
       <div className={cn(
         "rounded-lg border-l-4 bg-cf-bg-secondary/50 overflow-hidden transition-all duration-300",
-        isStreaming ? "border-l-cf-accent" : "border-l-cf-success"
+        isStreaming
+          ? "border-l-cf-accent"
+          : streamError
+            ? "border-l-cf-error"
+            : "border-l-cf-success"
       )}>
         {/* Header - thinking summary with 2-line display, expandable */}
         <div
@@ -702,11 +742,13 @@ function FoldingProgress({
             "flex items-start gap-2 px-4 py-3 border-b cursor-pointer",
             isStreaming
               ? "border-cf-accent/20 bg-cf-accent/10"
-              : "border-cf-success/20 bg-cf-success/10"
+              : streamError
+                ? "border-cf-error/20 bg-cf-error/10"
+                : "border-cf-success/20 bg-cf-success/10"
           )}
           onClick={() => setHeaderExpanded(!headerExpanded)}
         >
-          {/* Left: Status indicator - blinking Sparkle/Sparkles when streaming, CheckCircle2 when done */}
+          {/* Left: Status indicator - blinking Sparkle/Sparkles when streaming, AlertCircle on error, CheckCircle2 when done */}
           <div className="flex-shrink-0 pt-0.5">
             {isStreaming ? (
               showHeaderSparkles ? (
@@ -714,6 +756,8 @@ function FoldingProgress({
               ) : (
                 <Sparkle className="w-4 h-4 text-cf-accent" />
               )
+            ) : streamError ? (
+              <AlertCircle className="w-4 h-4 text-cf-error" />
             ) : (
               <CheckCircle2 className="w-4 h-4 text-cf-success" />
             )}
@@ -782,63 +826,65 @@ function FoldingProgress({
           </div>
         </div>
 
-        {/* Artifacts list - vertical scroll */}
-        <div
-          ref={scrollRef}
-          className={cn(
-            "p-3 overflow-y-auto scrollbar-thin scrollbar-thumb-cf-border scrollbar-track-transparent transition-all duration-300",
-            !isExpanded && "max-h-[480px]"
-          )}
-        >
-          <div className="flex flex-col gap-3">
-            {artifacts.map((artifactItem, idx) => {
-              const artifact = artifactItem.data;
-              const currentIndex = artifactItem.index;  // Timeline index for stepNumber and previousArtifact
-              // Find the actual blockIndex for this artifact by matching structureId in thinkingBlocks
-              // This is necessary because artifactItem.index is the timeline position, not the blockIndex from backend
-              const artifactBlock = thinkingBlocks?.find(
-                b => b.artifact?.structureId === artifact.structureId
-              );
-              const blockIndex = artifactBlock?.blockIndex;
-              const thinkingText = blockIndex !== undefined ? getBlockText(blockIndex) : null;
+        {/* Artifacts list - vertical scroll; hidden when no artifacts and no in-progress block */}
+        {(artifacts.length > 0 || (isStreaming && thinkingBlocks?.some(b => !b.artifact && b.events.length > 0))) && (
+          <div
+            ref={scrollRef}
+            className={cn(
+              "p-3 overflow-y-auto scrollbar-thin scrollbar-thumb-cf-border scrollbar-track-transparent transition-all duration-300",
+              !isExpanded && "max-h-[480px]"
+            )}
+          >
+            <div className="flex flex-col gap-3">
+              {artifacts.map((artifactItem, idx) => {
+                const artifact = artifactItem.data;
+                const currentIndex = artifactItem.index;  // Timeline index for stepNumber and previousArtifact
+                // Find the actual blockIndex for this artifact by matching structureId in thinkingBlocks
+                // This is necessary because artifactItem.index is the timeline position, not the blockIndex from backend
+                const artifactBlock = thinkingBlocks?.find(
+                  b => b.artifact?.structureId === artifact.structureId
+                );
+                const blockIndex = artifactBlock?.blockIndex;
+                const thinkingText = blockIndex !== undefined ? getBlockText(blockIndex) : null;
 
-              return (
-                <div
-                  key={artifact.structureId}
-                  className="flex flex-col gap-1"
-                >
-                  {/* Block text before each structure - no border, close to structure */}
-                  {thinkingText && (
-                    <BlockBubble text={thinkingText} isThinking={false} />
-                  )}
-                  {/* Structure Card - now directly clickable for compare selection */}
-                  <BlockStructureCard
-                    artifact={artifact}
-                    previousArtifact={currentIndex > 0 ? allStructures[currentIndex - 1]?.data : null}
-                    timestamp={artifactItem.timestamp}
-                    stepNumber={currentIndex + 1}
-                    showPreview={true}
-                    syncGroupId={syncGroupId}
-                    syncEnabled={cameraSyncEnabled}
-                  />
-                </div>
-              );
-            })}
-            {/* In-progress block: standalone BlockBubble for the block currently being
-                thought about (has THINKING_TEXT events but no structure yet) */}
-            {isStreaming && (() => {
-              const inProgressBlock = thinkingBlocks?.find(b => !b.artifact && b.events.length > 0);
-              if (!inProgressBlock) return null;
-              const text = getBlockText(inProgressBlock.blockIndex);
-              if (!text) return null;
-              return (
-                <div className="flex flex-col gap-1">
-                  <BlockBubble text={text} isThinking={true} />
-                </div>
-              );
-            })()}
+                return (
+                  <div
+                    key={artifact.structureId}
+                    className="flex flex-col gap-1"
+                  >
+                    {/* Block text before each structure - no border, close to structure */}
+                    {thinkingText && (
+                      <BlockBubble text={thinkingText} isThinking={false} />
+                    )}
+                    {/* Structure Card - now directly clickable for compare selection */}
+                    <BlockStructureCard
+                      artifact={artifact}
+                      previousArtifact={currentIndex > 0 ? allStructures[currentIndex - 1]?.data : null}
+                      timestamp={artifactItem.timestamp}
+                      stepNumber={currentIndex + 1}
+                      showPreview={true}
+                      syncGroupId={syncGroupId}
+                      syncEnabled={cameraSyncEnabled}
+                    />
+                  </div>
+                );
+              })}
+              {/* In-progress block: standalone BlockBubble for the block currently being
+                  thought about (has THINKING_TEXT events but no structure yet) */}
+              {isStreaming && (() => {
+                const inProgressBlock = thinkingBlocks?.find(b => !b.artifact && b.events.length > 0);
+                if (!inProgressBlock) return null;
+                const text = getBlockText(inProgressBlock.blockIndex);
+                if (!text) return null;
+                return (
+                  <div className="flex flex-col gap-1">
+                    <BlockBubble text={text} isThinking={true} />
+                  </div>
+                );
+              })()}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
