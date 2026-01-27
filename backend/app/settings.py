@@ -39,6 +39,12 @@ class Settings(BaseSettings):
     port: int = 8000
     debug: bool = True
 
+    # ==================== JWT 认证配置 ====================
+    # 生产环境必须通过 JWT_SECRET_KEY 环境变量设置强密钥
+    jwt_secret_key: str = "chatfold-dev-jwt-secret-change-in-production"
+    jwt_algorithm: str = "HS256"
+    jwt_expire_minutes: int = 15
+
     # ==================== 前端配置 (用于CORS自动生成) ====================
     frontend_host: str = "localhost"
     frontend_port: int = 3000

@@ -9,13 +9,9 @@ from sqlalchemy.orm import Session
 
 from app.db.models import User
 from app.db.redis_cache import get_redis_cache
+from app.settings import settings
 
 logger = logging.getLogger(__name__)
-
-# JWT Configuration
-SECRET_KEY = "your-secret-key-change-in-production"  # TODO: Move to settings
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 15
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
@@ -32,10 +28,10 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.utcnow() + timedelta(minutes=settings.jwt_expire_minutes)
 
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
     return encoded_jwt
 
 
@@ -49,7 +45,7 @@ def verify_token(token: str) -> str | None:
         User ID if token is valid, None otherwise
     """
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
         user_id: str = payload.get("sub")
         if user_id is None:
             return None

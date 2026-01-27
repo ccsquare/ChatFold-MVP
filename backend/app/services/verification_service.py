@@ -1,4 +1,8 @@
-"""Verification code service for email-based authentication."""
+"""Verification code service for email-based authentication.
+
+All Redis operations use atomic commands or Lua scripts to ensure
+correctness under multi-instance concurrent access.
+"""
 
 import json
 import logging
@@ -16,6 +20,49 @@ MAX_ATTEMPTS = 3
 EMAIL_RATE_LIMIT = 60  # 1 minute between sends
 IP_RATE_LIMIT_COUNT = 10
 IP_RATE_LIMIT_WINDOW = 3600  # 1 hour
+
+# Lua script for atomic verification code check.
+# Guarantees that GET + check attempts + increment/delete executes as a single
+# atomic operation in Redis, preventing concurrent requests from bypassing
+# the MAX_ATTEMPTS limit.
+#
+# KEYS[1] = chatfold:verification:code:{email}
+# ARGV[1] = user_input_code
+# ARGV[2] = max_attempts
+#
+# Returns JSON:
+#   {"ok":true}
+#   {"error":"expired"}
+#   {"error":"max_attempts"}
+#   {"error":"wrong_code","remaining":N}
+VERIFY_CODE_SCRIPT = """
+local data = redis.call('GET', KEYS[1])
+if not data then
+    return '{"error":"expired"}'
+end
+
+local obj = cjson.decode(data)
+local attempts = tonumber(obj.attempts) or 0
+
+if attempts >= tonumber(ARGV[2]) then
+    redis.call('DEL', KEYS[1])
+    return '{"error":"max_attempts"}'
+end
+
+if obj.code == ARGV[1] then
+    redis.call('DEL', KEYS[1])
+    return '{"ok":true}'
+end
+
+obj.attempts = attempts + 1
+local ttl = redis.call('TTL', KEYS[1])
+if ttl > 0 then
+    redis.call('SETEX', KEYS[1], ttl, cjson.encode(obj))
+end
+
+local remaining = tonumber(ARGV[2]) - obj.attempts
+return '{"error":"wrong_code","remaining":' .. remaining .. '}'
+"""
 
 
 class VerificationCodeService:
@@ -44,6 +91,10 @@ class VerificationCodeService:
     def send_code(self, email: str, ip: str) -> tuple[bool, str]:
         """Generate and store verification code.
 
+        Uses atomic Redis commands for all rate limiting checks:
+        - Email: SET NX EX (atomic set-if-not-exists with expiry)
+        - IP: INCR + EXPIRE (atomic counter)
+
         Args:
             email: User email address
             ip: Client IP address for rate limiting
@@ -52,25 +103,26 @@ class VerificationCodeService:
             Tuple of (success: bool, message: str)
         """
         try:
-            # Check email rate limit
+            # Check IP rate limit (atomic counter)
+            ip_key = self._get_ip_rate_limit_key(ip)
+            ip_count = self.redis.incr(ip_key)
+            if ip_count == 1:
+                # First request in window — set expiry
+                self.redis.expire(ip_key, IP_RATE_LIMIT_WINDOW)
+            if ip_count > IP_RATE_LIMIT_COUNT:
+                return False, "Too many requests from this IP. Please try again later"
+
+            # Check email rate limit (atomic SET NX EX)
             rate_key = self._get_rate_limit_key(email)
-            if self.redis.exists(rate_key):
+            acquired = self.redis.set(rate_key, "1", nx=True, ex=EMAIL_RATE_LIMIT)
+            if not acquired:
                 ttl = self.redis.ttl(rate_key)
                 return False, f"Please wait {ttl} seconds before requesting another code"
 
-            # Check IP rate limit
-            ip_key = self._get_ip_rate_limit_key(ip)
-            ip_data = self.redis.get(ip_key)
-            if ip_data:
-                ip_info = json.loads(ip_data)
-                if ip_info.get("count", 0) >= IP_RATE_LIMIT_COUNT:
-                    return False, "Too many requests from this IP. Please try again later"
-
-            # Generate code
+            # Generate and store code
             code = self.generate_code()
             code_key = self._get_code_key(email)
 
-            # Store code with metadata
             code_data = {
                 "code": code,
                 "attempts": 0,
@@ -80,16 +132,6 @@ class VerificationCodeService:
 
             self.redis.setex(code_key, CODE_EXPIRY, json.dumps(code_data))
 
-            # Set email rate limit
-            self.redis.setex(rate_key, EMAIL_RATE_LIMIT, "1")
-
-            # Update IP rate limit
-            if ip_data:
-                ip_info["count"] += 1
-            else:
-                ip_info = {"count": 1, "first_send": int(time.time())}
-            self.redis.setex(ip_key, IP_RATE_LIMIT_WINDOW, json.dumps(ip_info))
-
             logger.info(f"Verification code sent to {email}")
             return True, code
 
@@ -98,7 +140,10 @@ class VerificationCodeService:
             return False, "Failed to send verification code. Please try again later"
 
     def verify_code(self, email: str, code: str) -> tuple[bool, str]:
-        """Verify a verification code.
+        """Verify a verification code atomically via Lua script.
+
+        The entire check-and-update operation runs as a single atomic Redis
+        command, preventing concurrent requests from bypassing MAX_ATTEMPTS.
 
         Args:
             email: User email address
@@ -109,31 +154,26 @@ class VerificationCodeService:
         """
         try:
             code_key = self._get_code_key(email)
-            code_data_str = self.redis.get(code_key)
+            result_str = self.redis.eval(
+                VERIFY_CODE_SCRIPT, 1, code_key, code, str(MAX_ATTEMPTS)
+            )
 
-            if not code_data_str:
-                return False, "Verification code has expired"
+            result = json.loads(result_str)
 
-            code_data = json.loads(code_data_str)
-
-            # Check attempts
-            if code_data.get("attempts", 0) >= MAX_ATTEMPTS:
-                self.redis.delete(code_key)
-                return False, "Maximum verification attempts exceeded"
-
-            # Verify code
-            if code_data.get("code") == code:
-                # Delete code after successful verification (one-time use)
-                self.redis.delete(code_key)
+            if result.get("ok"):
                 logger.info(f"Verification code verified for {email}")
                 return True, "Verification successful"
-            else:
-                # Increment attempts
-                code_data["attempts"] = code_data.get("attempts", 0) + 1
-                ttl = self.redis.ttl(code_key)
-                if ttl > 0:
-                    self.redis.setex(code_key, ttl, json.dumps(code_data))
-                return False, f"Invalid verification code. {MAX_ATTEMPTS - code_data['attempts']} attempts remaining"
+
+            error = result.get("error")
+            if error == "expired":
+                return False, "Verification code has expired"
+            if error == "max_attempts":
+                return False, "Maximum verification attempts exceeded"
+            if error == "wrong_code":
+                remaining = result.get("remaining", 0)
+                return False, f"Invalid verification code. {remaining} attempts remaining"
+
+            return False, "Verification failed. Please try again"
 
         except Exception as e:
             logger.error(f"Error verifying code: {e}")
