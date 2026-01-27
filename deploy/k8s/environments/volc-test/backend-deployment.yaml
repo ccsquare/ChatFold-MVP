@@ -35,14 +35,20 @@ spec:
           name: http
           protocol: TCP
 
-        # Environment variables
+        # Load configuration from ConfigMap
+        envFrom:
+        - configMapRef:
+            name: chatfold-config
+        - secretRef:
+            name: chatfold-secrets
+            optional: true
+
+        # Environment variable overrides
         env:
         - name: PORT
           value: "8000"
         - name: PYTHONUNBUFFERED
           value: "1"
-        - name: TZ
-          value: "Asia/Shanghai"
 
         # Liveness probe
         livenessProbe:

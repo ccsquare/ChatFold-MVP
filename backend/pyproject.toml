@@ -27,7 +27,7 @@ dependencies = [
     "bcrypt>=4.0.0",  # Password hashing
     "python-jose[cryptography]>=3.3.0",  # JWT tokens
     # TOS storage
-    "ditto @ git+https://github.com/spxix/Ditto.git@v0.2.0",
+    "ditto>=0.2.0",
     "boto3>=1.34.0",  # Required by Ditto TOS client
     # HTTP client (used by NanoCC client at runtime)
     "httpx>=0.27.0",
@@ -84,8 +84,8 @@ testpaths = ["tests"]
 # asyncio_mode = "auto"
 # asyncio_default_fixture_loop_scope = "function"
 
-[tool.hatch.metadata]
-allow-direct-references = true
+[tool.uv.sources]
+ditto = { path = "vendor/ditto" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
