@@ -5,7 +5,7 @@ import {
   Conversation,
   ChatMessage,
   Asset,
-  Job,
+  Task,
   StepEvent,
   ViewerTab,
   Structure,
@@ -98,6 +98,16 @@ function formatConversationTimestamp(timestamp: number): string {
   return `${month} ${day}, ${hours}:${minutes}`;
 }
 
+// ─── Persist Rehydration Guard (declarations) ───────────────────────────
+// These are declared before the store so deleteConversation can reference them.
+// The subscribe() call that uses them is placed after store creation.
+
+/** IDs that were intentionally deleted by the user — persist guard must ignore. */
+const _intentionallyDeletedConvIds = new Set<string>();
+
+/** Previous snapshot of conversations so the persist guard can detect losses. */
+let _prevConversations: Conversation[] = [];
+
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
@@ -130,7 +140,7 @@ export const useAppStore = create<AppState>()(
   consoleWidth: DEFAULT_CONSOLE_WIDTH,
   consoleCollapsed: false,
 
-  activeJob: null,
+  activeTask: null,
   isStreaming: false,
   thumbnails: {},
   isMolstarExpanded: false,
@@ -163,11 +173,11 @@ export const useAppStore = create<AppState>()(
       return {
         conversations: [conversation, ...state.conversations],
         activeConversationId: id,
-        activeJob: null, // Clear active job when creating new conversation
+        activeTask: null, // Clear active task when creating new conversation
         activeFolderId: folderId || null, // Set active folder if provided
-        // Note: Don't reset isStreaming here - let setActiveJob control it
+        // Note: Don't reset isStreaming here - let setActiveTask control it
         // This fixes a race condition where createConversation resets streaming
-        // state before setActiveJob can set it to true
+        // state before setActiveTask can set it to true
         folders: updatedFolders
       };
     });
@@ -183,10 +193,10 @@ export const useAppStore = create<AppState>()(
 
       return {
         activeConversationId: id,
-        activeJob: null, // Clear active job when switching conversation
+        activeTask: null, // Clear active task when switching conversation
         activeFolderId: folderId // Auto-activate associated folder
-        // Note: Don't reset isStreaming here - clearing activeJob is sufficient
-        // and setActiveJob controls streaming state
+        // Note: Don't reset isStreaming here - clearing activeTask is sufficient
+        // and setActiveTask controls streaming state
       };
     });
   },
@@ -198,17 +208,37 @@ export const useAppStore = create<AppState>()(
       ...messageData
     };
 
-    set(state => ({
-      conversations: state.conversations.map(conv =>
-        conv.id === conversationId
-          ? {
-            ...conv,
-            messages: [...conv.messages, message],
-            updatedAt: Date.now()
-          }
-          : conv
-      )
-    }));
+    set(state => {
+      const convExists = state.conversations.some(c => c.id === conversationId);
+      if (!convExists) {
+        // Safety net: conversation was lost (e.g., persist rehydration race).
+        // Create it inline to prevent silent message loss.
+        const now = Date.now();
+        const newConv: Conversation = {
+          id: conversationId,
+          title: formatConversationTimestamp(now),
+          createdAt: now,
+          updatedAt: now,
+          messages: [message],
+          assets: []
+        };
+        return {
+          conversations: [newConv, ...state.conversations],
+          activeConversationId: conversationId,
+        };
+      }
+      return {
+        conversations: state.conversations.map(conv =>
+          conv.id === conversationId
+            ? {
+              ...conv,
+              messages: [...conv.messages, message],
+              updatedAt: Date.now()
+            }
+            : conv
+        )
+      };
+    });
   },
 
   addAsset: (conversationId, assetData) => {
@@ -232,6 +262,8 @@ export const useAppStore = create<AppState>()(
   },
 
   deleteConversation: (conversationId) => {
+    // Mark as intentionally deleted so the persist guard doesn't re-add it
+    _intentionallyDeletedConvIds.add(conversationId);
     set(state => {
       const filteredConversations = state.conversations.filter(conv => conv.id !== conversationId);
       // If deleting the active conversation, switch to another one or null
@@ -521,11 +553,11 @@ export const useAppStore = create<AppState>()(
     set({ isStreaming: streaming });
   },
 
-  // Job actions
-  setActiveJob: (job) => {
-    const isRunning = job?.status === 'running';
+  // Task actions
+  setActiveTask: (task) => {
+    const isRunning = task?.status === 'running';
     set({
-      activeJob: job,
+      activeTask: task,
       isStreaming: isRunning,
       // Don't auto-switch layout mode - let user stay in their current mode
       // This prevents EventSource from being closed when ChatView unmounts
@@ -533,16 +565,16 @@ export const useAppStore = create<AppState>()(
     });
   },
 
-  addStepEvent: (jobId, event) => {
+  addStepEvent: (taskId, event) => {
     set(state => {
-      if (state.activeJob?.id !== jobId) {
+      if (state.activeTask?.id !== taskId) {
         return state;
       }
 
-      const newSteps = [...state.activeJob.steps, event];
+      const newSteps = [...state.activeTask.steps, event];
       const newStructures = event.artifacts
-        ? [...state.activeJob.structures, ...event.artifacts]
-        : state.activeJob.structures;
+        ? [...state.activeTask.structures, ...event.artifacts]
+        : state.activeTask.structures;
 
       const isDone = event.stage === 'DONE';
 
@@ -564,17 +596,17 @@ export const useAppStore = create<AppState>()(
           return {
             ...folder,
             outputs: [...folder.outputs, ...newArtifacts],
-            jobId: jobId,
+            taskId: taskId,
             updatedAt: Date.now()
           };
         });
       }
 
-      // When job completes, add artifacts to conversation as a message
+      // When task completes, add artifacts to conversation as a message
       // This ensures historical conversations display the folding results
       let updatedConversations = state.conversations;
       if (isDone && newStructures.length > 0) {
-        const conversationId = state.activeJob.conversationId;
+        const conversationId = state.activeTask.conversationId;
         const messageTimestamp = Date.now();
 
         // Normalize artifact timestamps to ensure consistent ordering on reload
@@ -600,8 +632,8 @@ export const useAppStore = create<AppState>()(
       }
 
       return {
-        activeJob: {
-          ...state.activeJob,
+        activeTask: {
+          ...state.activeTask,
           steps: newSteps,
           structures: newStructures,
           status: isDone ? 'complete' : 'running'
@@ -695,6 +727,58 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'chatfold-storage',
+      merge: (persistedState, currentState) => {
+        const persisted = (persistedState || {}) as Partial<AppState>;
+        const current = currentState as AppState;
+
+        // Merge conversations by ID: preserve in-memory conversations that
+        // weren't persisted (e.g., newly created ones with no messages yet).
+        // This prevents the persist rehydration from overwriting conversations
+        // that were created between store initialization and rehydration completion.
+        let mergedConversations = current.conversations;
+        if (persisted.conversations) {
+          const persistedIds = new Set(persisted.conversations.map(c => c.id));
+          const inMemoryOnly = current.conversations.filter(c => !persistedIds.has(c.id));
+          mergedConversations = [...inMemoryOnly, ...persisted.conversations];
+        }
+
+        // Same merge strategy for folders
+        let mergedFolders = current.folders;
+        if (persisted.folders) {
+          const persistedIds = new Set(persisted.folders.map(f => f.id));
+          const inMemoryOnly = current.folders.filter(f => !persistedIds.has(f.id));
+          mergedFolders = [...inMemoryOnly, ...persisted.folders];
+        }
+
+        // For activeConversationId/activeFolderId: prefer the in-memory value
+        // if it points to a valid entry, then persisted if valid, otherwise null.
+        // This prevents stale IDs from pointing to non-existent entries.
+        const validConvId = (id: string | null | undefined): boolean =>
+          !!id && mergedConversations.some(c => c.id === id);
+        const validFolderId = (id: string | null | undefined): boolean =>
+          !!id && mergedFolders.some(f => f.id === id);
+
+        const activeConversationId = validConvId(current.activeConversationId)
+          ? current.activeConversationId
+          : validConvId(persisted.activeConversationId)
+            ? persisted.activeConversationId!
+            : null;
+
+        const activeFolderId = validFolderId(current.activeFolderId)
+          ? current.activeFolderId
+          : validFolderId(persisted.activeFolderId)
+            ? persisted.activeFolderId!
+            : null;
+
+        return {
+          ...current,
+          ...persisted,
+          conversations: mergedConversations,
+          folders: mergedFolders,
+          activeConversationId,
+          activeFolderId,
+        };
+      },
       partialize: (state) => {
         // Strip large pdbData from artifacts to avoid localStorage quota issues
         const stripPdbData = (artifact: Structure): Structure => ({
@@ -723,7 +807,7 @@ export const useAppStore = create<AppState>()(
 
         return {
           // Persist layout settings, folders, and conversations
-          // Note: active job, streaming state, layoutMode, and pdbData are not persisted
+          // Note: active task, streaming state, layoutMode, and pdbData are not persisted
           // layoutMode is intentionally not persisted - always start in chat-focus mode on refresh
           conversations: cleanConversations,
           activeConversationId: state.activeConversationId,
@@ -738,6 +822,40 @@ export const useAppStore = create<AppState>()(
     }
   )
 );
+
+// ─── Persist Rehydration Guard (subscribe) ──────────────────────────────
+// Zustand's persist middleware rehydrates state asynchronously via .then() chains.
+// If createConversation() or addMessage() runs before rehydration completes, the
+// async rehydration overwrites the newly created conversation with stale persisted
+// state. During HMR the store isn't re-initialized, so the custom merge function
+// above may not even be active.
+//
+// This guard subscribes to ALL state changes and re-adds any conversation that
+// previously had messages but was suddenly removed (the hallmark of an async
+// rehydration overwrite). Intentional deletions are tracked via
+// _intentionallyDeletedConvIds so the guard doesn't interfere with them.
+// ─────────────────────────────────────────────────────────────────────────
+
+useAppStore.subscribe((state) => {
+  // Find conversations that had messages in previous state but are now missing
+  const lost = _prevConversations.filter(
+    prev =>
+      prev.messages.length > 0 &&
+      !_intentionallyDeletedConvIds.has(prev.id) &&
+      !state.conversations.some(c => c.id === prev.id)
+  );
+
+  if (lost.length > 0) {
+    useAppStore.setState(prev => ({
+      conversations: [...lost, ...prev.conversations]
+    }));
+    // Don't update _prevConversations here — the setState above will
+    // trigger another subscribe call which will handle it.
+    return;
+  }
+
+  _prevConversations = state.conversations;
+});
 
 // Export constants for use in components
 export { MIN_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH, DEFAULT_SIDEBAR_WIDTH };
