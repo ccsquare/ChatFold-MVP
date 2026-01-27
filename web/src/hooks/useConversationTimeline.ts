@@ -39,7 +39,7 @@ export interface TimelineByEventType {
 interface TimelineOptions {
   /** Override conversation ID (defaults to activeConversationId) */
   conversationId?: string | null;
-  /** Include artifacts from activeJob during streaming (default: true) */
+  /** Include artifacts from activeTask during streaming (default: true) */
   includeStreaming?: boolean;
 }
 
@@ -48,7 +48,7 @@ interface TimelineOptions {
  * Ensures consistent data display across ChatView and ChatPanel.
  *
  * Data sources (in priority order for deduplication):
- * 1. activeJob.steps - Live streaming artifacts
+ * 1. activeTask.steps - Live streaming artifacts
  * 2. message.artifacts - Historical conversation artifacts
  * 3. project.outputs - Persisted project outputs (fallback)
  */
@@ -56,7 +56,7 @@ export function useConversationTimeline(options: TimelineOptions = {}) {
   const {
     conversations,
     activeConversationId,
-    activeJob,
+    activeTask,
     isStreaming,
     folders,
     activeFolderId,
@@ -83,10 +83,10 @@ export function useConversationTimeline(options: TimelineOptions = {}) {
       });
     }
 
-    // 2. Priority 1: Add step events and artifacts from activeJob.steps (live streaming)
-    // Only include if this job belongs to the current conversation
-    if (includeStreaming && activeJob?.steps && activeJob.conversationId === conversationId) {
-      activeJob.steps.forEach(step => {
+    // 2. Priority 1: Add step events and artifacts from activeTask.steps (live streaming)
+    // Only include if this task belongs to the current conversation
+    if (includeStreaming && activeTask?.steps && activeTask.conversationId === conversationId) {
+      activeTask.steps.forEach(step => {
         // Add the step event itself
         items.push({ type: 'step', data: step });
 
@@ -101,7 +101,7 @@ export function useConversationTimeline(options: TimelineOptions = {}) {
     }
 
     // 3. Priority 2: Add artifacts from message.artifacts (historical conversations)
-    // These are persisted when job completes
+    // These are persisted when task completes
     // Use artifact.createdAt if available, otherwise place artifacts just before parent message
     // (subtracting 1ms ensures artifacts appear before completion message in timeline)
     if (conversation?.messages) {
@@ -131,19 +131,26 @@ export function useConversationTimeline(options: TimelineOptions = {}) {
       });
     }
 
-    // Sort by timestamp
+    // Handle browser/backend clock skew:
+    // Message timestamps use browser Date.now(), step/artifact timestamps use backend clock.
+    // If clocks differ, artifacts could sort before the message that triggered them.
+    // Fix: ensure steps and artifacts always sort after the latest message.
+    const lastMsgTs = items.reduce((max, item) =>
+      item.type === 'message' ? Math.max(max, item.data.timestamp) : max, 0);
+
+    // Sort by timestamp with clock-skew-safe adjustment
     items.sort((a, b) => {
       const getTimestamp = (item: TimelineItem): number => {
         if (item.type === 'message') return item.data.timestamp;
-        if (item.type === 'artifact') return item.timestamp;
-        if (item.type === 'step') return item.data.ts;
+        if (item.type === 'artifact') return Math.max(item.timestamp, lastMsgTs + 1);
+        if (item.type === 'step') return Math.max(item.data.ts, lastMsgTs + 1);
         return 0;
       };
       return getTimestamp(a) - getTimestamp(b);
     });
 
     return items;
-  }, [conversation, activeJob, conversationId, folders, activeFolderId, includeStreaming]);
+  }, [conversation, activeTask, conversationId, folders, activeFolderId, includeStreaming]);
 
   // Extract just messages for convenience
   const messages = useMemo(() =>
@@ -161,27 +168,27 @@ export function useConversationTimeline(options: TimelineOptions = {}) {
     [timeline]
   );
 
-  // Streaming artifacts from current job only
+  // Streaming artifacts from current task only
   const streamingArtifacts = useMemo(() => {
-    if (!includeStreaming || !activeJob?.steps || activeJob.conversationId !== conversationId) {
+    if (!includeStreaming || !activeTask?.steps || activeTask.conversationId !== conversationId) {
       return [];
     }
 
     const result: Structure[] = [];
-    activeJob.steps.forEach(step => {
+    activeTask.steps.forEach(step => {
       step.artifacts?.forEach(artifact => result.push(artifact));
     });
     return result;
-  }, [activeJob, conversationId, includeStreaming]);
+  }, [activeTask, conversationId, includeStreaming]);
 
-  // Latest status message from streaming job
+  // Latest status message from streaming task
   const latestStatusMessage = useMemo(() => {
-    if (!includeStreaming || !activeJob?.steps || activeJob.conversationId !== conversationId) {
+    if (!includeStreaming || !activeTask?.steps || activeTask.conversationId !== conversationId) {
       return null;
     }
-    const lastStep = activeJob.steps[activeJob.steps.length - 1];
+    const lastStep = activeTask.steps[activeTask.steps.length - 1];
     return lastStep?.message || null;
-  }, [activeJob, conversationId, includeStreaming]);
+  }, [activeTask, conversationId, includeStreaming]);
 
   // NEW: Group steps by EventType for area-based rendering
   const timelineByEventType = useMemo((): TimelineByEventType => {
@@ -195,14 +202,14 @@ export function useConversationTimeline(options: TimelineOptions = {}) {
       conclusion: null,
     };
 
-    if (!includeStreaming || !activeJob?.steps || activeJob.conversationId !== conversationId) {
+    if (!includeStreaming || !activeTask?.steps || activeTask.conversationId !== conversationId) {
       return result;
     }
 
     // Map to collect events by blockIndex
     const blockMap = new Map<number, StepEvent[]>();
 
-    activeJob.steps.forEach(step => {
+    activeTask.steps.forEach(step => {
       const eventType = step.eventType;
 
       switch (eventType) {
@@ -264,7 +271,7 @@ export function useConversationTimeline(options: TimelineOptions = {}) {
     result.thinkingBlocks.sort((a, b) => a.blockIndex - b.blockIndex);
 
     return result;
-  }, [activeJob, conversationId, includeStreaming]);
+  }, [activeTask, conversationId, includeStreaming]);
 
   return {
     /** Full timeline with messages and artifacts sorted by timestamp */
@@ -273,10 +280,10 @@ export function useConversationTimeline(options: TimelineOptions = {}) {
     messages,
     /** Just the artifacts */
     artifacts,
-    /** Artifacts from current streaming job */
+    /** Artifacts from current streaming task */
     streamingArtifacts,
     /** Whether currently streaming */
-    isStreaming: isStreaming && activeJob?.conversationId === conversationId,
+    isStreaming: isStreaming && activeTask?.conversationId === conversationId,
     /** The active conversation */
     conversation,
     /** Latest status message from backend during streaming */
