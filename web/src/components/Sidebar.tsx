@@ -116,14 +116,15 @@ function FolderItem({
     <li className="select-none">
       <ContextMenu>
         <ContextMenuTrigger asChild>
+          {/* FolderItemRow */}
           <div
             className={cn(
               'flex items-center gap-1 px-1 py-0.5 rounded cursor-pointer group',
               isActive ? 'bg-cf-highlight-strong' : 'hover:bg-cf-highlight'
             )}
-            onClick={onSelect}
+            onClick={() => isActive ? onToggle() : onSelect()}
           >
-            {/* Expand/Collapse Toggle */}
+            {/* FolderItemChevron */}
             <button
               className="p-0.5 hover:bg-cf-highlight-strong rounded group/toggle"
               onClick={(e) => {
@@ -142,14 +143,14 @@ function FolderItem({
               )}
             </button>
 
-            {/* Folder Icon */}
+            {/* FolderIcon */}
             {shouldExpand ? (
               <FolderOpen className="w-4 h-4 text-cf-warning/70 flex-shrink-0" />
             ) : (
               <FolderClosed className="w-4 h-4 text-cf-warning/70 flex-shrink-0" />
             )}
 
-            {/* Name (Editable) */}
+            {/* FolderName */}
             {isRenaming ? (
               <Input
                 ref={inputRef}
@@ -165,7 +166,7 @@ function FolderItem({
               <span className="text-[13px] truncate flex-1 text-cf-text">{folder.name}</span>
             )}
 
-            {/* Upload button - visible on hover */}
+            {/* FolderUploadButton */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -195,7 +196,7 @@ function FolderItem({
         </ContextMenuContent>
       </ContextMenu>
 
-      {/* Expanded Content */}
+      {/* FolderItemPanel */}
       {shouldExpand && (
         <ul className="ml-4 border-l border-cf-border/50">
           {/* Input Files */}
@@ -294,7 +295,7 @@ export function Sidebar() {
     setActiveConversation,
     deleteConversation,
     addAsset,
-    activeJob,
+    activeTask,
     folders,
     activeFolderId,
     createFolder,
