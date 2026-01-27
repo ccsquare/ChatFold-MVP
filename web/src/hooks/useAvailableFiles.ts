@@ -13,7 +13,7 @@ import { MentionableFile } from '@/lib/types';
  * - Folder.outputs: 系统生成的结构文件
  */
 export function useAvailableFiles(): MentionableFile[] {
-  const { folders, activeJob } = useAppStore();
+  const { folders, activeTask } = useAppStore();
 
   return useMemo(() => {
     const files: MentionableFile[] = [];
@@ -44,18 +44,18 @@ export function useAvailableFiles(): MentionableFile[] {
       });
     });
 
-    // Add files from activeJob (real-time streaming artifacts not yet in folder)
-    if (activeJob?.steps) {
-      activeJob.steps.forEach((step) => {
+    // Add files from activeTask (real-time streaming artifacts not yet in folder)
+    if (activeTask?.steps) {
+      activeTask.steps.forEach((step) => {
         step.artifacts?.forEach((artifact) => {
-          const id = `job/${activeJob.id}/${artifact.filename}`;
+          const id = `task/${activeTask.id}/${artifact.filename}`;
           if (!files.some((f) => f.id === id)) {
             files.push({
               id,
               name: artifact.filename,
-              path: `job/${activeJob.id}/${artifact.filename}`,
+              path: `task/${activeTask.id}/${artifact.filename}`,
               type: 'structure',
-              source: 'job',
+              source: 'task',
             });
           }
         });
@@ -63,5 +63,5 @@ export function useAvailableFiles(): MentionableFile[] {
     }
 
     return files;
-  }, [folders, activeJob]);
+  }, [folders, activeTask]);
 }

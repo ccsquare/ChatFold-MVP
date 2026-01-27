@@ -10,7 +10,7 @@ ULID advantages:
 - 26 characters (vs UUID's 36)
 
 Format: {prefix}_{ulid}
-Example: job_01HGW2N7EHJD5P5M8R3KV4X5Y6
+Example: task_01HGW2N7EHJD5P5M8R3KV4X5Y6
 
 References:
 - https://github.com/ulid/spec
@@ -26,7 +26,7 @@ def generate_id(prefix: str = "") -> str:
     Uses ULID for time-ordered, globally unique identifiers.
 
     Args:
-        prefix: Optional prefix for the ID (e.g., "user", "job", "proj")
+        prefix: Optional prefix for the ID (e.g., "user", "task", "proj")
 
     Returns:
         A unique ID string in format "{prefix}_{ulid}" or just "{ulid}"
@@ -34,8 +34,8 @@ def generate_id(prefix: str = "") -> str:
     Examples:
         >>> generate_id("user")
         'user_01HGW2N7EHJD5P5M8R3KV4X5Y6'
-        >>> generate_id("job")
-        'job_01HGW2N7EHJD5P5M8R3KV4X5Y7'
+        >>> generate_id("task")
+        'task_01HGW2N7EHJD5P5M8R3KV4X5Y7'
         >>> generate_id()
         '01HGW2N7EHJD5P5M8R3KV4X5Y8'
     """
@@ -66,9 +66,9 @@ def generate_conversation_id() -> str:
     return generate_id("conv")
 
 
-def generate_job_id() -> str:
-    """Generate a job ID."""
-    return generate_id("job")
+def generate_task_id() -> str:
+    """Generate a task ID."""
+    return generate_id("task")
 
 
 def generate_structure_id() -> str:

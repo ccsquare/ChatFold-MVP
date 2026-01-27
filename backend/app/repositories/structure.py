@@ -15,17 +15,17 @@ class StructureRepository(BaseRepository[Structure]):
     def __init__(self):
         super().__init__(Structure)
 
-    def get_by_job(self, db: Session, job_id: str) -> list[Structure]:
-        """Get structures for a job.
+    def get_by_task(self, db: Session, task_id: str) -> list[Structure]:
+        """Get structures for a task.
 
         Args:
             db: Database session
-            job_id: Job ID
+            task_id: Task ID
 
         Returns:
             List of structures
         """
-        stmt = select(Structure).where(Structure.job_id == job_id).order_by(Structure.created_at.asc())
+        stmt = select(Structure).where(Structure.task_id == task_id).order_by(Structure.created_at.asc())
         result = db.execute(stmt)
         return list(result.scalars().all())
 
@@ -62,18 +62,18 @@ class StructureRepository(BaseRepository[Structure]):
         result = db.execute(stmt)
         return list(result.scalars().all())
 
-    def get_final_by_job(self, db: Session, job_id: str) -> Structure | None:
-        """Get the final structure for a job.
+    def get_final_by_task(self, db: Session, task_id: str) -> Structure | None:
+        """Get the final structure for a task.
 
         Args:
             db: Database session
-            job_id: Job ID
+            task_id: Task ID
 
         Returns:
             Final structure or None
         """
         stmt = select(Structure).where(
-            Structure.job_id == job_id,
+            Structure.task_id == task_id,
             Structure.is_final == True,  # noqa: E712
         )
         result = db.execute(stmt)
@@ -82,7 +82,7 @@ class StructureRepository(BaseRepository[Structure]):
     def create_structure(
         self,
         db: Session,
-        job_id: str,
+        task_id: str,
         label: str,
         filename: str,
         file_path: str,
@@ -95,7 +95,7 @@ class StructureRepository(BaseRepository[Structure]):
 
         Args:
             db: Database session
-            job_id: Parent job ID
+            task_id: Parent task ID
             label: Structure label (candidate-1, final, etc.)
             filename: PDB filename
             file_path: Full path to PDB file
@@ -109,7 +109,7 @@ class StructureRepository(BaseRepository[Structure]):
         """
         structure_data = {
             "id": generate_id("str"),
-            "job_id": job_id,
+            "task_id": task_id,
             "user_id": user_id,
             "project_id": project_id,
             "label": label,

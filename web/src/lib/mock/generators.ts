@@ -120,12 +120,12 @@ export function parseFasta(content: string): { header: string; sequence: string;
   return { header, sequence, rawSequence };
 }
 
-// Generate step events for a folding job
+// Generate step events for a folding task
 export function* generateStepEvents(jobId: string, sequence: string): Generator<StepEvent> {
   const stages: { stage: StageType; messages: string[] }[] = [
     {
       stage: 'QUEUED',
-      messages: ['Job queued for processing']
+      messages: ['Task queued for processing']
     },
     {
       stage: 'MSA',

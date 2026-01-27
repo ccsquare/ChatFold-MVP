@@ -1,6 +1,6 @@
 """LearningRecord repository for database operations.
 
-Handles aggregated learning data from completed NanoCC jobs.
+Handles aggregated learning data from completed NanoCC tasks.
 """
 
 from sqlalchemy import func, select
@@ -17,17 +17,17 @@ class LearningRecordRepository(BaseRepository[LearningRecord]):
     def __init__(self):
         super().__init__(LearningRecord)
 
-    def get_by_job(self, db: Session, job_id: str) -> LearningRecord | None:
-        """Get learning record for a job.
+    def get_by_task(self, db: Session, task_id: str) -> LearningRecord | None:
+        """Get learning record for a task.
 
         Args:
             db: Database session
-            job_id: Job ID
+            task_id: Task ID
 
         Returns:
             Learning record or None if not found
         """
-        stmt = select(LearningRecord).where(LearningRecord.job_id == job_id)
+        stmt = select(LearningRecord).where(LearningRecord.task_id == task_id)
         result = db.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -121,7 +121,7 @@ class LearningRecordRepository(BaseRepository[LearningRecord]):
     def create_record(
         self,
         db: Session,
-        job_id: str,
+        task_id: str,
         input_sequence: str,
         thinking_block_count: int = 0,
         structure_count: int = 0,
@@ -129,11 +129,11 @@ class LearningRecordRepository(BaseRepository[LearningRecord]):
         final_structure_id: str | None = None,
         final_plddt: int | None = None,
     ) -> LearningRecord:
-        """Create a new learning record from completed job.
+        """Create a new learning record from completed task.
 
         Args:
             db: Database session
-            job_id: Parent job ID
+            task_id: Parent task ID
             input_sequence: Input amino acid sequence
             thinking_block_count: Number of thinking blocks generated
             structure_count: Number of structures generated
@@ -146,7 +146,7 @@ class LearningRecordRepository(BaseRepository[LearningRecord]):
         """
         record_data = {
             "id": generate_id("lrn"),
-            "job_id": job_id,
+            "task_id": task_id,
             "input_sequence": input_sequence,
             "input_constraints": input_constraints,
             "thinking_block_count": thinking_block_count,

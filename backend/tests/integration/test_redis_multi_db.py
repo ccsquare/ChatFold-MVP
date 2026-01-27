@@ -7,7 +7,7 @@ Architecture: Single DB + Key Prefix Pattern
 
 Test cases for:
 - Key prefix isolation between different domains
-- Job state and SSE events use correct prefixes
+- Task state and SSE events use correct prefixes
 - Services correctly generate namespaced keys
 """
 
@@ -54,13 +54,13 @@ class TestRedisKeyPrefixArchitecture:
 
     def test_key_prefix_format(self):
         """Verify key prefix format follows the pattern."""
-        job_id = "job_abc123"
+        task_id = "task_abc123"
         folder_id = "folder_xyz789"
 
-        # Job related keys
-        assert RedisKeyPrefix.job_state_key(job_id) == "chatfold:job:state:job_abc123"
-        assert RedisKeyPrefix.job_meta_key(job_id) == "chatfold:job:meta:job_abc123"
-        assert RedisKeyPrefix.job_events_key(job_id) == "chatfold:job:events:job_abc123"
+        # Task related keys
+        assert RedisKeyPrefix.task_state_key(task_id) == "chatfold:task:state:task_abc123"
+        assert RedisKeyPrefix.task_meta_key(task_id) == "chatfold:task:meta:task_abc123"
+        assert RedisKeyPrefix.task_events_key(task_id) == "chatfold:task:events:task_abc123"
 
         # Workspace related keys
         assert RedisKeyPrefix.folder_key(folder_id) == "chatfold:workspace:folder:folder_xyz789"
@@ -77,19 +77,19 @@ class TestRedisKeyPrefixIsolation:
         self.test_id = _make_test_id()
         yield
         # Cleanup test keys
-        self.cache.delete(RedisKeyPrefix.job_state_key(self.test_id))
-        self.cache.delete(RedisKeyPrefix.job_events_key(self.test_id))
+        self.cache.delete(RedisKeyPrefix.task_state_key(self.test_id))
+        self.cache.delete(RedisKeyPrefix.task_events_key(self.test_id))
         self.cache.delete(RedisKeyPrefix.folder_key(self.test_id))
 
-    def test_job_state_isolation(self):
-        """Job state and job events use different key prefixes."""
-        # Write to job state prefix
-        state_key = RedisKeyPrefix.job_state_key(self.test_id)
+    def test_task_state_isolation(self):
+        """Task state and task events use different key prefixes."""
+        # Write to task state prefix
+        state_key = RedisKeyPrefix.task_state_key(self.test_id)
         self.cache.hset(state_key, {"status": "running", "progress": 50})
         self.cache.expire(state_key, 60)
 
-        # Write to job events prefix
-        events_key = RedisKeyPrefix.job_events_key(self.test_id)
+        # Write to task events prefix
+        events_key = RedisKeyPrefix.task_events_key(self.test_id)
         self.cache.rpush(events_key, {"eventId": "evt_1", "message": "test"})
         self.cache.expire(events_key, 60)
 
@@ -138,37 +138,37 @@ class TestServiceKeyPrefixUsage:
         self.cache = get_redis_cache()
         yield
 
-    def test_job_state_service_uses_correct_prefix(self):
-        """Verify job state service uses chatfold:job:state prefix."""
-        from app.services.job_state import job_state_service
+    def test_task_state_service_uses_correct_prefix(self):
+        """Verify task state service uses chatfold:task:state prefix."""
+        from app.services.task_state import task_state_service
 
-        job_id = f"job_{_make_test_id()}"
+        task_id = f"task_{_make_test_id()}"
 
-        # Create job state
-        job_state_service.create_state(job_id)
+        # Create task state
+        task_state_service.create_state(task_id)
 
         # Verify it uses the correct key prefix
-        expected_key = RedisKeyPrefix.job_state_key(job_id)
+        expected_key = RedisKeyPrefix.task_state_key(task_id)
         result = self.cache.hgetall(expected_key)
 
         assert result is not None
         assert result.get("status") == "queued"
 
         # Cleanup
-        job_state_service.delete_state(job_id)
+        task_state_service.delete_state(task_id)
 
     def test_sse_events_service_uses_correct_prefix(self):
-        """Verify SSE events service uses chatfold:job:events prefix."""
+        """Verify SSE events service uses chatfold:task:events prefix."""
         from app.components.nanocc.job import EventType, JobEvent, StageType, StatusType
         from app.services.sse_events import sse_events_service
         from app.utils import get_timestamp_ms
 
-        job_id = f"job_{_make_test_id()}"
+        task_id = f"task_{_make_test_id()}"
 
         # Push an event
         event = JobEvent(
-            eventId=f"evt_{job_id}_0001",
-            jobId=job_id,
+            eventId=f"evt_{task_id}_0001",
+            jobId=task_id,
             ts=get_timestamp_ms(),
             eventType=EventType.THINKING_TEXT,
             stage=StageType.MODEL,
@@ -179,33 +179,33 @@ class TestServiceKeyPrefixUsage:
         sse_events_service.push_event(event)
 
         # Verify it uses the correct key prefix
-        expected_key = RedisKeyPrefix.job_events_key(job_id)
+        expected_key = RedisKeyPrefix.task_events_key(task_id)
         result = self.cache.lrange(expected_key, 0, -1)
 
         assert len(result) == 1
 
         # Cleanup
-        sse_events_service.delete_events(job_id)
+        sse_events_service.delete_events(task_id)
 
-    def test_job_meta_uses_correct_prefix(self):
-        """Verify job meta uses chatfold:job:meta prefix."""
-        from app.services.job_state import job_state_service
+    def test_task_meta_uses_correct_prefix(self):
+        """Verify task meta uses chatfold:task:meta prefix."""
+        from app.services.task_state import task_state_service
 
-        job_id = f"job_{_make_test_id()}"
+        task_id = f"task_{_make_test_id()}"
         sequence = "MKTVRQERLKSIVRILERSKEPVSGAQLAEELSVSRQVIVQDIAYLRSLGYNIVATPRGYVLAGG"
 
-        # Save job meta
-        job_state_service.save_job_meta(job_id, sequence=sequence)
+        # Save task meta
+        task_state_service.save_job_meta(task_id, sequence=sequence)
 
         # Verify it uses the correct key prefix
-        expected_key = RedisKeyPrefix.job_meta_key(job_id)
+        expected_key = RedisKeyPrefix.task_meta_key(task_id)
         result = self.cache.hgetall(expected_key)
 
         assert result is not None
         assert result.get("sequence") == sequence
 
         # Cleanup
-        job_state_service.delete_job_meta(job_id)
+        task_state_service.delete_job_meta(task_id)
 
 
 class TestRedisClusterCompatibility:
@@ -225,8 +225,8 @@ class TestRedisClusterCompatibility:
         """
         # All ChatFold keys start with the same prefix
         keys = [
-            RedisKeyPrefix.job_state_key("job_1"),
-            RedisKeyPrefix.job_events_key("job_1"),
+            RedisKeyPrefix.task_state_key("task_1"),
+            RedisKeyPrefix.task_events_key("task_1"),
             RedisKeyPrefix.folder_key("folder_1"),
         ]
 

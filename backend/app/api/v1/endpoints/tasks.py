@@ -1,13 +1,13 @@
-"""Jobs API endpoint with SSE streaming.
+"""Tasks API endpoint with SSE streaming.
 
-This module provides REST endpoints for NanoCC job management:
-- Create folding jobs
-- List/get jobs
-- Stream job progress via SSE
-- Cancel running jobs
+This module provides REST endpoints for NanoCC task management:
+- Create folding tasks
+- List/get tasks
+- Stream task progress via SSE
+- Cancel running tasks
 
 Storage Integration:
-- Redis: Job state cache and SSE event queues (always enabled)
+- Redis: Task state cache and SSE event queues (always enabled)
 - MySQL + Filesystem: Persistent storage (default, use_memory_store=false)
 - Memory: In-memory only mode (use_memory_store=true)
 
@@ -37,10 +37,10 @@ from app.components.nanocc import (
     generate_step_events,
 )
 from app.db.mysql import get_db_session
-from app.repositories import job_repository
-from app.services.job_state import job_state_service
+from app.repositories import task_repository
 from app.services.memory_store import storage
 from app.services.sse_events import sse_events_service
+from app.services.task_state import task_state_service
 from app.settings import settings
 from app.utils import (
     DEFAULT_SEQUENCE,
@@ -55,31 +55,31 @@ logger = logging.getLogger(__name__)
 # Feature flags
 USE_NANOCC = os.getenv("USE_NANOCC", "true").lower() in ("true", "1", "yes")
 
-router = APIRouter(tags=["Jobs"])
+router = APIRouter(tags=["Tasks"])
 
 
-def _is_job_canceled(job_id: str) -> bool:
-    """Check if job has been canceled.
+def _is_task_canceled(task_id: str) -> bool:
+    """Check if task has been canceled.
 
     Uses Redis only for multi-instance consistency.
     Memory store fallback is removed to prevent cross-instance issues.
 
     Args:
-        job_id: Job ID to check
+        task_id: Task ID to check
 
     Returns:
-        True if job is canceled
+        True if task is canceled
     """
     # Redis only - shared across all instances
-    return job_state_service.is_canceled(job_id)
+    return task_state_service.is_canceled(task_id)
 
 
-# Job ID pattern
-JOB_ID_PATTERN = re.compile(r"^job_[a-z0-9]+$")
+# Task ID pattern
+TASK_ID_PATTERN = re.compile(r"^task_[a-z0-9]+$")
 
 
-def _save_job_to_mysql(job: NanoCCJob) -> bool:
-    """Save job to MySQL database (if persistent mode enabled).
+def _save_task_to_mysql(task: NanoCCJob) -> bool:
+    """Save task to MySQL database (if persistent mode enabled).
 
     Returns:
         True if saved successfully (or memory mode), False if failed
@@ -89,30 +89,30 @@ def _save_job_to_mysql(job: NanoCCJob) -> bool:
 
     try:
         with get_db_session() as db:
-            job_repository.create(
+            task_repository.create(
                 db,
                 {
-                    "id": job.id,
+                    "id": task.id,
                     "user_id": None,  # MVP: no user auth yet
                     "conversation_id": None,  # MVP: conversations in memory
-                    "job_type": "folding",
-                    "status": job.status.value,
+                    "task_type": "folding",
+                    "status": task.status.value,
                     "stage": "QUEUED",
-                    "sequence": job.sequence,
+                    "sequence": task.sequence,
                     "file_path": None,
-                    "created_at": job.createdAt,
+                    "created_at": task.createdAt,
                     "completed_at": None,
                 },
             )
             db.commit()  # Explicit commit for clarity
         return True
     except Exception as e:
-        logger.error(f"Failed to save job to MySQL: {e}")
+        logger.error(f"Failed to save task to MySQL: {e}")
         return False
 
 
-def _update_job_status_mysql(job_id: str, status: str, stage: str | None = None) -> bool:
-    """Update job status in MySQL database (if persistent mode enabled).
+def _update_task_status_mysql(task_id: str, status: str, stage: str | None = None) -> bool:
+    """Update task status in MySQL database (if persistent mode enabled).
 
     Returns:
         True if updated successfully (or memory mode), False if failed
@@ -122,17 +122,17 @@ def _update_job_status_mysql(job_id: str, status: str, stage: str | None = None)
 
     try:
         with get_db_session() as db:
-            job_repository.update_status(db, job_id, status, stage)
+            task_repository.update_status(db, task_id, status, stage)
             db.commit()
         return True
     except Exception as e:
-        logger.warning(f"Failed to update job status in MySQL: {e}")
+        logger.warning(f"Failed to update task status in MySQL: {e}")
         return False
 
 
 @router.post("")
-async def create_job(request: CreateJobRequest):
-    """Create a new protein folding job.
+async def create_task(request: CreateJobRequest):
+    """Create a new protein folding task.
 
     Storage order (MySQL-first for consistency):
     1. MySQL (source of truth) - fails fast if DB is unavailable
@@ -140,7 +140,7 @@ async def create_job(request: CreateJobRequest):
     3. Memory store (legacy fallback) - for backward compatibility
     """
     logger.info(
-        f"POST /jobs: conversation_id={request.conversationId}, "
+        f"POST /tasks: conversation_id={request.conversationId}, "
         f"sequence_len={len(request.sequence) if request.sequence else 0}"
     )
     try:
@@ -148,8 +148,8 @@ async def create_job(request: CreateJobRequest):
     except ValueError as e:
         raise HTTPException(status_code=400, detail={"error": "Validation failed", "details": [str(e)]}) from e
 
-    job = NanoCCJob(
-        id=generate_id("job"),
+    task = NanoCCJob(
+        id=generate_id("task"),
         conversationId=request.conversationId or generate_id("conv"),
         status=StatusType.queued,
         sequence=sequence,
@@ -159,56 +159,56 @@ async def create_job(request: CreateJobRequest):
     )
 
     # Step 1: Save to MySQL first (source of truth for persistent mode)
-    if not _save_job_to_mysql(job):
+    if not _save_task_to_mysql(task):
         # MySQL failed in persistent mode - this is a critical error
         if not settings.use_memory_store:
-            raise HTTPException(status_code=500, detail="Failed to create job: database error")
+            raise HTTPException(status_code=500, detail="Failed to create task: database error")
 
-    # Step 2: Create job state and metadata in Redis (multi-instance support)
+    # Step 2: Create task state and metadata in Redis (multi-instance support)
     # If this fails after MySQL success, cache can be rebuilt on read
     try:
-        job_state_service.create_state(
-            job.id,
+        task_state_service.create_state(
+            task.id,
             status=StatusType.queued,
             stage=StageType.QUEUED,
-            message="Job created and queued for processing",
+            message="Task created and queued for processing",
         )
-        job_state_service.save_job_meta(
-            job.id,
+        task_state_service.save_task_meta(
+            task.id,
             sequence=sequence,
-            conversation_id=job.conversationId,
+            conversation_id=task.conversationId,
         )
     except Exception as e:
-        logger.warning(f"Redis cache update failed (job {job.id}): {e}")
+        logger.warning(f"Redis cache update failed (task {task.id}): {e}")
         # Don't fail - MySQL has the data, Redis can be rebuilt
 
     # Step 3: Save to memory store (legacy fallback for backward compatibility)
-    storage.save_job(job)
-    storage.save_job_sequence(job.id, sequence)
+    storage.save_task(task)
+    storage.save_task_sequence(task.id, sequence)
 
-    return {"jobId": job.id, "job": job.model_dump()}
+    return {"taskId": task.id, "task": task.model_dump()}
 
 
 @router.get("")
-async def list_jobs(jobId: str | None = Query(None)):
-    """List jobs or get a specific job by ID."""
-    logger.info(f"GET /jobs: jobId={jobId}")
-    if jobId:
-        job = storage.get_job(jobId)
-        if not job:
-            raise HTTPException(status_code=404, detail="Job not found")
-        return {"job": job.model_dump()}
+async def list_tasks(taskId: str | None = Query(None)):
+    """List tasks or get a specific task by ID."""
+    logger.info(f"GET /tasks: taskId={taskId}")
+    if taskId:
+        task = storage.get_task(taskId)
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+        return {"task": task.model_dump()}
 
-    jobs = storage.list_jobs()
-    return {"jobs": [j.model_dump() for j in jobs]}
+    tasks = storage.list_tasks()
+    return {"tasks": [t.model_dump() for t in tasks]}
 
 
-@router.post("/{job_id}/stream")
-async def register_sequence(job_id: str, request: RegisterSequenceRequest):
+@router.post("/{task_id}/stream")
+async def register_sequence(task_id: str, request: RegisterSequenceRequest):
     """Pre-register a sequence for streaming."""
-    logger.info(f"POST /jobs/{job_id}/stream: sequence_len={len(request.sequence)}")
-    if not JOB_ID_PATTERN.match(job_id):
-        raise HTTPException(status_code=400, detail="Invalid job ID")
+    logger.info(f"POST /tasks/{task_id}/stream: sequence_len={len(request.sequence)}")
+    if not TASK_ID_PATTERN.match(task_id):
+        raise HTTPException(status_code=400, detail="Invalid task ID")
 
     try:
         sequence = validate_amino_acid_sequence(request.sequence)
@@ -216,47 +216,47 @@ async def register_sequence(job_id: str, request: RegisterSequenceRequest):
         raise HTTPException(status_code=400, detail=str(e)) from e
 
     # Save to Redis for multi-instance access
-    job_state_service.save_job_meta(job_id, sequence=sequence)
+    task_state_service.save_task_meta(task_id, sequence=sequence)
 
     # Also save to memory store for backward compatibility
-    storage.save_job_sequence(job_id, sequence)
+    storage.save_task_sequence(task_id, sequence)
 
     return {"ok": True}
 
 
-@router.post("/{job_id}/cancel")
-async def cancel_job(job_id: str):
-    """Cancel a running job.
+@router.post("/{task_id}/cancel")
+async def cancel_task(task_id: str):
+    """Cancel a running task.
 
     This endpoint:
     1. Sends interrupt signal to NanoCC if session is active
-    2. Marks the job as canceled in Redis (shared across all instances)
+    2. Marks the task as canceled in Redis (shared across all instances)
     3. Updates memory store and MySQL for backward compatibility
 
     The SSE stream will detect the canceled status and terminate gracefully.
     """
-    logger.info(f"POST /jobs/{job_id}/cancel")
-    if not JOB_ID_PATTERN.match(job_id):
-        raise HTTPException(status_code=400, detail="Invalid job ID")
+    logger.info(f"POST /tasks/{task_id}/cancel")
+    if not TASK_ID_PATTERN.match(task_id):
+        raise HTTPException(status_code=400, detail="Invalid task ID")
 
-    # Check job state in Redis (shared across instances)
-    state = job_state_service.get_state(job_id)
+    # Check task state in Redis (shared across instances)
+    state = task_state_service.get_state(task_id)
     if not state:
         # Fallback to memory store for backward compatibility
-        job = storage.get_job(job_id)
-        if not job:
-            raise HTTPException(status_code=404, detail="Job not found")
-        current_status = job.status.value
+        task = storage.get_task(task_id)
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+        current_status = task.status.value
     else:
         current_status = state.get("status", "unknown")
 
-    # Check if job is still running
+    # Check if task is still running
     if current_status not in [StatusType.queued.value, StatusType.running.value]:
-        return {"ok": False, "message": "Job is not running", "status": current_status}
+        return {"ok": False, "message": "Task is not running", "status": current_status}
 
     # Try to interrupt NanoCC session if one exists
     nanocc_interrupted = False
-    nanocc_session = job_state_service.get_nanocc_session(job_id)
+    nanocc_session = task_state_service.get_nanocc_session(task_id)
     if nanocc_session and nanocc_session.get("session_id"):
         try:
             client = NanoCCClient(
@@ -265,42 +265,42 @@ async def cancel_job(job_id: str):
             await client.interrupt_session(nanocc_session["session_id"])
             nanocc_interrupted = True
             logger.info(
-                f"Interrupted NanoCC session {nanocc_session['session_id']} for job {job_id}"
+                f"Interrupted NanoCC session {nanocc_session['session_id']} for task {task_id}"
             )
         except Exception as e:
-            # Log but don't fail - the job may have already finished
+            # Log but don't fail - the task may have already finished
             logger.warning(
-                f"Failed to interrupt NanoCC session for job {job_id}: {e}"
+                f"Failed to interrupt NanoCC session for task {task_id}: {e}"
             )
 
     # Mark as canceled in Redis (visible to all instances)
-    success = job_state_service.mark_canceled(job_id)
+    success = task_state_service.mark_canceled(task_id)
 
     # Also mark in memory store for backward compatibility
-    storage.cancel_job(job_id)
+    storage.cancel_task(task_id)
 
     # Update MySQL if enabled
-    _update_job_status_mysql(job_id, "canceled", "ERROR")
+    _update_task_status_mysql(task_id, "canceled", "ERROR")
 
     return {
         "ok": success,
-        "jobId": job_id,
+        "taskId": task_id,
         "status": "canceled" if success else current_status,
         "nanoccInterrupted": nanocc_interrupted,
     }
 
 
-@router.get("/{job_id}/stream")
-async def stream_job(
-    job_id: str,
+@router.get("/{task_id}/stream")
+async def stream_task(
+    task_id: str,
     sequence: str | None = Query(None),
     files: str | None = Query(None, description="Comma-separated list of filenames in TOS upload directory"),
     use_nanocc: bool | None = Query(None, alias="nanocc"),
 ):
-    """Stream job progress events via Server-Sent Events (SSE).
+    """Stream task progress events via Server-Sent Events (SSE).
 
     Args:
-        job_id: The job identifier
+        task_id: The task identifier
         sequence: Optional amino acid sequence (if not pre-registered)
         files: Comma-separated list of filenames to download from TOS.
                Files should be pre-uploaded to tos://bucket/sessions/{session_id}/upload/
@@ -312,15 +312,15 @@ async def stream_job(
         file_list = [f.strip() for f in files.split(",") if f.strip()]
 
     logger.info(
-        f"GET /jobs/{job_id}/stream: sequence_len={len(sequence) if sequence else 'None'}, "
+        f"GET /tasks/{task_id}/stream: sequence_len={len(sequence) if sequence else 'None'}, "
         f"files={file_list}, nanocc={use_nanocc}"
     )
-    # Validate job_id format
-    if not JOB_ID_PATTERN.match(job_id):
-        raise HTTPException(status_code=400, detail="Invalid job ID")
+    # Validate task_id format
+    if not TASK_ID_PATTERN.match(task_id):
+        raise HTTPException(status_code=400, detail="Invalid task ID")
 
     # Get sequence from query params or Redis (multi-instance) or memory store (fallback)
-    raw_sequence = sequence or job_state_service.get_job_sequence(job_id) or storage.get_job_sequence(job_id)
+    raw_sequence = sequence or task_state_service.get_task_sequence(task_id) or storage.get_task_sequence(task_id)
 
     if raw_sequence:
         try:
@@ -335,32 +335,32 @@ async def stream_job(
     enable_nanocc = use_nanocc if use_nanocc is not None else USE_NANOCC
 
     async def event_stream():
-        """Generate SSE events for the folding job."""
-        # Update job state to running in Redis
-        job_state_service.set_state(
-            job_id,
+        """Generate SSE events for the folding task."""
+        # Update task state to running in Redis
+        task_state_service.set_state(
+            task_id,
             status=StatusType.running,
             stage=StageType.QUEUED,
             progress=0,
-            message="Starting job processing",
+            message="Starting task processing",
         )
 
         if enable_nanocc:
             # Use NanoCC-powered async generator
-            async for event in generate_cot_events(job_id, final_sequence, files=file_list):
-                # Check if job was canceled before each event (Redis + memory)
-                if _is_job_canceled(job_id):
-                    job_state_service.mark_canceled(job_id, "Job canceled by user")
-                    _update_job_status_mysql(job_id, "canceled", "ERROR")
-                    yield f'event: canceled\ndata: {{"jobId": "{job_id}", "message": "Job canceled by user"}}\n\n'
+            async for event in generate_cot_events(task_id, final_sequence, files=file_list):
+                # Check if task was canceled before each event (Redis + memory)
+                if _is_task_canceled(task_id):
+                    task_state_service.mark_canceled(task_id, "Task canceled by user")
+                    _update_task_status_mysql(task_id, "canceled", "ERROR")
+                    yield f'event: canceled\ndata: {{"taskId": "{task_id}", "message": "Task canceled by user"}}\n\n'
                     return
 
                 # Push event to Redis queue for replay support
                 sse_events_service.push_event(event)
 
-                # Update job state in Redis
-                job_state_service.set_state(
-                    job_id,
+                # Update task state in Redis
+                task_state_service.set_state(
+                    task_id,
                     status=event.status,
                     stage=event.stage,
                     progress=event.progress,
@@ -372,20 +372,20 @@ async def stream_job(
                 yield f"event: step\ndata: {event_data}\n\n"
         else:
             # Use synchronous mock generator (legacy mode)
-            for event in generate_step_events(job_id, final_sequence):
-                # Check if job was canceled before each event (Redis + memory)
-                if _is_job_canceled(job_id):
-                    job_state_service.mark_canceled(job_id, "Job canceled by user")
-                    _update_job_status_mysql(job_id, "canceled", "ERROR")
-                    yield f'event: canceled\ndata: {{"jobId": "{job_id}", "message": "Job canceled by user"}}\n\n'
+            for event in generate_step_events(task_id, final_sequence):
+                # Check if task was canceled before each event (Redis + memory)
+                if _is_task_canceled(task_id):
+                    task_state_service.mark_canceled(task_id, "Task canceled by user")
+                    _update_task_status_mysql(task_id, "canceled", "ERROR")
+                    yield f'event: canceled\ndata: {{"taskId": "{task_id}", "message": "Task canceled by user"}}\n\n'
                     return
 
                 # Push event to Redis queue for replay support
                 sse_events_service.push_event(event)
 
-                # Update job state in Redis
-                job_state_service.set_state(
-                    job_id,
+                # Update task state in Redis
+                task_state_service.set_state(
+                    task_id,
                     status=event.status,
                     stage=event.stage,
                     progress=event.progress,
@@ -398,19 +398,19 @@ async def stream_job(
 
                 # Simulate processing time, split into smaller chunks for faster cancellation detection
                 for _ in range(5):
-                    if _is_job_canceled(job_id):
-                        job_state_service.mark_canceled(job_id, "Job canceled by user")
-                        _update_job_status_mysql(job_id, "canceled", "ERROR")
-                        yield f'event: canceled\ndata: {{"jobId": "{job_id}", "message": "Job canceled by user"}}\n\n'
+                    if _is_task_canceled(task_id):
+                        task_state_service.mark_canceled(task_id, "Task canceled by user")
+                        _update_task_status_mysql(task_id, "canceled", "ERROR")
+                        yield f'event: canceled\ndata: {{"taskId": "{task_id}", "message": "Task canceled by user"}}\n\n'
                         return
                     await asyncio.sleep(0.1 + random.random() * 0.14)
 
         # Send done event only if not canceled
-        if not _is_job_canceled(job_id):
-            job_state_service.mark_complete(job_id, "Job completed successfully")
-            sse_events_service.set_completion_ttl(job_id)
-            _update_job_status_mysql(job_id, "complete", "DONE")
-            yield f'event: done\ndata: {{"jobId": "{job_id}"}}\n\n'
+        if not _is_task_canceled(task_id):
+            task_state_service.mark_complete(task_id, "Task completed successfully")
+            sse_events_service.set_completion_ttl(task_id)
+            _update_task_status_mysql(task_id, "complete", "DONE")
+            yield f'event: done\ndata: {{"taskId": "{task_id}"}}\n\n'
 
     return StreamingResponse(
         event_stream(),
@@ -423,51 +423,51 @@ async def stream_job(
     )
 
 
-@router.get("/{job_id}/state")
-async def get_job_state(job_id: str):
-    """Get current job state from Redis.
+@router.get("/{task_id}/state")
+async def get_task_state(task_id: str):
+    """Get current task state from Redis.
 
-    This endpoint provides fast access to job status without
+    This endpoint provides fast access to task status without
     requiring a database query.
     """
-    logger.info(f"GET /jobs/{job_id}/state")
-    if not JOB_ID_PATTERN.match(job_id):
-        raise HTTPException(status_code=400, detail="Invalid job ID")
+    logger.info(f"GET /tasks/{task_id}/state")
+    if not TASK_ID_PATTERN.match(task_id):
+        raise HTTPException(status_code=400, detail="Invalid task ID")
 
-    state = job_state_service.get_state(job_id)
+    state = task_state_service.get_state(task_id)
     if not state:
-        raise HTTPException(status_code=404, detail="Job state not found")
+        raise HTTPException(status_code=404, detail="Task state not found")
 
-    return {"jobId": job_id, "state": state}
+    return {"taskId": task_id, "state": state}
 
 
-@router.get("/{job_id}/events")
-async def get_job_events(
-    job_id: str,
+@router.get("/{task_id}/events")
+async def get_task_events(
+    task_id: str,
     offset: int = Query(0, ge=0, description="Start from this event index"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum events to return"),
 ):
-    """Get job events from Redis for replay.
+    """Get task events from Redis for replay.
 
     This endpoint allows clients to retrieve missed events when
     reconnecting to an SSE stream.
 
     Args:
-        job_id: The job identifier
+        task_id: The task identifier
         offset: Start from this event index (0-based)
         limit: Maximum number of events to return
     """
-    logger.info(f"GET /jobs/{job_id}/events: offset={offset}, limit={limit}")
-    if not JOB_ID_PATTERN.match(job_id):
-        raise HTTPException(status_code=400, detail="Invalid job ID")
+    logger.info(f"GET /tasks/{task_id}/events: offset={offset}, limit={limit}")
+    if not TASK_ID_PATTERN.match(task_id):
+        raise HTTPException(status_code=400, detail="Invalid task ID")
 
     # Get events from offset
-    events = sse_events_service.get_events(job_id, start=offset, end=offset + limit - 1)
+    events = sse_events_service.get_events(task_id, start=offset, end=offset + limit - 1)
 
     return {
-        "jobId": job_id,
+        "taskId": task_id,
         "offset": offset,
         "count": len(events),
-        "total": sse_events_service.get_events_count(job_id),
+        "total": sse_events_service.get_events_count(task_id),
         "events": [e.model_dump() for e in events],
     }

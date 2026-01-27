@@ -38,31 +38,31 @@ def _get_extension(filename: str) -> str:
 async def get_structure(
     structure_id: str,
     sequence: str | None = Query(None),
-    job_id: str | None = Query(None, alias="jobId"),
+    task_id: str | None = Query(None, alias="taskId"),
     filename: str | None = Query(None),
 ):
     """Download PDB/CIF file for a structure.
 
     Retrieval order:
     1. Check memory cache by structure_id
-    2. If filesystem mode and job_id provided, check filesystem
+    2. If filesystem mode and task_id provided, check filesystem
     3. Generate mock structure if sequence provided
     4. Generate with default sequence
 
     Args:
         structure_id: Unique structure identifier
         sequence: Amino acid sequence for mock generation
-        job_id: Job ID for filesystem lookup
+        task_id: Task ID for filesystem lookup
         filename: Filename for filesystem lookup
     """
     logger.info(
-        f"GET /structures/{structure_id}: job_id={job_id}, "
+        f"GET /structures/{structure_id}: task_id={task_id}, "
         f"sequence_len={len(sequence) if sequence else 'None'}, filename={filename}"
     )
     # Try to get from storage (checks memory cache, then filesystem if applicable)
     cached = structure_storage.get_structure(
         structure_id,
-        job_id=job_id,
+        job_id=task_id,
         filename=filename,
     )
     if cached:
@@ -76,7 +76,7 @@ async def get_structure(
 
     # Generate mock if we have a sequence
     if sequence:
-        # Extract variant from structure_id (e.g., "str_job_123_5" -> 5)
+        # Extract variant from structure_id (e.g., "str_task_123_5" -> 5)
         parts = structure_id.split("_")
         variant = 0
         if parts:
@@ -91,7 +91,7 @@ async def get_structure(
         structure_storage.save_structure(
             structure_id,
             pdb_data,
-            job_id=job_id,
+            job_id=task_id,
             filename=filename,
         )
 
@@ -115,22 +115,22 @@ async def get_structure(
 async def cache_structure(
     structure_id: str,
     request: CachePDBRequest,
-    job_id: str | None = Query(None, alias="jobId"),
+    task_id: str | None = Query(None, alias="taskId"),
     filename: str | None = Query(None),
 ):
     """Cache/save PDB/CIF data for a structure.
 
-    In filesystem mode, writes to disk if job_id is provided.
+    In filesystem mode, writes to disk if task_id is provided.
     Always caches in memory for fast access.
 
     Args:
         structure_id: Unique structure identifier
         request: Request body with pdbData
-        job_id: Job ID for filesystem path
+        task_id: Task ID for filesystem path
         filename: Filename for filesystem storage
     """
     logger.info(
-        f"POST /structures/{structure_id}: job_id={job_id}, "
+        f"POST /structures/{structure_id}: task_id={task_id}, "
         f"data_len={len(request.pdbData) if request.pdbData else 0}, filename={filename}"
     )
     if not request.pdbData:
@@ -139,7 +139,7 @@ async def cache_structure(
     file_path = structure_storage.save_structure(
         structure_id,
         request.pdbData,
-        job_id=job_id,
+        job_id=task_id,
         filename=filename,
     )
 
@@ -154,21 +154,21 @@ async def cache_structure(
 @router.get("/{structure_id}/info")
 async def get_structure_info(
     structure_id: str,
-    job_id: str | None = Query(None, alias="jobId"),
+    task_id: str | None = Query(None, alias="taskId"),
 ):
     """Get information about a structure without downloading content.
 
     Args:
         structure_id: Unique structure identifier
-        job_id: Job ID for filesystem lookup
+        task_id: Task ID for filesystem lookup
     """
-    logger.info(f"GET /structures/{structure_id}/info: job_id={job_id}")
+    logger.info(f"GET /structures/{structure_id}/info: task_id={task_id}")
     # Check if structure exists
     exists_in_memory = structure_id in structure_storage._memory_cache
 
     files = []
-    if job_id and not structure_storage.use_memory_mode:
-        files = [str(f) for f in structure_storage.list_structures(job_id)]
+    if task_id and not structure_storage.use_memory_mode:
+        files = [str(f) for f in structure_storage.list_structures(task_id)]
 
     return {
         "structureId": structure_id,

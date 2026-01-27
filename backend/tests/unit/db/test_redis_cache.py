@@ -5,7 +5,7 @@ Unit tests for Redis cache module
 Tests cover:
 - RedisKeyPrefix key generation
 - RedisCache basic operations (string, hash, list)
-- Job state cache operations
+- Task state cache operations
 - SSE events cache operations
 
 NOTE: These tests use fakeredis to provide an in-memory Redis implementation,
@@ -28,27 +28,27 @@ class TestRedisKeyPrefix:
 
     def test_key_prefix_values(self):
         """Test that RedisKeyPrefix has correct prefix values"""
-        assert RedisKeyPrefix.JOB_STATE.value == "chatfold:job:state"
-        assert RedisKeyPrefix.JOB_META.value == "chatfold:job:meta"
-        assert RedisKeyPrefix.JOB_EVENTS.value == "chatfold:job:events"
+        assert RedisKeyPrefix.TASK_STATE.value == "chatfold:task:state"
+        assert RedisKeyPrefix.TASK_META.value == "chatfold:task:meta"
+        assert RedisKeyPrefix.TASK_EVENTS.value == "chatfold:task:events"
         assert RedisKeyPrefix.WORKSPACE_FOLDER.value == "chatfold:workspace:folder"
         assert RedisKeyPrefix.WORKSPACE_USER.value == "chatfold:workspace:user"
         assert RedisKeyPrefix.WORKSPACE_PROJECT.value == "chatfold:workspace:project"
 
-    def test_job_state_key(self):
-        """Test job state key generation"""
-        key = RedisKeyPrefix.job_state_key("job_abc123")
-        assert key == "chatfold:job:state:job_abc123"
+    def test_task_state_key(self):
+        """Test task state key generation"""
+        key = RedisKeyPrefix.task_state_key("task_abc123")
+        assert key == "chatfold:task:state:task_abc123"
 
-    def test_job_meta_key(self):
-        """Test job meta key generation"""
-        key = RedisKeyPrefix.job_meta_key("job_abc123")
-        assert key == "chatfold:job:meta:job_abc123"
+    def test_task_meta_key(self):
+        """Test task meta key generation"""
+        key = RedisKeyPrefix.task_meta_key("task_abc123")
+        assert key == "chatfold:task:meta:task_abc123"
 
-    def test_job_events_key(self):
-        """Test job events key generation"""
-        key = RedisKeyPrefix.job_events_key("job_abc123")
-        assert key == "chatfold:job:events:job_abc123"
+    def test_task_events_key(self):
+        """Test task events key generation"""
+        key = RedisKeyPrefix.task_events_key("task_abc123")
+        assert key == "chatfold:task:events:task_abc123"
 
     def test_folder_key(self):
         """Test folder key generation"""
@@ -69,8 +69,8 @@ class TestRedisKeyPrefix:
     def test_list_all(self):
         """Test listing all key prefixes"""
         all_prefixes = RedisKeyPrefix.list_all()
-        assert "JOB_STATE" in all_prefixes
-        assert all_prefixes["JOB_STATE"]["prefix"] == "chatfold:job:state"
+        assert "TASK_STATE" in all_prefixes
+        assert all_prefixes["TASK_STATE"]["prefix"] == "chatfold:task:state"
 
 
 class TestRedisDB:
@@ -247,50 +247,50 @@ class TestRedisCacheWithFakeRedis:
         assert test_cache.lrange(key, 0, -1) == ["a", "b", "c"]
 
 
-class TestJobStateCacheWithFakeRedis:
-    """Test job state cache operations using fakeredis"""
+class TestTaskStateCacheWithFakeRedis:
+    """Test task state cache operations using fakeredis"""
 
     @pytest.fixture
-    def job_cache(self, fake_redis_client) -> RedisCache:
-        """Get job state cache instance with fakeredis"""
+    def task_cache(self, fake_redis_client) -> RedisCache:
+        """Get task state cache instance with fakeredis"""
         return RedisCache(db=RedisDB.JOB_STATE, client=fake_redis_client)
 
-    def test_job_state_storage(
+    def test_task_state_storage(
         self,
-        job_cache: RedisCache,
+        task_cache: RedisCache,
         test_job_id: str,
         sample_job_state: dict,
     ):
-        """Test storing and retrieving job state"""
-        key = f"job:{test_job_id}:state"
+        """Test storing and retrieving task state"""
+        key = f"task:{test_job_id}:state"
 
-        # Store job state as hash
-        job_cache.hset(key, sample_job_state)
+        # Store task state as hash
+        task_cache.hset(key, sample_job_state)
 
         # Retrieve and verify
-        result = job_cache.hgetall(key)
+        result = task_cache.hgetall(key)
         assert result["status"] == sample_job_state["status"]
         assert result["stage"] == sample_job_state["stage"]
         assert result["progress"] == sample_job_state["progress"]
         assert result["message"] == sample_job_state["message"]
 
-    def test_job_state_update(
+    def test_task_state_update(
         self,
-        job_cache: RedisCache,
+        task_cache: RedisCache,
         test_job_id: str,
     ):
-        """Test updating individual job state fields"""
-        key = f"job:{test_job_id}:state"
+        """Test updating individual task state fields"""
+        key = f"task:{test_job_id}:state"
 
         # Initial state
-        job_cache.hset(key, {"status": "queued", "progress": 0})
+        task_cache.hset(key, {"status": "queued", "progress": 0})
 
         # Update
-        job_cache.hset(key, {"status": "running", "progress": 50})
+        task_cache.hset(key, {"status": "running", "progress": 50})
 
         # Verify
-        assert job_cache.hget(key, "status") == "running"
-        assert job_cache.hget(key, "progress") == 50
+        assert task_cache.hget(key, "status") == "running"
+        assert task_cache.hget(key, "progress") == 50
 
 
 class TestSSEEventsCacheWithFakeRedis:
@@ -307,7 +307,7 @@ class TestSSEEventsCacheWithFakeRedis:
         test_job_id: str,
     ):
         """Test SSE events queue operations"""
-        key = f"job:{test_job_id}:events"
+        key = f"task:{test_job_id}:events"
 
         events = [
             {"eventId": "evt_1", "stage": "MSA", "progress": 20},
@@ -330,7 +330,7 @@ class TestSSEEventsCacheWithFakeRedis:
         test_job_id: str,
     ):
         """Test reading partial events from queue"""
-        key = f"job:{test_job_id}:events"
+        key = f"task:{test_job_id}:events"
 
         events = [
             {"eventId": "evt_1", "stage": "MSA"},
@@ -393,7 +393,7 @@ class TestRedisCacheEdgeCases:
         """Test storing and retrieving complex nested data"""
         key = "test:complex"
         value = {
-            "job_id": "job_123",
+            "task_id": "task_123",
             "structures": [
                 {"id": 1, "plddt": 85.5, "label": "Candidate 1"},
                 {"id": 2, "plddt": 90.2, "label": "Final"},

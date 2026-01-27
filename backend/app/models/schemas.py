@@ -33,9 +33,14 @@ from app.components.workspace.models import (
     UserPlan,
 )
 
-# Aliases
-Job = NanoCCJob  # Primary alias
-StepEvent = JobEvent  # Legacy alias
+# Aliases — Task terminology (primary)
+Task = NanoCCJob  # Primary alias
+TaskEvent = JobEvent  # Primary alias
+CreateTaskRequest = CreateJobRequest  # Primary alias
+
+# Aliases — Legacy (kept for backward compatibility)
+Job = NanoCCJob
+StepEvent = JobEvent
 
 
 class ChatMessage(BaseModel):
@@ -85,7 +90,11 @@ __all__ = [
     "Structure",
     "User",
     "UserPlan",
-    # Aliases
+    # Aliases — Task terminology (primary)
+    "Task",
+    "TaskEvent",
+    "CreateTaskRequest",
+    # Aliases — Legacy
     "Job",
     "StepEvent",
     # Local models

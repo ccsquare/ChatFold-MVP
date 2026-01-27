@@ -35,20 +35,20 @@ def api_base_url() -> str:
 
 
 @pytest.fixture
-def test_job_id() -> str:
-    """Generate a test job ID"""
+def test_task_id() -> str:
+    """Generate a test task ID"""
     import uuid
 
-    return f"test_job_{uuid.uuid4().hex[:8]}"
+    return f"test_task_{uuid.uuid4().hex[:8]}"
 
 
 # Alias for backward compatibility in tests
-test_task_id = test_job_id
+test_job_id = test_task_id
 
 
 @pytest.fixture
-def sample_job_state() -> dict:
-    """Sample job state for testing"""
+def sample_task_state() -> dict:
+    """Sample task state for testing"""
     return {
         "status": "running",
         "stage": "MODEL",
@@ -58,7 +58,7 @@ def sample_job_state() -> dict:
 
 
 # Alias for backward compatibility in tests
-sample_task_state = sample_job_state
+sample_job_state = sample_task_state
 
 
 @pytest.fixture

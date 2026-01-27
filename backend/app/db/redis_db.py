@@ -14,11 +14,11 @@ ChatFold 采用单一 DB + Key 前缀模式进行 Redis 数据隔离，这是工
     from app.db.redis_db import RedisKeyPrefix
 
     # 构建 Key
-    key = f"{RedisKeyPrefix.JOB_STATE}:{job_id}"
-    # 结果: "chatfold:job:state:job_abc123"
+    key = f"{RedisKeyPrefix.TASK_STATE}:{task_id}"
+    # 结果: "chatfold:task:state:task_abc123"
 
     # 或使用辅助方法
-    key = RedisKeyPrefix.job_state_key(job_id)
+    key = RedisKeyPrefix.task_state_key(task_id)
 
 环境隔离:
     - local-dev: db=0 (本地开发)
@@ -42,16 +42,16 @@ class RedisKeyPrefix(str, Enum):
         {prefix}:{entity_type}:{sub_type}:{entity_id}
 
     示例:
-        chatfold:job:state:job_abc123
-        chatfold:job:meta:job_abc123
-        chatfold:job:events:job_abc123
+        chatfold:task:state:task_abc123
+        chatfold:task:meta:task_abc123
+        chatfold:task:events:task_abc123
         chatfold:workspace:folder:folder_xyz789
     """
 
-    # === Job 相关 ===
-    JOB_STATE = "chatfold:job:state"  # Job 实时状态 (Hash)
-    JOB_META = "chatfold:job:meta"  # Job 元数据 (Hash)
-    JOB_EVENTS = "chatfold:job:events"  # Job SSE 事件队列 (List)
+    # === Task 相关 ===
+    TASK_STATE = "chatfold:task:state"  # Task 实时状态 (Hash)
+    TASK_META = "chatfold:task:meta"  # Task 元数据 (Hash)
+    TASK_EVENTS = "chatfold:task:events"  # Task SSE 事件队列 (List)
 
     # === Workspace 相关 ===
     WORKSPACE_FOLDER = "chatfold:workspace:folder"  # Folder 数据 (String/JSON)
@@ -72,19 +72,19 @@ class RedisKeyPrefix(str, Enum):
     # ==================== 辅助方法 ====================
 
     @classmethod
-    def job_state_key(cls, job_id: str) -> str:
-        """生成 Job 状态 Key"""
-        return f"{cls.JOB_STATE.value}:{job_id}"
+    def task_state_key(cls, task_id: str) -> str:
+        """生成 Task 状态 Key"""
+        return f"{cls.TASK_STATE.value}:{task_id}"
 
     @classmethod
-    def job_meta_key(cls, job_id: str) -> str:
-        """生成 Job 元数据 Key"""
-        return f"{cls.JOB_META.value}:{job_id}"
+    def task_meta_key(cls, task_id: str) -> str:
+        """生成 Task 元数据 Key"""
+        return f"{cls.TASK_META.value}:{task_id}"
 
     @classmethod
-    def job_events_key(cls, job_id: str) -> str:
-        """生成 Job 事件队列 Key"""
-        return f"{cls.JOB_EVENTS.value}:{job_id}"
+    def task_events_key(cls, task_id: str) -> str:
+        """生成 Task 事件队列 Key"""
+        return f"{cls.TASK_EVENTS.value}:{task_id}"
 
     @classmethod
     def folder_key(cls, folder_id: str) -> str:
@@ -122,9 +122,9 @@ class RedisKeyPrefix(str, Enum):
     def get_description(cls, prefix: "RedisKeyPrefix") -> str:
         """获取 Key 前缀的用途描述"""
         descriptions = {
-            cls.JOB_STATE: "Job 实时状态 (status, stage, progress)",
-            cls.JOB_META: "Job 元数据 (sequence, conversation_id)",
-            cls.JOB_EVENTS: "Job SSE 事件队列 (进度推送)",
+            cls.TASK_STATE: "Task 实时状态 (status, stage, progress)",
+            cls.TASK_META: "Task 元数据 (sequence, conversation_id)",
+            cls.TASK_EVENTS: "Task SSE 事件队列 (进度推送)",
             cls.WORKSPACE_FOLDER: "Folder 数据存储",
             cls.WORKSPACE_USER: "User 数据存储",
             cls.WORKSPACE_PROJECT: "Project 数据存储",

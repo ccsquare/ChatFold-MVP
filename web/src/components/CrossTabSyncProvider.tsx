@@ -10,7 +10,7 @@ import { initCrossTabSync } from '@/lib/store-sync';
  * This enables:
  * - Folders sync across tabs
  * - Conversations sync across tabs
- * - Job status sync across tabs
+ * - Task status sync across tabs
  * - Active selection sync across tabs
  */
 export function CrossTabSyncProvider({ children }: { children: React.ReactNode }) {

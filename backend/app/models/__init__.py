@@ -14,6 +14,7 @@ from app.models.schemas import (
     CreateFolderRequest,
     # Request models
     CreateJobRequest,
+    CreateTaskRequest,
     Folder,
     Job,
     JobEvent,
@@ -26,11 +27,17 @@ from app.models.schemas import (
     StatusType,
     StepEvent,
     Structure,
+    Task,
+    TaskEvent,
     User,
     UserPlan,
 )
 
 __all__ = [
+    # Core models — Task terminology (primary)
+    "Task",
+    "TaskEvent",
+    "CreateTaskRequest",
     # Core models
     "StageType",
     "StatusType",

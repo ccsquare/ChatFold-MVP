@@ -3,7 +3,7 @@
  *
  * Uses BroadcastChannel API to sync state changes across browser tabs.
  * This prevents issues like:
- * - Duplicate job submissions from different tabs
+ * - Duplicate task submissions from different tabs
  * - Stale folder/conversation lists
  * - Inconsistent UI state
  *
@@ -11,7 +11,7 @@
  */
 
 import { useAppStore } from './store';
-import type { Folder, Conversation, Job } from './types';
+import type { Folder, Conversation, Task } from './types';
 
 // Channel name for ChatFold state sync
 const CHANNEL_NAME = 'chatfold-sync';
@@ -20,7 +20,7 @@ const CHANNEL_NAME = 'chatfold-sync';
 type SyncMessageType =
   | 'FOLDERS_UPDATE'
   | 'CONVERSATIONS_UPDATE'
-  | 'JOB_UPDATE'
+  | 'TASK_UPDATE'
   | 'ACTIVE_FOLDER_CHANGE'
   | 'ACTIVE_CONVERSATION_CHANGE'
   | 'FULL_STATE_REQUEST'
@@ -43,8 +43,8 @@ interface ConversationsUpdatePayload {
   activeConversationId: string | null;
 }
 
-interface JobUpdatePayload {
-  job: Job | null;
+interface TaskUpdatePayload {
+  task: Task | null;
   isStreaming: boolean;
 }
 
@@ -127,8 +127,8 @@ function handleIncomingMessage(event: MessageEvent<SyncMessage>): void {
       handleConversationsUpdate(message.payload as ConversationsUpdatePayload);
       break;
 
-    case 'JOB_UPDATE':
-      handleJobUpdate(message.payload as JobUpdatePayload);
+    case 'TASK_UPDATE':
+      handleTaskUpdate(message.payload as TaskUpdatePayload);
       break;
 
     case 'ACTIVE_FOLDER_CHANGE':
@@ -224,27 +224,27 @@ function handleConversationsUpdate(payload: ConversationsUpdatePayload): void {
 }
 
 /**
- * Handle job update from another tab.
+ * Handle task update from another tab.
  */
-function handleJobUpdate(payload: JobUpdatePayload): void {
+function handleTaskUpdate(payload: TaskUpdatePayload): void {
   const currentState = useAppStore.getState();
 
-  // If this tab has an active streaming job, don't override it
-  if (currentState.isStreaming && currentState.activeJob) {
+  // If this tab has an active streaming task, don't override it
+  if (currentState.isStreaming && currentState.activeTask) {
     return;
   }
 
-  // If the incoming job is newer or more complete, update
-  if (payload.job) {
-    const currentJob = currentState.activeJob;
+  // If the incoming task is newer or more complete, update
+  if (payload.task) {
+    const currentTask = currentState.activeTask;
     const shouldUpdate =
-      !currentJob ||
-      payload.job.id !== currentJob.id ||
-      (payload.job.status === 'complete' && currentJob.status !== 'complete');
+      !currentTask ||
+      payload.task.id !== currentTask.id ||
+      (payload.task.status === 'complete' && currentTask.status !== 'complete');
 
     if (shouldUpdate) {
       useAppStore.setState({
-        activeJob: payload.job,
+        activeTask: payload.task,
         isStreaming: payload.isStreaming
       });
     }
@@ -309,9 +309,9 @@ function subscribeToStoreChanges(): () => void {
         });
       }
 
-      if (state.activeJob !== prevState.activeJob || state.isStreaming !== prevState.isStreaming) {
-        broadcastMessage('JOB_UPDATE', {
-          job: state.activeJob,
+      if (state.activeTask !== prevState.activeTask || state.isStreaming !== prevState.isStreaming) {
+        broadcastMessage('TASK_UPDATE', {
+          task: state.activeTask,
           isStreaming: state.isStreaming
         });
       }

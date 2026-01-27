@@ -125,8 +125,8 @@ describe('generateStepEvents', () => {
     expect(uniqueIds.size).toBe(ids.length);
   });
 
-  it('should include job ID in all events', () => {
-    const jobId = 'job_test123';
+  it('should include jobId in all events', () => {
+    const jobId = 'task_test123';
     const events = Array.from(generateStepEvents(jobId, 'MVLSPADKT'));
 
     events.forEach(event => {
@@ -177,8 +177,8 @@ describe('generateId', () => {
   });
 
   it('should include prefix when provided', () => {
-    const id = generateId('job');
-    expect(id).toMatch(/^job_/);
+    const id = generateId('task');
+    expect(id).toMatch(/^task_/);
   });
 
   it('should work without prefix', () => {

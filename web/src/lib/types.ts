@@ -72,7 +72,7 @@ export interface MentionableFile {
   name: string;         // Display name (filename)
   path: string;         // Full path for disambiguation
   type: string;         // File type: 'fasta', 'pdb', 'structure', etc.
-  source?: 'project' | 'conversation' | 'job';  // Optional context
+  source?: 'project' | 'conversation' | 'task';  // Optional context
   content?: string;     // File content (for fasta files to expand on send)
 }
 
@@ -86,7 +86,7 @@ export interface Folder {
   isExpanded: boolean;    // For tree view
   inputs: Asset[];        // Input sequence files (uploaded or created from chat)
   outputs: Structure[]; // Generated structure files
-  jobId?: string;         // Associated job ID if any
+  taskId?: string;         // Associated task ID if any
   conversationId?: string; // 1:1 association with Conversation
 }
 
@@ -106,7 +106,7 @@ export interface ChatMessage {
   attachedFiles?: AttachedFile[];
 }
 
-export interface Job {
+export interface Task {
   id: string;
   conversationId: string;
   status: StatusType;
@@ -215,8 +215,8 @@ export interface AppState {
   consoleWidth: number;
   consoleCollapsed: boolean;
 
-  // Running job
-  activeJob: Job | null;
+  // Running task
+  activeTask: Task | null;
   isStreaming: boolean;
 
   // Thumbnails cache
@@ -260,8 +260,8 @@ export interface AppState {
   setConsoleCollapsed: (collapsed: boolean) => void;
   setIsStreaming: (streaming: boolean) => void;
 
-  setActiveJob: (job: Job | null) => void;
-  addStepEvent: (jobId: string, event: StepEvent) => void;
+  setActiveTask: (task: Task | null) => void;
+  addStepEvent: (taskId: string, event: StepEvent) => void;
 
   setThumbnail: (structureId: string, thumbnail: string) => void;
   setCompareViewMode: (tabId: string, mode: CompareViewMode) => void;

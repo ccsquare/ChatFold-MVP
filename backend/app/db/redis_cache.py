@@ -25,15 +25,15 @@ Usage:
     cache = get_redis_cache()
 
     # Use key prefix helpers for proper namespacing
-    key = RedisKeyPrefix.job_state_key("job_abc123")
-    # Result: "chatfold:job:state:job_abc123"
+    key = RedisKeyPrefix.task_state_key("task_abc123")
+    # Result: "chatfold:task:state:task_abc123"
 
     # Basic operations
     cache.set(key, {"status": "running"}, expire_seconds=3600)
     data = cache.get(key)
     cache.delete(key)
 
-    # Hash operations (for job state)
+    # Hash operations (for task state)
     cache.hset(key, {"status": "running", "progress": 50})
     state = cache.hgetall(key)
 
@@ -71,7 +71,7 @@ class RedisCache:
     - TTL support: Auto-expiry with Redis SETEX
     - JSON serialization: Handles complex data structures
     - Connection pooling: Efficient Redis connections via shared pool
-    - Hash/List support: For job state and SSE events
+    - Hash/List support: For task state and SSE events
     - Redis Cluster compatible: Single DB design
     """
 
@@ -211,7 +211,7 @@ class RedisCache:
             logger.error(f"Redis expire error for key {key}: {e}")
             return False
 
-    # ==================== Hash Operations (for Job State) ====================
+    # ==================== Hash Operations (for Task State) ====================
 
     def hset(self, key: str, mapping: dict[str, Any]) -> bool:
         """
@@ -420,7 +420,7 @@ _sse_events_cache: RedisCache | None = None
 def get_job_state_cache() -> RedisCache:
     """Get cache instance for job state.
 
-    DEPRECATED: Use get_redis_cache() with RedisKeyPrefix.job_state_key() instead.
+    DEPRECATED: Use get_redis_cache() with RedisKeyPrefix.task_state_key() instead.
 
     This function now returns the same shared cache instance (db=0).
     The old multi-DB pattern has been replaced with single DB + key prefix.

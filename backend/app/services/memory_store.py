@@ -2,10 +2,10 @@
 
 Manages in-memory storage for:
 - Conversations and their messages
-- NanoCC jobs and their status
-- Job-sequence mappings for SSE streams
+- NanoCC tasks and their status
+- Task-sequence mappings for SSE streams
 - Structure cache (PDB data)
-- Job cancellation state
+- Task cancellation state
 
 Note: Data is lost on server restart. Future versions may replace
 this with a persistent database backend.
@@ -31,10 +31,10 @@ class MemoryStore:
     def __init__(self):
         self._lock = threading.RLock()
         self._conversations: dict[str, Any] = {}  # Conversation objects
-        self._jobs: dict[str, Any] = {}  # NanoCCJob objects
-        self._job_sequences: dict[str, str] = {}
+        self._tasks: dict[str, Any] = {}  # NanoCCJob objects (aliased as Task)
+        self._task_sequences: dict[str, str] = {}
         self._structure_cache: dict[str, str] = {}
-        self._canceled_jobs: set[str] = set()  # Track canceled job IDs
+        self._canceled_tasks: set[str] = set()  # Track canceled task IDs
 
     # Conversation operations
     def save_conversation(self, conversation: Conversation) -> None:
@@ -56,27 +56,27 @@ class MemoryStore:
                 return True
             return False
 
-    # Job operations
-    def save_job(self, job: NanoCCJob) -> None:
+    # Task operations
+    def save_task(self, task: NanoCCJob) -> None:
         with self._lock:
-            self._jobs[job.id] = job
+            self._tasks[task.id] = task
 
-    def get_job(self, job_id: str) -> NanoCCJob | None:
+    def get_task(self, task_id: str) -> NanoCCJob | None:
         with self._lock:
-            return self._jobs.get(job_id)
+            return self._tasks.get(task_id)
 
-    def list_jobs(self) -> list[NanoCCJob]:
+    def list_tasks(self) -> list[NanoCCJob]:
         with self._lock:
-            return sorted(list(self._jobs.values()), key=lambda j: j.createdAt, reverse=True)
+            return sorted(list(self._tasks.values()), key=lambda j: j.createdAt, reverse=True)
 
-    # Job sequence mapping (for SSE streams)
-    def save_job_sequence(self, job_id: str, sequence: str) -> None:
+    # Task sequence mapping (for SSE streams)
+    def save_task_sequence(self, task_id: str, sequence: str) -> None:
         with self._lock:
-            self._job_sequences[job_id] = sequence
+            self._task_sequences[task_id] = sequence
 
-    def get_job_sequence(self, job_id: str) -> str | None:
+    def get_task_sequence(self, task_id: str) -> str | None:
         with self._lock:
-            return self._job_sequences.get(job_id)
+            return self._task_sequences.get(task_id)
 
     # Structure cache (PDB data)
     def cache_structure(self, structure_id: str, pdb_data: str) -> None:
@@ -87,28 +87,28 @@ class MemoryStore:
         with self._lock:
             return self._structure_cache.get(structure_id)
 
-    # Job cancellation
-    def cancel_job(self, job_id: str) -> bool:
-        """Mark a job as canceled. Returns True if job exists."""
+    # Task cancellation
+    def cancel_task(self, task_id: str) -> bool:
+        """Mark a task as canceled. Returns True if task exists."""
         with self._lock:
-            if job_id in self._jobs:
-                self._canceled_jobs.add(job_id)
+            if task_id in self._tasks:
+                self._canceled_tasks.add(task_id)
                 return True
             return False
 
-    def is_job_canceled(self, job_id: str) -> bool:
-        """Check if a job has been canceled."""
+    def is_task_canceled(self, task_id: str) -> bool:
+        """Check if a task has been canceled."""
         with self._lock:
-            return job_id in self._canceled_jobs
+            return task_id in self._canceled_tasks
 
     def clear_all(self) -> None:
         """Clear all data (useful for testing)."""
         with self._lock:
             self._conversations.clear()
-            self._jobs.clear()
-            self._job_sequences.clear()
+            self._tasks.clear()
+            self._task_sequences.clear()
             self._structure_cache.clear()
-            self._canceled_jobs.clear()
+            self._canceled_tasks.clear()
 
 
 # Singleton instance

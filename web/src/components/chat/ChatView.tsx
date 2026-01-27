@@ -15,7 +15,7 @@ import {
   TooltipTrigger,
   TooltipProvider,
 } from '@/components/ui/tooltip';
-import { useFoldingJob } from '@/hooks/useFoldingJob';
+import { useFoldingTask } from '@/hooks/useFoldingTask';
 import { useConversationTimeline } from '@/hooks/useConversationTimeline';
 import { useAvailableFiles } from '@/hooks/useAvailableFiles';
 import { parseFasta, validateSequence } from '@/lib/mock/generators';
@@ -38,13 +38,13 @@ export function ChatView() {
   } = useAppStore();
 
   // Use shared hooks
-  const { submit, cancel: cancelJob } = useFoldingJob();
+  const { submit, cancel: cancelTask } = useFoldingTask();
   const { timeline, isStreaming, timelineByEventType } = useConversationTimeline();
   const availableFiles = useAvailableFiles();
 
   // Handle stop button click
   const handleStop = useCallback(async () => {
-    await cancelJob();
+    await cancelTask();
     setIsSending(false);
     setIsStreaming(false);
 
@@ -55,7 +55,7 @@ export function ChatView() {
         content: '任务已被取消',
       });
     }
-  }, [cancelJob, activeConversationId, addMessage, setIsStreaming]);
+  }, [cancelTask, activeConversationId, addMessage, setIsStreaming]);
 
   const [inputValue, setInputValue] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -222,8 +222,8 @@ export function ChatView() {
       }
     } finally {
       setIsSending(false);
-      // Note: Don't reset setIsStreaming(false) here because the job
-      // is still running. The store will update isStreaming when the job completes.
+      // Note: Don't reset setIsStreaming(false) here because the task
+      // is still running. The store will update isStreaming when the task completes.
     }
   }, [addMessage, createConversation, storeIsStreaming, setIsStreaming, submit, setMentionedFiles]);
 

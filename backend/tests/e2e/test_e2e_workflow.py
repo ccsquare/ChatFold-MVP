@@ -7,9 +7,9 @@ This module provides comprehensive E2E tests covering the core user workflows:
 4. Folder input management (FASTA, PDB files)
 5. Conversation lifecycle
 6. Folder-Conversation linking
-7. Job creation and state management
-8. Job SSE streaming simulation
-9. Job cancellation
+7. Task creation and state management
+8. Task SSE streaming simulation
+9. Task cancellation
 10. Structure storage and retrieval
 11. Redis state consistency
 12. Cross-component integration
@@ -41,7 +41,7 @@ from fastapi.testclient import TestClient
 from app.components.nanocc.job import EventType, JobEvent, StageType, StatusType
 from app.db.redis_db import RedisKeyPrefix
 from app.main import app
-from app.services.job_state import job_state_service
+from app.services.task_state import task_state_service
 from app.services.sse_events import sse_events_service
 from app.utils import get_timestamp_ms
 
@@ -311,37 +311,37 @@ class TestFolderConversationIntegration:
             client.delete(f"/api/v1/conversations/{conv_id}")
 
 
-class TestJobWorkflow:
-    """Test job creation and management."""
+class TestTaskWorkflow:
+    """Test task creation and management."""
 
-    def test_job_creation(self, client: TestClient):
-        """Test creating a folding job."""
+    def test_task_creation(self, client: TestClient):
+        """Test creating a folding task."""
         response = client.post(
-            "/api/v1/jobs",
+            "/api/v1/tasks",
             json={"sequence": "MVLSPADKTNVKAAWGKVGAHAGEYGAE"},
         )
 
         assert response.status_code == 200
         data = response.json()
-        job_id = data["jobId"]
-        assert job_id.startswith("job_")
+        task_id = data["taskId"]
+        assert task_id.startswith("task_")
 
-        # Verify job in response
-        assert "job" in data
-        job = data["job"]
-        assert job["id"] == job_id
-        assert job["status"] == "queued"
-        assert job["sequence"] == "MVLSPADKTNVKAAWGKVGAHAGEYGAE"
+        # Verify task in response
+        assert "task" in data
+        task = data["task"]
+        assert task["id"] == task_id
+        assert task["status"] == "queued"
+        assert task["sequence"] == "MVLSPADKTNVKAAWGKVGAHAGEYGAE"
 
         # Cleanup Redis state
-        job_state_service.delete_state(job_id)
+        task_state_service.delete_state(task_id)
 
-    def test_job_creation_with_conversation(self, client: TestClient, unique_suffix: str):
-        """Test creating job with conversation ID."""
+    def test_task_creation_with_conversation(self, client: TestClient, unique_suffix: str):
+        """Test creating task with conversation ID."""
         conv_id = f"conv_test{unique_suffix}"
 
         response = client.post(
-            "/api/v1/jobs",
+            "/api/v1/tasks",
             json={
                 "sequence": "MVLSPADKTNVKAAWG",
                 "conversationId": conv_id,
@@ -349,87 +349,87 @@ class TestJobWorkflow:
         )
 
         assert response.status_code == 200
-        job = response.json()["job"]
-        assert job["conversationId"] == conv_id
+        task = response.json()["task"]
+        assert task["conversationId"] == conv_id
 
         # Cleanup
-        job_state_service.delete_state(job["id"])
+        task_state_service.delete_state(task["id"])
 
-    def test_job_validation_errors(self, client: TestClient):
-        """Test job creation with invalid sequences."""
+    def test_task_validation_errors(self, client: TestClient):
+        """Test task creation with invalid sequences."""
         # Invalid characters
         response = client.post(
-            "/api/v1/jobs",
+            "/api/v1/tasks",
             json={"sequence": "INVALID123!@#"},
         )
         assert response.status_code == 400
 
         # Too short sequence (less than 10 amino acids)
         response = client.post(
-            "/api/v1/jobs",
+            "/api/v1/tasks",
             json={"sequence": "MVL"},
         )
         assert response.status_code == 400
 
-    def test_list_jobs(self, client: TestClient):
-        """Test listing jobs."""
-        # Create a job
+    def test_list_tasks(self, client: TestClient):
+        """Test listing tasks."""
+        # Create a task
         create_response = client.post(
-            "/api/v1/jobs",
+            "/api/v1/tasks",
             json={"sequence": "MVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFL"},
         )
-        job_id = create_response.json()["jobId"]
+        task_id = create_response.json()["taskId"]
 
         try:
-            # List all jobs
-            list_response = client.get("/api/v1/jobs")
+            # List all tasks
+            list_response = client.get("/api/v1/tasks")
             assert list_response.status_code == 200
-            assert "jobs" in list_response.json()
+            assert "tasks" in list_response.json()
 
-            # Get specific job
-            get_response = client.get(f"/api/v1/jobs?jobId={job_id}")
+            # Get specific task
+            get_response = client.get(f"/api/v1/tasks?taskId={task_id}")
             assert get_response.status_code == 200
-            assert get_response.json()["job"]["id"] == job_id
+            assert get_response.json()["task"]["id"] == task_id
 
         finally:
-            job_state_service.delete_state(job_id)
+            task_state_service.delete_state(task_id)
 
 
-class TestJobStateRedisIntegration:
-    """Test job state management via Redis."""
+class TestTaskStateRedisIntegration:
+    """Test task state management via Redis."""
 
-    def test_job_state_creation(self, client: TestClient):
-        """Test that job creation creates Redis state."""
+    def test_task_state_creation(self, client: TestClient):
+        """Test that task creation creates Redis state."""
         response = client.post(
-            "/api/v1/jobs",
+            "/api/v1/tasks",
             json={"sequence": "MVLSPADKTNVKAAWG"},
         )
 
-        job_id = response.json()["jobId"]
+        task_id = response.json()["taskId"]
 
         try:
             # Verify Redis state exists
-            state = job_state_service.get_state(job_id)
+            state = task_state_service.get_state(task_id)
             assert state is not None
             assert state["status"] == StatusType.queued.value
             assert state["stage"] == StageType.QUEUED.value
 
             # Verify via API endpoint
-            state_response = client.get(f"/api/v1/jobs/{job_id}/state")
+            state_response = client.get(f"/api/v1/tasks/{task_id}/state")
             assert state_response.status_code == 200
             api_state = state_response.json()["state"]
             assert api_state["status"] == "queued"
 
         finally:
-            job_state_service.delete_state(job_id)
+            task_state_service.delete_state(task_id)
 
-    def test_job_state_updates(self, client: TestClient, unique_suffix: str):
-        """Test job state updates via service."""
-        job_id = f"job_e2e{unique_suffix}"
+    def test_task_state_updates(self, client: TestClient, unique_suffix: str):
+        """Test task state updates via service."""
+        task_id = f"task_e2e{unique_suffix}"
 
         # Create initial state
-        job_state_service.create_state(
-            job_id,
+        task_state_service.create_state(
+            task_id,
             status=StatusType.queued,
             stage=StageType.QUEUED,
             message="Waiting",
@@ -437,8 +437,8 @@ class TestJobStateRedisIntegration:
 
         try:
             # Update to running
-            job_state_service.set_state(
-                job_id,
+            task_state_service.set_state(
+                task_id,
                 status=StatusType.running,
                 stage=StageType.MSA,
                 progress=25,
@@ -446,33 +446,33 @@ class TestJobStateRedisIntegration:
             )
 
             # Verify update
-            state = job_state_service.get_state(job_id)
+            state = task_state_service.get_state(task_id)
             assert state["status"] == "running"
             assert state["stage"] == "MSA"
             assert state["progress"] == 25
 
             # Update progress
-            job_state_service.update_progress(job_id, 50)
-            state = job_state_service.get_state(job_id)
+            task_state_service.update_progress(task_id, 50)
+            state = task_state_service.get_state(task_id)
             assert state["progress"] == 50
 
         finally:
-            job_state_service.delete_state(job_id)
+            task_state_service.delete_state(task_id)
 
 
-class TestJobEventsWorkflow:
+class TestTaskEventsWorkflow:
     """Test SSE events queue management."""
 
     def test_push_and_retrieve_events(self, client: TestClient, unique_suffix: str):
         """Test pushing events and retrieving them."""
-        job_id = f"job_evt{unique_suffix}"
+        task_id = f"task_evt{unique_suffix}"
 
         try:
             # Push multiple events
             for i in range(5):
                 event = JobEvent(
-                    eventId=f"evt_{job_id}_{i + 1:04d}",
-                    jobId=job_id,
+                    eventId=f"evt_{task_id}_{i + 1:04d}",
+                    jobId=task_id,
                     ts=get_timestamp_ms(),
                     eventType=EventType.THINKING_TEXT,
                     stage=StageType.MODEL,
@@ -483,7 +483,7 @@ class TestJobEventsWorkflow:
                 sse_events_service.push_event(event)
 
             # Retrieve via API
-            response = client.get(f"/api/v1/jobs/{job_id}/events")
+            response = client.get(f"/api/v1/tasks/{task_id}/events")
             assert response.status_code == 200
             data = response.json()
             assert data["count"] == 5
@@ -491,22 +491,22 @@ class TestJobEventsWorkflow:
             assert len(data["events"]) == 5
 
             # Verify ordering
-            assert data["events"][0]["eventId"] == f"evt_{job_id}_0001"
-            assert data["events"][4]["eventId"] == f"evt_{job_id}_0005"
+            assert data["events"][0]["eventId"] == f"evt_{task_id}_0001"
+            assert data["events"][4]["eventId"] == f"evt_{task_id}_0005"
 
         finally:
-            sse_events_service.delete_events(job_id)
+            sse_events_service.delete_events(task_id)
 
     def test_events_pagination(self, client: TestClient, unique_suffix: str):
         """Test event retrieval with offset and limit."""
-        job_id = f"job_page{unique_suffix}"
+        task_id = f"task_page{unique_suffix}"
 
         try:
             # Push 10 events
             for i in range(10):
                 event = JobEvent(
-                    eventId=f"evt_{job_id}_{i + 1:04d}",
-                    jobId=job_id,
+                    eventId=f"evt_{task_id}_{i + 1:04d}",
+                    jobId=task_id,
                     ts=get_timestamp_ms(),
                     eventType=EventType.THINKING_TEXT,
                     stage=StageType.MODEL,
@@ -517,50 +517,50 @@ class TestJobEventsWorkflow:
                 sse_events_service.push_event(event)
 
             # Get with offset
-            response = client.get(f"/api/v1/jobs/{job_id}/events?offset=3&limit=4")
+            response = client.get(f"/api/v1/tasks/{task_id}/events?offset=3&limit=4")
             assert response.status_code == 200
             data = response.json()
             assert data["offset"] == 3
             assert data["count"] == 4
             assert data["total"] == 10
-            assert data["events"][0]["eventId"] == f"evt_{job_id}_0004"
+            assert data["events"][0]["eventId"] == f"evt_{task_id}_0004"
 
         finally:
-            sse_events_service.delete_events(job_id)
+            sse_events_service.delete_events(task_id)
 
 
-class TestJobCancellation:
-    """Test job cancellation workflow."""
+class TestTaskCancellation:
+    """Test task cancellation workflow."""
 
-    def test_cancel_job(self, client: TestClient):
-        """Test canceling a running job."""
-        # Create job
+    def test_cancel_task(self, client: TestClient):
+        """Test canceling a running task."""
+        # Create task
         create_response = client.post(
-            "/api/v1/jobs",
+            "/api/v1/tasks",
             json={"sequence": "MVLSPADKTNVKAAWG"},
         )
-        job_id = create_response.json()["jobId"]
+        task_id = create_response.json()["taskId"]
 
         try:
-            # Cancel job
-            cancel_response = client.post(f"/api/v1/jobs/{job_id}/cancel")
+            # Cancel task
+            cancel_response = client.post(f"/api/v1/tasks/{task_id}/cancel")
             assert cancel_response.status_code == 200
             data = cancel_response.json()
             assert data["ok"] is True
             assert data["status"] == "canceled"
 
             # Verify canceled state
-            state = job_state_service.get_state(job_id)
+            state = task_state_service.get_state(task_id)
             assert state["status"] == "canceled"
 
         finally:
-            job_state_service.delete_state(job_id)
+            task_state_service.delete_state(task_id)
 
-    def test_cancel_invalid_job_id(self, client: TestClient):
-        """Test canceling with invalid job ID."""
-        response = client.post("/api/v1/jobs/invalid_format/cancel")
+    def test_cancel_invalid_task_id(self, client: TestClient):
+        """Test canceling with invalid task ID."""
+        response = client.post("/api/v1/tasks/invalid_format/cancel")
         assert response.status_code == 400
-        assert "Invalid job ID" in response.json()["detail"]
+        assert "Invalid task ID" in response.json()["detail"]
 
 
 class TestStructureWorkflow:
@@ -624,13 +624,13 @@ END
 class TestRedisKeyPrefixConsistency:
     """Test Redis key prefix usage across services."""
 
-    def test_job_state_key_format(self, unique_suffix: str):
-        """Verify job state uses correct key format."""
-        job_id = f"job_key{unique_suffix}"
+    def test_task_state_key_format(self, unique_suffix: str):
+        """Verify task state uses correct key format."""
+        task_id = f"task_key{unique_suffix}"
 
         # Create state
-        job_state_service.create_state(
-            job_id,
+        task_state_service.create_state(
+            task_id,
             status=StatusType.queued,
             stage=StageType.QUEUED,
             message="Test",
@@ -638,8 +638,8 @@ class TestRedisKeyPrefixConsistency:
 
         try:
             # Verify key format
-            expected_key = RedisKeyPrefix.job_state_key(job_id)
-            assert expected_key == f"chatfold:job:state:{job_id}"
+            expected_key = RedisKeyPrefix.task_state_key(task_id)
+            assert expected_key == f"chatfold:task:state:{task_id}"
 
             # Verify data exists at expected key
             from app.db.redis_cache import get_redis_cache
@@ -650,16 +650,16 @@ class TestRedisKeyPrefixConsistency:
             assert data["status"] == "queued"
 
         finally:
-            job_state_service.delete_state(job_id)
+            task_state_service.delete_state(task_id)
 
     def test_sse_events_key_format(self, unique_suffix: str):
         """Verify SSE events uses correct key format."""
-        job_id = f"job_sse{unique_suffix}"
+        task_id = f"task_sse{unique_suffix}"
 
         # Push event
         event = JobEvent(
-            eventId=f"evt_{job_id}_0001",
-            jobId=job_id,
+            eventId=f"evt_{task_id}_0001",
+            jobId=task_id,
             ts=get_timestamp_ms(),
             eventType=EventType.THINKING_TEXT,
             stage=StageType.MSA,
@@ -671,26 +671,26 @@ class TestRedisKeyPrefixConsistency:
 
         try:
             # Verify key format
-            expected_key = RedisKeyPrefix.job_events_key(job_id)
-            assert expected_key == f"chatfold:job:events:{job_id}"
+            expected_key = RedisKeyPrefix.task_events_key(task_id)
+            assert expected_key == f"chatfold:task:events:{task_id}"
 
             # Verify data exists
-            events = sse_events_service.get_events(job_id, 0, -1)
+            events = sse_events_service.get_events(task_id, 0, -1)
             assert len(events) == 1
-            assert events[0].eventId == f"evt_{job_id}_0001"
+            assert events[0].eventId == f"evt_{task_id}_0001"
 
         finally:
-            sse_events_service.delete_events(job_id)
+            sse_events_service.delete_events(task_id)
 
 
 class TestCompleteWorkflow:
     """Test complete end-to-end workflow simulating real user scenario."""
 
     def test_full_protein_folding_workflow(self, client: TestClient, unique_suffix: str):
-        """Simulate complete user workflow from folder creation to job completion."""
+        """Simulate complete user workflow from folder creation to task completion."""
         folder_id = None
         conv_id = None
-        job_id = None
+        task_id = None
 
         try:
             # Step 1: Create folder for the project
@@ -732,57 +732,57 @@ class TestCompleteWorkflow:
             )
             assert link_response.status_code == 200
 
-            # Step 5: Create folding job
-            job_response = client.post(
-                "/api/v1/jobs",
+            # Step 5: Create folding task
+            task_response = client.post(
+                "/api/v1/tasks",
                 json={
                     "sequence": fasta_sequence,
                     "conversationId": conv_id,
                 },
             )
-            assert job_response.status_code == 200
-            job = job_response.json()["job"]
-            job_id = job["id"]
+            assert task_response.status_code == 200
+            task = task_response.json()["task"]
+            task_id = task["id"]
 
-            # Step 6: Verify job state in Redis
-            state = job_state_service.get_state(job_id)
+            # Step 6: Verify task state in Redis
+            state = task_state_service.get_state(task_id)
             assert state is not None
             assert state["status"] == "queued"
 
-            # Step 7: Simulate job progress (what SSE stream would do)
-            job_state_service.set_state(
-                job_id,
+            # Step 7: Simulate task progress (what SSE stream would do)
+            task_state_service.set_state(
+                task_id,
                 status=StatusType.running,
                 stage=StageType.MSA,
                 progress=25,
                 message="Building multiple sequence alignment",
             )
 
-            job_state_service.set_state(
-                job_id,
+            task_state_service.set_state(
+                task_id,
                 status=StatusType.running,
                 stage=StageType.MODEL,
                 progress=50,
                 message="Running structure prediction",
             )
 
-            job_state_service.set_state(
-                job_id,
+            task_state_service.set_state(
+                task_id,
                 status=StatusType.running,
                 stage=StageType.RELAX,
                 progress=75,
                 message="Relaxing structure",
             )
 
-            job_state_service.mark_complete(job_id, "Job completed successfully")
+            task_state_service.mark_complete(task_id, "Task completed successfully")
 
             # Step 8: Verify final state
-            final_state = job_state_service.get_state(job_id)
+            final_state = task_state_service.get_state(task_id)
             assert final_state["status"] == "complete"
             assert final_state["stage"] == "DONE"
 
-            # Step 9: Get job state via API
-            state_response = client.get(f"/api/v1/jobs/{job_id}/state")
+            # Step 9: Get task state via API
+            state_response = client.get(f"/api/v1/tasks/{task_id}/state")
             assert state_response.status_code == 200
             api_state = state_response.json()["state"]
             assert api_state["status"] == "complete"
@@ -794,69 +794,69 @@ class TestCompleteWorkflow:
 
         finally:
             # Cleanup
-            if job_id:
-                job_state_service.delete_state(job_id)
+            if task_id:
+                task_state_service.delete_state(task_id)
             if folder_id:
                 client.delete(f"/api/v1/folders/{folder_id}")
             if conv_id:
                 client.delete(f"/api/v1/conversations/{conv_id}")
 
-    def test_multiple_jobs_isolation(self, client: TestClient, unique_suffix: str):
-        """Test that multiple jobs maintain separate states."""
-        job_ids = []
+    def test_multiple_tasks_isolation(self, client: TestClient, unique_suffix: str):
+        """Test that multiple tasks maintain separate states."""
+        task_ids = []
 
         try:
-            # Create 3 jobs
+            # Create 3 tasks
             for i in range(3):
                 response = client.post(
-                    "/api/v1/jobs",
+                    "/api/v1/tasks",
                     json={"sequence": f"MVLSPADKTNVKAAW{'G' * (i + 1)}"},
                 )
                 assert response.status_code == 200
-                job_ids.append(response.json()["jobId"])
+                task_ids.append(response.json()["taskId"])
 
             # Update each with different progress
-            for i, job_id in enumerate(job_ids):
-                job_state_service.set_state(
-                    job_id,
+            for i, task_id in enumerate(task_ids):
+                task_state_service.set_state(
+                    task_id,
                     status=StatusType.running,
                     stage=StageType.MODEL,
                     progress=(i + 1) * 25,
-                    message=f"Job {i + 1} processing",
+                    message=f"Task {i + 1} processing",
                 )
 
             # Verify isolation
-            for i, job_id in enumerate(job_ids):
-                state = job_state_service.get_state(job_id)
+            for i, task_id in enumerate(task_ids):
+                state = task_state_service.get_state(task_id)
                 assert state["progress"] == (i + 1) * 25
-                assert f"Job {i + 1}" in state["message"]
+                assert f"Task {i + 1}" in state["message"]
 
         finally:
-            for job_id in job_ids:
-                job_state_service.delete_state(job_id)
+            for task_id in task_ids:
+                task_state_service.delete_state(task_id)
 
 
 class TestErrorHandling:
     """Test error handling and edge cases."""
 
-    def test_invalid_job_id_format(self, client: TestClient):
-        """Test various invalid job ID formats."""
+    def test_invalid_task_id_format(self, client: TestClient):
+        """Test various invalid task ID formats."""
         invalid_ids = [
             "invalid",
-            "job-123",  # hyphen instead of underscore
-            "JOB_123",  # uppercase
-            "job_",  # empty suffix
-            "job_ABC",  # uppercase in suffix
+            "task-123",  # hyphen instead of underscore
+            "TASK_123",  # uppercase
+            "task_",  # empty suffix
+            "task_ABC",  # uppercase in suffix
         ]
 
         for invalid_id in invalid_ids:
-            response = client.get(f"/api/v1/jobs/{invalid_id}/state")
+            response = client.get(f"/api/v1/tasks/{invalid_id}/state")
             assert response.status_code == 400, f"Expected 400 for {invalid_id}"
 
     def test_missing_required_fields(self, client: TestClient):
         """Test API responses for missing required fields."""
-        # Empty job creation (should use default sequence)
-        response = client.post("/api/v1/jobs", json={})
+        # Empty task creation (should use default sequence)
+        response = client.post("/api/v1/tasks", json={})
         # With no sequence, it should still work using default
         assert response.status_code in (200, 400)
 
@@ -906,9 +906,9 @@ This test suite covers:
 - Folder CRUD and inputs
 - Conversation lifecycle
 - Folder-Conversation linking
-- Job creation and state management
+- Task creation and state management
 - SSE events workflow
-- Job cancellation
+- Task cancellation
 - Structure storage
 - Redis key prefix consistency
 - Complete workflow simulation

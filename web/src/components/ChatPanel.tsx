@@ -13,14 +13,14 @@ import { ExampleSequence } from '@/lib/constants/sequences';
 import { useConversationTimeline } from '@/hooks/useConversationTimeline';
 import { useAvailableFiles } from '@/hooks/useAvailableFiles';
 import { TimelineRenderer } from '@/components/timeline';
-import { useFoldingJob } from '@/hooks/useFoldingJob';
+import { useFoldingTask } from '@/hooks/useFoldingTask';
 
 export function ChatPanel() {
   const {
     activeConversationId,
     createConversation,
     addMessage,
-    setActiveJob,
+    setActiveTask,
     // Folder management
     folders,
     activeFolderId,
@@ -37,7 +37,7 @@ export function ChatPanel() {
   const [mentionedFiles, setMentionedFiles] = useState<MentionableFile[]>([]);
 
   // Use shared hooks
-  const { startStream, cancel: cancelJob } = useFoldingJob();
+  const { startStream, cancel: cancelTask } = useFoldingTask();
   const { timeline, isStreaming, timelineByEventType } = useConversationTimeline();
   const availableFiles = useAvailableFiles();
 
@@ -161,8 +161,8 @@ export function ChatPanel() {
             // File already added to folder by handleExampleClick or handleFileUpload
             // No need to add again
 
-            // Create job
-            const jobResponse = await fetch('/api/v1/jobs', {
+            // Create task
+            const taskResponse = await fetch('/api/v1/tasks', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -171,10 +171,10 @@ export function ChatPanel() {
               }),
             });
 
-            const responseData = await jobResponse.json();
+            const responseData = await taskResponse.json();
 
             // Check if the API returned an error
-            if (!jobResponse.ok) {
+            if (!taskResponse.ok) {
               const errorMessage =
                 responseData.details?.join(', ') || responseData.error || 'Invalid sequence';
               addMessage(convId, {
@@ -184,7 +184,7 @@ export function ChatPanel() {
               return;
             }
 
-            const { job } = responseData;
+            const { task } = responseData;
 
             // Add assistant message
             addMessage(convId, {
@@ -192,9 +192,9 @@ export function ChatPanel() {
               content: `Starting structure prediction for your ${sequence.length} residue sequence. I'll keep you updated on the progress.`,
             });
 
-            // Set active job and start streaming
-            setActiveJob({ ...job, status: 'running' });
-            startStream(job.id, sequence);
+            // Set active task and start streaming
+            setActiveTask({ ...task, status: 'running' });
+            startStream(task.id, sequence);
             streamingStarted = true;
           } else {
             addMessage(convId, {
@@ -235,15 +235,15 @@ export function ChatPanel() {
                 content: fastaContent,
               });
 
-              const jobResponse = await fetch('/api/v1/jobs', {
+              const taskResponse = await fetch('/api/v1/tasks', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ conversationId: convId, sequence }),
               });
 
-              const responseData = await jobResponse.json();
+              const responseData = await taskResponse.json();
 
-              if (!jobResponse.ok) {
+              if (!taskResponse.ok) {
                 const errorMessage = responseData.details?.join(', ') || responseData.error || 'Invalid sequence';
                 addMessage(convId, {
                   role: 'assistant',
@@ -252,13 +252,13 @@ export function ChatPanel() {
                 return;
               }
 
-              const { job } = responseData;
+              const { task } = responseData;
               addMessage(convId, {
                 role: 'assistant',
                 content: `Starting structure prediction for your ${sequence.length} residue sequence. I'll keep you updated on the progress.`,
               });
-              setActiveJob({ ...job, status: 'running' });
-              startStream(job.id, sequence);
+              setActiveTask({ ...task, status: 'running' });
+              startStream(task.id, sequence);
               streamingStarted = true;
             } else {
               addMessage(convId, {
@@ -281,7 +281,7 @@ export function ChatPanel() {
         });
       } finally {
         // Only reset states if streaming wasn't actually started
-        // When streaming starts, states will be reset by the job completion handler
+        // When streaming starts, states will be reset by the task completion handler
         console.error('[ChatPanel] Finally block: streamingStarted =', streamingStarted);
         if (!streamingStarted) {
           console.error('[ChatPanel] Setting isSending/isStreaming to FALSE (streaming not started)');
@@ -300,7 +300,7 @@ export function ChatPanel() {
       createConversation,
       createFolder,
       storeIsStreaming, // Used for guard condition
-      setActiveJob,
+      setActiveTask,
       setIsStreaming,
       startStream,
     ]
@@ -308,8 +308,8 @@ export function ChatPanel() {
 
   // Handle stop button click
   const handleStop = useCallback(async () => {
-    // Use shared hook to cancel the job
-    await cancelJob();
+    // Use shared hook to cancel the task
+    await cancelTask();
     setIsSending(false);
     setIsStreaming(false);
 
@@ -320,7 +320,7 @@ export function ChatPanel() {
         content: '任务已被取消',
       });
     }
-  }, [cancelJob, activeConversationId, addMessage, setIsStreaming]);
+  }, [cancelTask, activeConversationId, addMessage, setIsStreaming]);
 
   // Handler to prepare example sequence - prepare file for display, don't upload yet
   const handleExampleClick = useCallback((example: ExampleSequence) => {

@@ -3,8 +3,8 @@
 This module provides database connectivity for both Redis (cache) and MySQL (persistence).
 
 Components:
-- Redis: Job state cache, SSE event queues
-- MySQL: Persistent storage for users, projects, jobs, structures
+- Redis: Task state cache, SSE event queues
+- MySQL: Persistent storage for users, projects, tasks, structures
 """
 
 from app.db.models import (
@@ -12,12 +12,12 @@ from app.db.models import (
     Base,
     Conversation,
     Folder,
-    Job,
-    JobEvent,
     LearningRecord,
     Message,
     Project,
     Structure,
+    Task,
+    TaskEvent,
     User,
 )
 from app.db.mysql import (
@@ -58,8 +58,8 @@ __all__ = [
     "Asset",
     "Conversation",
     "Message",
-    "Job",
-    "JobEvent",
+    "Task",
+    "TaskEvent",
     "LearningRecord",
     "Structure",
 ]

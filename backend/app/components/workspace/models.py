@@ -58,8 +58,8 @@ class Structure(BaseModel):
     - production: /app/outputs/
 
     Example paths:
-    - structures/{job_id}/candidate_1.pdb
-    - structures/{job_id}/final.pdb
+    - structures/{task_id}/candidate_1.pdb
+    - structures/{task_id}/final.pdb
     """
 
     type: Literal["structure"] = "structure"
@@ -87,7 +87,7 @@ class Folder(BaseModel):
     isExpanded: bool = True
     inputs: list[Asset] = Field(default_factory=list)
     outputs: list[Structure] = Field(default_factory=list)
-    jobId: str | None = None
+    taskId: str | None = None
     conversationId: str | None = None  # 1:1 association with Conversation
 
 

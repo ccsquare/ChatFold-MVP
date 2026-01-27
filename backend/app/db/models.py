@@ -6,7 +6,7 @@ Models follow the data model design from docs/developer/data_model.md.
 Entity Hierarchy:
     User -> Project -> Folder <-> Conversation -> Message
                     -> Asset
-    User -> Job -> Structure
+    User -> Task -> Structure
 """
 
 from sqlalchemy import (
@@ -49,7 +49,7 @@ class User(Base):
 
     # Relationships
     projects = relationship("Project", back_populates="user", cascade="all, delete-orphan")
-    jobs = relationship("Job", back_populates="user", cascade="all, delete-orphan")
+    tasks = relationship("Task", back_populates="user", cascade="all, delete-orphan")
 
     # Indexes
     __table_args__ = (
@@ -97,7 +97,7 @@ class Folder(Base):
     project_id = Column(String(64), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     name = Column(String(255), nullable=False)
     is_expanded = Column(Boolean, default=True)
-    job_id = Column(String(64), nullable=True)
+    task_id = Column(String(64), nullable=True)
     conversation_id = Column(String(64), nullable=True)
     created_at = Column(BigInteger, nullable=False)
     updated_at = Column(BigInteger, nullable=False)
@@ -152,7 +152,7 @@ class Conversation(Base):
 
     # Relationships
     messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan")
-    jobs = relationship("Job", back_populates="conversation")
+    tasks = relationship("Task", back_populates="conversation")
 
     # Indexes
     __table_args__ = (Index("idx_conversations_folder_id", "folder_id"),)
@@ -185,18 +185,18 @@ class Message(Base):
         return f"<Message(id={self.id}, role={self.role})>"
 
 
-class Job(Base):
-    """Job - protein folding task."""
+class Task(Base):
+    """Task - protein folding task."""
 
-    __tablename__ = "jobs"
+    __tablename__ = "tasks"
 
     id = Column(String(64), primary_key=True)
     # MVP: user_id nullable until auth is implemented
     user_id = Column(String(64), ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
     conversation_id = Column(String(64), ForeignKey("conversations.id", ondelete="SET NULL"), nullable=True)
-    job_type = Column(Enum("folding", "relaxation", name="job_type_enum"), default="folding", nullable=False)
+    task_type = Column(Enum("folding", "relaxation", name="task_type_enum"), default="folding", nullable=False)
     status = Column(
-        Enum("queued", "running", "partial", "complete", "failed", "canceled", name="job_status"),
+        Enum("queued", "running", "partial", "complete", "failed", "canceled", name="task_status"),
         default="queued",
         nullable=False,
     )
@@ -207,39 +207,39 @@ class Job(Base):
     completed_at = Column(BigInteger, nullable=True)
 
     # Relationships
-    user = relationship("User", back_populates="jobs")
-    conversation = relationship("Conversation", back_populates="jobs")
-    structures = relationship("Structure", back_populates="job", cascade="all, delete-orphan")
-    events = relationship("JobEvent", back_populates="job", cascade="all, delete-orphan")
-    learning_record = relationship("LearningRecord", back_populates="job", uselist=False, cascade="all, delete-orphan")
+    user = relationship("User", back_populates="tasks")
+    conversation = relationship("Conversation", back_populates="tasks")
+    structures = relationship("Structure", back_populates="task", cascade="all, delete-orphan")
+    events = relationship("TaskEvent", back_populates="task", cascade="all, delete-orphan")
+    learning_record = relationship("LearningRecord", back_populates="task", uselist=False, cascade="all, delete-orphan")
 
     # Indexes
     __table_args__ = (
-        Index("idx_jobs_user_id", "user_id"),
-        Index("idx_jobs_status", "status"),
-        Index("idx_jobs_created_at", "created_at"),
+        Index("idx_tasks_user_id", "user_id"),
+        Index("idx_tasks_status", "status"),
+        Index("idx_tasks_created_at", "created_at"),
     )
 
     def __repr__(self) -> str:
-        return f"<Job(id={self.id}, status={self.status})>"
+        return f"<Task(id={self.id}, status={self.status})>"
 
 
-class JobEvent(Base):
-    """JobEvent - persisted SSE event for NanoCC job execution.
+class TaskEvent(Base):
+    """TaskEvent - persisted SSE event for NanoCC task execution.
 
     Used for:
-    - Debugging and replay of job execution
+    - Debugging and replay of task execution
     - Training data collection for model improvement
-    - Analytics on job execution patterns
+    - Analytics on task execution patterns
 
     Note: This ORM entity corresponds to the Pydantic JobEvent in nanocc/job.py.
     Use import alias to distinguish them when both are needed.
     """
 
-    __tablename__ = "job_events"
+    __tablename__ = "task_events"
 
     id = Column(String(64), primary_key=True)
-    job_id = Column(String(64), ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False)
+    task_id = Column(String(64), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
     event_type = Column(
         Enum(
             "PROLOGUE",
@@ -262,36 +262,36 @@ class JobEvent(Base):
     created_at = Column(BigInteger, nullable=False)
 
     # Relationships
-    job = relationship("Job", back_populates="events")
+    task = relationship("Task", back_populates="events")
     structure = relationship("Structure")
 
     # Indexes
     __table_args__ = (
-        Index("idx_job_events_job_id", "job_id"),
-        Index("idx_job_events_created_at", "created_at"),
-        Index("idx_job_events_event_type", "event_type"),
+        Index("idx_task_events_task_id", "task_id"),
+        Index("idx_task_events_created_at", "created_at"),
+        Index("idx_task_events_event_type", "event_type"),
     )
 
     def __repr__(self) -> str:
-        return f"<JobEvent(id={self.id}, job_id={self.job_id}, event_type={self.event_type})>"
+        return f"<TaskEvent(id={self.id}, task_id={self.task_id}, event_type={self.event_type})>"
 
 
 class LearningRecord(Base):
-    """LearningRecord - curated learning data from completed job.
+    """LearningRecord - curated learning data from completed task.
 
-    Aggregates job execution data for machine learning purposes:
-    - Model fine-tuning (sequence → structure mapping)
+    Aggregates task execution data for machine learning purposes:
+    - Model fine-tuning (sequence -> structure mapping)
     - Preference learning (user selection among candidates)
     - Quality assessment (pLDDT correlation with user satisfaction)
 
-    Created automatically when a job completes successfully.
+    Created automatically when a task completes successfully.
     User feedback is optional and added later via API.
     """
 
     __tablename__ = "learning_records"
 
     id = Column(String(64), primary_key=True)
-    job_id = Column(String(64), ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False, unique=True)
+    task_id = Column(String(64), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, unique=True)
     input_sequence = Column(Text, nullable=False)
     input_constraints = Column(Text, nullable=True)  # Optional constraints/annotations
     thinking_block_count = Column(Integer, default=0)
@@ -308,28 +308,28 @@ class LearningRecord(Base):
     export_batch_id = Column(String(64), nullable=True)
 
     # Relationships
-    job = relationship("Job", back_populates="learning_record")
+    task = relationship("Task", back_populates="learning_record")
     final_structure = relationship("Structure", foreign_keys=[final_structure_id])
     user_selected_structure = relationship("Structure", foreign_keys=[user_selected_structure_id])
 
     # Indexes
     __table_args__ = (
-        Index("idx_learning_records_job_id", "job_id"),
+        Index("idx_learning_records_task_id", "task_id"),
         Index("idx_learning_records_created_at", "created_at"),
         Index("idx_learning_records_exported_at", "exported_at"),
     )
 
     def __repr__(self) -> str:
-        return f"<LearningRecord(id={self.id}, job_id={self.job_id})>"
+        return f"<LearningRecord(id={self.id}, task_id={self.task_id})>"
 
 
 class Structure(Base):
-    """Structure - generated PDB structure from a job."""
+    """Structure - generated PDB structure from a task."""
 
     __tablename__ = "structures"
 
     id = Column(String(64), primary_key=True)
-    job_id = Column(String(64), ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False)
+    task_id = Column(String(64), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
     user_id = Column(String(64), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     project_id = Column(String(64), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     label = Column(String(64), nullable=False)  # candidate-1, final, best, etc.
@@ -340,12 +340,12 @@ class Structure(Base):
     created_at = Column(BigInteger, nullable=False)
 
     # Relationships
-    job = relationship("Job", back_populates="structures")
+    task = relationship("Task", back_populates="structures")
     project = relationship("Project", back_populates="structures")
 
     # Indexes
     __table_args__ = (
-        Index("idx_structures_job_id", "job_id"),
+        Index("idx_structures_task_id", "task_id"),
         Index("idx_structures_user_project", "user_id", "project_id"),
     )
 

@@ -17,8 +17,8 @@ from app.db.models import (
     Base,
     Conversation,
     Folder,
-    Job,
-    JobEvent,
+    Task,
+    TaskEvent,
     LearningRecord,
     Message,
     Project,
@@ -68,8 +68,8 @@ class TestMySQLConnection:
                 "assets",
                 "conversations",
                 "messages",
-                "jobs",
-                "job_events",
+                "tasks",
+                "task_events",
                 "learning_records",
                 "structures",
             ]
@@ -240,48 +240,48 @@ class TestConversationMessagePersistence:
             db.delete(conv)
 
 
-class TestJobStructurePersistence:
-    """Test Job and Structure persistence with relationships."""
+class TestTaskStructurePersistence:
+    """Test Task and Structure persistence with relationships."""
 
-    def test_job_with_structures(self, setup_tables):
-        """Create job with structures."""
+    def test_task_with_structures(self, setup_tables):
+        """Create task with structures."""
         user_id = _make_id("user")
         project_id = _make_id("project")
-        job_id = _make_id("job")
+        task_id = _make_id("task")
         struct_id = _make_id("struct")
         now = int(time.time() * 1000)
 
         with get_db_session() as db:
             # Setup
-            user = User(id=user_id, name="Job Owner", email=f"{user_id}@test.com", created_at=now)
+            user = User(id=user_id, name="Task Owner", email=f"{user_id}@test.com", created_at=now)
             db.add(user)
             db.flush()
 
-            project = Project(id=project_id, user_id=user_id, name="Job Project", created_at=now, updated_at=now)
+            project = Project(id=project_id, user_id=user_id, name="Task Project", created_at=now, updated_at=now)
             db.add(project)
             db.flush()
 
-            job = Job(
-                id=job_id,
+            task = Task(
+                id=task_id,
                 user_id=user_id,
-                job_type="folding",
+                task_type="folding",
                 status="complete",
                 stage="DONE",
                 sequence="MVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSH",
                 created_at=now,
                 completed_at=now + 60000,
             )
-            db.add(job)
+            db.add(task)
             db.flush()
 
             structure = Structure(
                 id=struct_id,
-                job_id=job_id,
+                task_id=task_id,
                 user_id=user_id,
                 project_id=project_id,
                 label="candidate-1",
                 filename="candidate_1.pdb",
-                file_path=f"/structures/{job_id}/candidate_1.pdb",
+                file_path=f"/structures/{task_id}/candidate_1.pdb",
                 plddt_score=85,
                 is_final=False,
                 created_at=now,
@@ -290,24 +290,24 @@ class TestJobStructurePersistence:
 
         # Verify
         with get_db_session() as db:
-            job = db.query(Job).filter(Job.id == job_id).first()
-            assert job.status == "complete"
-            assert len(job.structures) == 1
-            assert job.structures[0].label == "candidate-1"
-            assert job.structures[0].plddt_score == 85
+            task = db.query(Task).filter(Task.id == task_id).first()
+            assert task.status == "complete"
+            assert len(task.structures) == 1
+            assert task.structures[0].label == "candidate-1"
+            assert task.structures[0].plddt_score == 85
 
             # Cleanup
             user = db.query(User).filter(User.id == user_id).first()
             db.delete(user)
 
 
-class TestJobEventPersistence:
-    """Test JobEvent persistence."""
+class TestTaskEventPersistence:
+    """Test TaskEvent persistence."""
 
-    def test_persist_job_events(self, setup_tables):
-        """Create job events for debugging/training."""
+    def test_persist_task_events(self, setup_tables):
+        """Create task events for debugging/training."""
         user_id = _make_id("user")
-        job_id = _make_id("job")
+        task_id = _make_id("task")
         event_id = _make_id("evt")
         now = int(time.time() * 1000)
 
@@ -316,21 +316,21 @@ class TestJobEventPersistence:
             db.add(user)
             db.flush()
 
-            job = Job(
-                id=job_id,
+            task = Task(
+                id=task_id,
                 user_id=user_id,
-                job_type="folding",
+                task_type="folding",
                 status="running",
                 stage="MODEL",
                 sequence="MVLSPADKTNVKAAWG",
                 created_at=now,
             )
-            db.add(job)
+            db.add(task)
             db.flush()
 
-            event = JobEvent(
+            event = TaskEvent(
                 id=event_id,
-                job_id=job_id,
+                task_id=task_id,
                 event_type="THINKING_TEXT",
                 stage="MODEL",
                 status="running",
@@ -343,10 +343,10 @@ class TestJobEventPersistence:
 
         # Verify
         with get_db_session() as db:
-            job = db.query(Job).filter(Job.id == job_id).first()
-            assert len(job.events) == 1
-            assert job.events[0].event_type == "THINKING_TEXT"
-            assert job.events[0].block_index == 1
+            task = db.query(Task).filter(Task.id == task_id).first()
+            assert len(task.events) == 1
+            assert task.events[0].event_type == "THINKING_TEXT"
+            assert task.events[0].block_index == 1
 
             # Cleanup
             user = db.query(User).filter(User.id == user_id).first()
@@ -357,16 +357,16 @@ class TestLearningRecordPersistence:
     """Test LearningRecord persistence for ML training."""
 
     def test_learning_record_creation(self, setup_tables):
-        """Create learning record when job completes."""
+        """Create learning record when task completes."""
         user_id = _make_id("user")
         project_id = _make_id("project")
-        job_id = _make_id("job")
+        task_id = _make_id("task")
         struct_id = _make_id("struct")
         record_id = _make_id("lr")
         now = int(time.time() * 1000)
 
         with get_db_session() as db:
-            # Setup complete job with structure
+            # Setup complete task with structure
             user = User(id=user_id, name="ML Owner", email=f"{user_id}@test.com", created_at=now)
             db.add(user)
             db.flush()
@@ -375,27 +375,27 @@ class TestLearningRecordPersistence:
             db.add(project)
             db.flush()
 
-            job = Job(
-                id=job_id,
+            task = Task(
+                id=task_id,
                 user_id=user_id,
-                job_type="folding",
+                task_type="folding",
                 status="complete",
                 stage="DONE",
                 sequence="MVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSH",
                 created_at=now,
                 completed_at=now + 60000,
             )
-            db.add(job)
+            db.add(task)
             db.flush()
 
             structure = Structure(
                 id=struct_id,
-                job_id=job_id,
+                task_id=task_id,
                 user_id=user_id,
                 project_id=project_id,
                 label="final",
                 filename="final.pdb",
-                file_path=f"/structures/{job_id}/final.pdb",
+                file_path=f"/structures/{task_id}/final.pdb",
                 plddt_score=92,
                 is_final=True,
                 created_at=now,
@@ -406,7 +406,7 @@ class TestLearningRecordPersistence:
             # Create learning record
             record = LearningRecord(
                 id=record_id,
-                job_id=job_id,
+                task_id=task_id,
                 input_sequence="MVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSH",
                 thinking_block_count=5,
                 structure_count=3,
@@ -439,10 +439,10 @@ class TestForeignKeyRelationships:
     """Test foreign key constraints and cascades."""
 
     def test_cascade_delete_user(self, setup_tables):
-        """Deleting user cascades to projects, jobs, etc."""
+        """Deleting user cascades to projects, tasks, etc."""
         user_id = _make_id("user")
         project_id = _make_id("project")
-        job_id = _make_id("job")
+        task_id = _make_id("task")
         now = int(time.time() * 1000)
 
         with get_db_session() as db:
@@ -454,16 +454,16 @@ class TestForeignKeyRelationships:
             db.add(project)
             db.flush()
 
-            job = Job(
-                id=job_id,
+            task = Task(
+                id=task_id,
                 user_id=user_id,
-                job_type="folding",
+                task_type="folding",
                 status="queued",
                 stage="QUEUED",
                 sequence="MVLSPADKTNVKAAWG",
                 created_at=now,
             )
-            db.add(job)
+            db.add(task)
 
         # Delete user
         with get_db_session() as db:
@@ -473,7 +473,7 @@ class TestForeignKeyRelationships:
         # Verify cascade
         with get_db_session() as db:
             assert db.query(Project).filter(Project.id == project_id).first() is None
-            assert db.query(Job).filter(Job.id == job_id).first() is None
+            assert db.query(Task).filter(Task.id == task_id).first() is None
 
     def test_folder_conversation_link(self, setup_tables):
         """Test 1:1 link between Folder and Conversation."""

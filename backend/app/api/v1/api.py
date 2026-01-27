@@ -10,8 +10,8 @@ from app.api.v1.endpoints import (
     conversations,
     folders,
     health,
-    jobs,
     structures,
+    tasks,
     test_helpers,
     users,
 )
@@ -25,7 +25,7 @@ api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 api_router.include_router(users.router, prefix="/users", tags=["Users"])
 api_router.include_router(conversations.router, prefix="/conversations", tags=["Conversations"])
 api_router.include_router(folders.router, prefix="/folders", tags=["Folders"])
-api_router.include_router(jobs.router, prefix="/jobs", tags=["Jobs"])
+api_router.include_router(tasks.router, prefix="/tasks", tags=["Tasks"])
 api_router.include_router(structures.router, prefix="/structures", tags=["Structures"])
 
 # Test helpers (only in development/test mode)

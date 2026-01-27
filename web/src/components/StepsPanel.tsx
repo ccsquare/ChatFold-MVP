@@ -25,16 +25,16 @@ import { STAGE_ICONS, STAGE_LABELS } from '@/lib/constants/stages';
 import { pdbCache } from '@/hooks/useLazyPdb';
 
 export function StepsPanel() {
-  const { activeJob, isStreaming, openStructureTab, openCompareTab, thumbnails } = useAppStore();
+  const { activeTask, isStreaming, openStructureTab, openCompareTab, thumbnails } = useAppStore();
   const stepsEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to latest step
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (activeJob && activeJob.steps.length > 0) {
+    if (activeTask && activeTask.steps.length > 0) {
       stepsEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
-  }, [activeJob?.steps]);
+  }, [activeTask?.steps]);
 
   // Must define callbacks before early return to follow rules of hooks
   const handleOpenStructure = useCallback(async (artifact: Structure) => {
@@ -84,12 +84,12 @@ export function StepsPanel() {
     );
   }, [openCompareTab]);
 
-  if (!activeJob) {
+  if (!activeTask) {
     return (
       <div className="p-4 border-b border-cf-border">
         <div className="text-center py-8 text-cf-text-secondary text-sm">
           <HelixIcon className="w-8 h-8 mx-auto mb-2 opacity-40" />
-          <p>No active folding job</p>
+          <p>No active folding task</p>
           <p className="text-xs text-cf-text-muted mt-1">
             Upload a FASTA file to start
           </p>
@@ -99,7 +99,7 @@ export function StepsPanel() {
   }
 
   // Group steps by stage
-  const stageGroups = (activeJob.steps || []).reduce((acc, step) => {
+  const stageGroups = (activeTask.steps || []).reduce((acc, step) => {
     if (!acc[step.stage]) {
       acc[step.stage] = [];
     }
@@ -111,7 +111,7 @@ export function StepsPanel() {
   const currentStage = stages[stages.length - 1] || 'QUEUED';
 
   // Collect all artifacts in order for comparison
-  const allArtifacts: Structure[] = (activeJob.steps || []).flatMap(
+  const allArtifacts: Structure[] = (activeTask.steps || []).flatMap(
     step => step.artifacts || []
   );
 
@@ -135,15 +135,15 @@ export function StepsPanel() {
         {/* Steps Timeline */}
         <ScrollArea className="flex-1 min-h-0">
           <div className="p-3">
-            {(activeJob.steps || []).map((step, index) => {
+            {(activeTask.steps || []).map((step, index) => {
               const Icon = STAGE_ICONS[step.stage] || Timer;
-              const isLatest = index === (activeJob.steps?.length || 0) - 1;
+              const isLatest = index === (activeTask.steps?.length || 0) - 1;
               const hasArtifacts = step.artifacts && step.artifacts.length > 0;
 
               return (
                 <div key={step.eventId} className="relative">
                   {/* Timeline line */}
-                  {index < activeJob.steps.length - 1 && (
+                  {index < activeTask.steps.length - 1 && (
                     <div className="absolute left-3 top-6 w-px h-full bg-cf-border" />
                   )}
 
@@ -284,7 +284,7 @@ export function StepsPanel() {
             })}
 
             {/* Empty state */}
-            {(activeJob.steps?.length || 0) === 0 && (
+            {(activeTask.steps?.length || 0) === 0 && (
               <div className="flex items-center gap-3 py-2">
                 <div className="w-6 h-6 rounded-full bg-cf-bg flex items-center justify-center">
                   <Loader2 className="w-3.5 h-3.5 text-cf-text-secondary animate-spin" />

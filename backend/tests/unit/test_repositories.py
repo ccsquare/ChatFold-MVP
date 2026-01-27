@@ -10,8 +10,8 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.db.models import Base, Project, User
 from app.repositories.base import BaseRepository
-from app.repositories.job import JobRepository
-from app.repositories.job_event import JobEventRepository
+from app.repositories.task import TaskRepository
+from app.repositories.task_event import TaskEventRepository
 from app.repositories.learning_record import LearningRecordRepository
 from app.repositories.structure import StructureRepository
 from app.repositories.user import UserRepository
@@ -194,12 +194,12 @@ class TestUserRepository:
         assert user.created_at > 0
 
 
-class TestJobRepository:
-    """Test JobRepository specific methods."""
+class TestTaskRepository:
+    """Test TaskRepository specific methods."""
 
     @pytest.fixture
     def default_user(self, db_session: Session):
-        """Create default user for job tests."""
+        """Create default user for task tests."""
         repo = BaseRepository(User)
         user_data = {
             "id": "user_default",
@@ -210,76 +210,76 @@ class TestJobRepository:
         }
         return repo.create(db_session, user_data)
 
-    def test_create_job(self, db_session: Session, default_user):
-        """Create job with helper method."""
-        repo = JobRepository()
+    def test_create_task(self, db_session: Session, default_user):
+        """Create task with helper method."""
+        repo = TaskRepository()
 
-        job = repo.create_job(db_session, sequence="MVLSPADKTNVKAAWG")
+        task = repo.create_task(db_session, sequence="MVLSPADKTNVKAAWG")
 
-        assert job.id.startswith("job_")
-        assert job.user_id == "user_default"
-        assert job.status == "queued"
-        assert job.stage == "QUEUED"
-        assert job.sequence == "MVLSPADKTNVKAAWG"
-        assert job.created_at > 0
+        assert task.id.startswith("task_")
+        assert task.user_id == "user_default"
+        assert task.status == "queued"
+        assert task.stage == "QUEUED"
+        assert task.sequence == "MVLSPADKTNVKAAWG"
+        assert task.created_at > 0
 
     def test_get_by_user(self, db_session: Session, default_user):
-        """Get jobs by user."""
-        repo = JobRepository()
+        """Get tasks by user."""
+        repo = TaskRepository()
 
-        # Create 3 jobs
+        # Create 3 tasks
         for _ in range(3):
-            repo.create_job(db_session, sequence="MVLSPADKTNVKAAWG")
+            repo.create_task(db_session, sequence="MVLSPADKTNVKAAWG")
 
-        jobs = repo.get_by_user(db_session)
-        assert len(jobs) == 3
+        tasks = repo.get_by_user(db_session)
+        assert len(tasks) == 3
 
     def test_get_by_status(self, db_session: Session, default_user):
-        """Get jobs by status."""
-        repo = JobRepository()
+        """Get tasks by status."""
+        repo = TaskRepository()
 
-        # Create jobs with different statuses
-        job1 = repo.create_job(db_session, sequence="SEQ1")
-        job2 = repo.create_job(db_session, sequence="SEQ2")
-        repo.update_status(db_session, job1.id, "running")
-        repo.update_status(db_session, job2.id, "complete", "DONE")
+        # Create tasks with different statuses
+        task1 = repo.create_task(db_session, sequence="SEQ1")
+        task2 = repo.create_task(db_session, sequence="SEQ2")
+        repo.update_status(db_session, task1.id, "running")
+        repo.update_status(db_session, task2.id, "complete", "DONE")
 
         running = repo.get_by_status(db_session, "running")
         assert len(running) == 1
-        assert running[0].id == job1.id
+        assert running[0].id == task1.id
 
         complete = repo.get_by_status(db_session, "complete")
         assert len(complete) == 1
-        assert complete[0].id == job2.id
+        assert complete[0].id == task2.id
 
     def test_update_status(self, db_session: Session, default_user):
-        """Update job status."""
-        repo = JobRepository()
+        """Update task status."""
+        repo = TaskRepository()
 
-        job = repo.create_job(db_session, sequence="MVLSPADKTNVKAAWG")
-        assert job.status == "queued"
+        task = repo.create_task(db_session, sequence="MVLSPADKTNVKAAWG")
+        assert task.status == "queued"
 
-        updated = repo.update_status(db_session, job.id, "running", "MODEL")
+        updated = repo.update_status(db_session, task.id, "running", "MODEL")
         assert updated.status == "running"
         assert updated.stage == "MODEL"
 
     def test_mark_complete(self, db_session: Session, default_user):
-        """Mark job as complete."""
-        repo = JobRepository()
+        """Mark task as complete."""
+        repo = TaskRepository()
 
-        job = repo.create_job(db_session, sequence="MVLSPADKTNVKAAWG")
-        completed = repo.mark_complete(db_session, job.id)
+        task = repo.create_task(db_session, sequence="MVLSPADKTNVKAAWG")
+        completed = repo.mark_complete(db_session, task.id)
 
         assert completed.status == "complete"
         assert completed.stage == "DONE"
         assert completed.completed_at is not None
 
     def test_mark_failed(self, db_session: Session, default_user):
-        """Mark job as failed."""
-        repo = JobRepository()
+        """Mark task as failed."""
+        repo = TaskRepository()
 
-        job = repo.create_job(db_session, sequence="MVLSPADKTNVKAAWG")
-        failed = repo.mark_failed(db_session, job.id)
+        task = repo.create_task(db_session, sequence="MVLSPADKTNVKAAWG")
+        failed = repo.mark_failed(db_session, task.id)
 
         assert failed.status == "failed"
         assert failed.stage == "ERROR"
@@ -291,7 +291,7 @@ class TestStructureRepository:
 
     @pytest.fixture
     def setup_data(self, db_session: Session):
-        """Create default user and job for structure tests."""
+        """Create default user and task for structure tests."""
         # Create user
         user_repo = BaseRepository(User)
         user_data = {
@@ -315,11 +315,11 @@ class TestStructureRepository:
         db_session.add(Project(**project_data))
         db_session.commit()
 
-        # Create job
-        job_repo = JobRepository()
-        job = job_repo.create_job(db_session, sequence="MVLSPADKTNVKAAWG")
+        # Create task
+        task_repo = TaskRepository()
+        task = task_repo.create_task(db_session, sequence="MVLSPADKTNVKAAWG")
 
-        return {"user_id": "user_default", "project_id": "project_default", "job_id": job.id}
+        return {"user_id": "user_default", "project_id": "project_default", "task_id": task.id}
 
     def test_create_structure(self, db_session: Session, setup_data):
         """Create structure record."""
@@ -327,7 +327,7 @@ class TestStructureRepository:
 
         structure = repo.create_structure(
             db_session,
-            job_id=setup_data["job_id"],
+            task_id=setup_data["task_id"],
             label="candidate-1",
             filename="structure.pdb",
             file_path="/path/to/structure.pdb",
@@ -335,26 +335,26 @@ class TestStructureRepository:
         )
 
         assert structure.id.startswith("str_")
-        assert structure.job_id == setup_data["job_id"]
+        assert structure.task_id == setup_data["task_id"]
         assert structure.label == "candidate-1"
         assert structure.plddt_score == 85
         assert structure.is_final is False
 
-    def test_get_by_job(self, db_session: Session, setup_data):
-        """Get structures by job."""
+    def test_get_by_task(self, db_session: Session, setup_data):
+        """Get structures by task."""
         repo = StructureRepository()
 
         # Create 3 structures
         for i in range(3):
             repo.create_structure(
                 db_session,
-                job_id=setup_data["job_id"],
+                task_id=setup_data["task_id"],
                 label=f"candidate-{i + 1}",
                 filename=f"structure{i + 1}.pdb",
                 file_path=f"/path/to/structure{i + 1}.pdb",
             )
 
-        structures = repo.get_by_job(db_session, setup_data["job_id"])
+        structures = repo.get_by_task(db_session, setup_data["task_id"])
         assert len(structures) == 3
 
     def test_mark_as_final(self, db_session: Session, setup_data):
@@ -363,7 +363,7 @@ class TestStructureRepository:
 
         structure = repo.create_structure(
             db_session,
-            job_id=setup_data["job_id"],
+            task_id=setup_data["task_id"],
             label="best",
             filename="best.pdb",
             file_path="/path/to/best.pdb",
@@ -374,14 +374,14 @@ class TestStructureRepository:
         marked = repo.mark_as_final(db_session, structure.id)
         assert marked.is_final is True
 
-    def test_get_final_by_job(self, db_session: Session, setup_data):
-        """Get final structure for job."""
+    def test_get_final_by_task(self, db_session: Session, setup_data):
+        """Get final structure for task."""
         repo = StructureRepository()
 
         # Create structures
         repo.create_structure(
             db_session,
-            job_id=setup_data["job_id"],
+            task_id=setup_data["task_id"],
             label="candidate-1",
             filename="c1.pdb",
             file_path="/path/c1.pdb",
@@ -389,7 +389,7 @@ class TestStructureRepository:
 
         final_structure = repo.create_structure(
             db_session,
-            job_id=setup_data["job_id"],
+            task_id=setup_data["task_id"],
             label="final",
             filename="final.pdb",
             file_path="/path/final.pdb",
@@ -397,7 +397,7 @@ class TestStructureRepository:
         )
 
         # Get final
-        found = repo.get_final_by_job(db_session, setup_data["job_id"])
+        found = repo.get_final_by_task(db_session, setup_data["task_id"])
         assert found is not None
         assert found.id == final_structure.id
         assert found.is_final is True
@@ -408,7 +408,7 @@ class TestStructureRepository:
 
         structure = repo.create_structure(
             db_session,
-            job_id=setup_data["job_id"],
+            task_id=setup_data["task_id"],
             label="test",
             filename="test.pdb",
             file_path="/path/test.pdb",
@@ -420,12 +420,12 @@ class TestStructureRepository:
         assert updated.plddt_score == 92
 
 
-class TestJobEventRepository:
-    """Test JobEventRepository specific methods."""
+class TestTaskEventRepository:
+    """Test TaskEventRepository specific methods."""
 
     @pytest.fixture
     def setup_data(self, db_session: Session):
-        """Create default user and job for event tests."""
+        """Create default user and task for event tests."""
         # Create user
         user_repo = BaseRepository(User)
         user_data = {
@@ -437,19 +437,19 @@ class TestJobEventRepository:
         }
         user_repo.create(db_session, user_data)
 
-        # Create job
-        job_repo = JobRepository()
-        job = job_repo.create_job(db_session, sequence="MVLSPADKTNVKAAWG")
+        # Create task
+        task_repo = TaskRepository()
+        task = task_repo.create_task(db_session, sequence="MVLSPADKTNVKAAWG")
 
-        return {"user_id": "user_default", "job_id": job.id}
+        return {"user_id": "user_default", "task_id": task.id}
 
     def test_create_event(self, db_session: Session, setup_data):
-        """Create job event record."""
-        repo = JobEventRepository()
+        """Create task event record."""
+        repo = TaskEventRepository()
 
         event = repo.create_event(
             db_session,
-            job_id=setup_data["job_id"],
+            task_id=setup_data["task_id"],
             event_type="THINKING_TEXT",
             stage="MODEL",
             status="running",
@@ -459,21 +459,21 @@ class TestJobEventRepository:
         )
 
         assert event.id.startswith("evt_")
-        assert event.job_id == setup_data["job_id"]
+        assert event.task_id == setup_data["task_id"]
         assert event.event_type == "THINKING_TEXT"
         assert event.stage == "MODEL"
         assert event.progress == 50
         assert event.block_index == 1
 
-    def test_get_by_job(self, db_session: Session, setup_data):
-        """Get events by job."""
-        repo = JobEventRepository()
+    def test_get_by_task(self, db_session: Session, setup_data):
+        """Get events by task."""
+        repo = TaskEventRepository()
 
         # Create 3 events
         for i in range(3):
             repo.create_event(
                 db_session,
-                job_id=setup_data["job_id"],
+                task_id=setup_data["task_id"],
                 event_type="THINKING_TEXT",
                 stage="MODEL",
                 status="running",
@@ -481,50 +481,50 @@ class TestJobEventRepository:
                 message=f"Step {i + 1}",
             )
 
-        events = repo.get_by_job(db_session, setup_data["job_id"])
+        events = repo.get_by_task(db_session, setup_data["task_id"])
         assert len(events) == 3
 
     def test_get_by_event_type(self, db_session: Session, setup_data):
         """Get events by type."""
-        repo = JobEventRepository()
+        repo = TaskEventRepository()
 
         # Create events of different types
         repo.create_event(
             db_session,
-            job_id=setup_data["job_id"],
+            task_id=setup_data["task_id"],
             event_type="PROLOGUE",
             stage="QUEUED",
             status="running",
         )
         repo.create_event(
             db_session,
-            job_id=setup_data["job_id"],
+            task_id=setup_data["task_id"],
             event_type="THINKING_TEXT",
             stage="MODEL",
             status="running",
         )
         repo.create_event(
             db_session,
-            job_id=setup_data["job_id"],
+            task_id=setup_data["task_id"],
             event_type="THINKING_TEXT",
             stage="MODEL",
             status="running",
         )
 
-        prologue_events = repo.get_by_event_type(db_session, setup_data["job_id"], "PROLOGUE")
+        prologue_events = repo.get_by_event_type(db_session, setup_data["task_id"], "PROLOGUE")
         assert len(prologue_events) == 1
 
-        thinking_events = repo.get_by_event_type(db_session, setup_data["job_id"], "THINKING_TEXT")
+        thinking_events = repo.get_by_event_type(db_session, setup_data["task_id"], "THINKING_TEXT")
         assert len(thinking_events) == 2
 
     def test_count_thinking_blocks(self, db_session: Session, setup_data):
         """Count unique thinking blocks."""
-        repo = JobEventRepository()
+        repo = TaskEventRepository()
 
         # Create events with block indices
         repo.create_event(
             db_session,
-            job_id=setup_data["job_id"],
+            task_id=setup_data["task_id"],
             event_type="THINKING_TEXT",
             stage="MODEL",
             status="running",
@@ -532,7 +532,7 @@ class TestJobEventRepository:
         )
         repo.create_event(
             db_session,
-            job_id=setup_data["job_id"],
+            task_id=setup_data["task_id"],
             event_type="THINKING_PDB",
             stage="MODEL",
             status="running",
@@ -540,14 +540,14 @@ class TestJobEventRepository:
         )
         repo.create_event(
             db_session,
-            job_id=setup_data["job_id"],
+            task_id=setup_data["task_id"],
             event_type="THINKING_TEXT",
             stage="MODEL",
             status="running",
             block_index=2,  # Different block
         )
 
-        count = repo.count_thinking_blocks(db_session, setup_data["job_id"])
+        count = repo.count_thinking_blocks(db_session, setup_data["task_id"])
         assert count == 2
 
 
@@ -556,7 +556,7 @@ class TestLearningRecordRepository:
 
     @pytest.fixture
     def setup_data(self, db_session: Session):
-        """Create default user, project, and job for learning record tests."""
+        """Create default user, project, and task for learning record tests."""
         # Create user
         user_repo = BaseRepository(User)
         user_data = {
@@ -580,11 +580,11 @@ class TestLearningRecordRepository:
         db_session.add(Project(**project_data))
         db_session.commit()
 
-        # Create job
-        job_repo = JobRepository()
-        job = job_repo.create_job(db_session, sequence="MVLSPADKTNVKAAWG")
+        # Create task
+        task_repo = TaskRepository()
+        task = task_repo.create_task(db_session, sequence="MVLSPADKTNVKAAWG")
 
-        return {"user_id": "user_default", "project_id": "project_default", "job_id": job.id}
+        return {"user_id": "user_default", "project_id": "project_default", "task_id": task.id}
 
     def test_create_record(self, db_session: Session, setup_data):
         """Create learning record."""
@@ -592,7 +592,7 @@ class TestLearningRecordRepository:
 
         record = repo.create_record(
             db_session,
-            job_id=setup_data["job_id"],
+            task_id=setup_data["task_id"],
             input_sequence="MVLSPADKTNVKAAWG",
             thinking_block_count=3,
             structure_count=5,
@@ -600,26 +600,26 @@ class TestLearningRecordRepository:
         )
 
         assert record.id.startswith("lrn_")
-        assert record.job_id == setup_data["job_id"]
+        assert record.task_id == setup_data["task_id"]
         assert record.input_sequence == "MVLSPADKTNVKAAWG"
         assert record.thinking_block_count == 3
         assert record.structure_count == 5
         assert record.final_plddt == 85
         assert record.exported_at is None
 
-    def test_get_by_job(self, db_session: Session, setup_data):
-        """Get learning record by job."""
+    def test_get_by_task(self, db_session: Session, setup_data):
+        """Get learning record by task."""
         repo = LearningRecordRepository()
 
         repo.create_record(
             db_session,
-            job_id=setup_data["job_id"],
+            task_id=setup_data["task_id"],
             input_sequence="MVLSPADKTNVKAAWG",
         )
 
-        found = repo.get_by_job(db_session, setup_data["job_id"])
+        found = repo.get_by_task(db_session, setup_data["task_id"])
         assert found is not None
-        assert found.job_id == setup_data["job_id"]
+        assert found.task_id == setup_data["task_id"]
 
     def test_add_user_feedback(self, db_session: Session, setup_data):
         """Add user feedback to learning record."""
@@ -627,7 +627,7 @@ class TestLearningRecordRepository:
 
         record = repo.create_record(
             db_session,
-            job_id=setup_data["job_id"],
+            task_id=setup_data["task_id"],
             input_sequence="MVLSPADKTNVKAAWG",
         )
 
@@ -644,20 +644,20 @@ class TestLearningRecordRepository:
     def test_get_unexported(self, db_session: Session, setup_data):
         """Get unexported learning records."""
         repo = LearningRecordRepository()
-        job_repo = JobRepository()
+        task_repo = TaskRepository()
 
         # Create first record (unexported)
         repo.create_record(
             db_session,
-            job_id=setup_data["job_id"],
+            task_id=setup_data["task_id"],
             input_sequence="MVLSPADKTNVKAAWG",
         )
 
-        # Create second job and record
-        job2 = job_repo.create_job(db_session, sequence="GAWKVNTKDAPSLVM")
+        # Create second task and record
+        task2 = task_repo.create_task(db_session, sequence="GAWKVNTKDAPSLVM")
         record2 = repo.create_record(
             db_session,
-            job_id=job2.id,
+            task_id=task2.id,
             input_sequence="GAWKVNTKDAPSLVM",
         )
 
@@ -666,7 +666,7 @@ class TestLearningRecordRepository:
 
         unexported = repo.get_unexported(db_session)
         assert len(unexported) == 1
-        assert unexported[0].job_id == setup_data["job_id"]
+        assert unexported[0].task_id == setup_data["task_id"]
 
     def test_mark_exported(self, db_session: Session, setup_data):
         """Mark learning records as exported."""
@@ -674,7 +674,7 @@ class TestLearningRecordRepository:
 
         record = repo.create_record(
             db_session,
-            job_id=setup_data["job_id"],
+            task_id=setup_data["task_id"],
             input_sequence="MVLSPADKTNVKAAWG",
         )
 
