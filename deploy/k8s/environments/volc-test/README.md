@@ -12,7 +12,7 @@ volc-test/
 ├── build-and-push-images.sh    # 镜像构建和推送脚本
 ├── deploy-backend.sh           # 单独部署后端脚本
 ├── deploy-web.sh               # 单独部署前端脚本
-├── ingress-nginx-values.yaml   # 独立 ingress-nginx controller 的 Helm values
+├── ingress-nginx.yaml          # 独立 ingress-nginx controller 的 Helm values
 ├── configmap.yaml              # ConfigMap 配置
 ├── secret.yaml.example         # Secret 配置模板 (需复制为 secret.yaml 并填入实际值)
 ├── backend-deployment.yaml     # 后端 Deployment 配置
@@ -146,7 +146,7 @@ kubectl logs -f -n chatfold -l app.kubernetes.io/instance=chatfold-ingress
 # 升级 controller
 helm upgrade chatfold-ingress ingress-nginx/ingress-nginx \
     --namespace chatfold \
-    --values ingress-nginx-values.yaml
+    --values ingress-nginx.yaml
 ```
 
 ## 访问地址

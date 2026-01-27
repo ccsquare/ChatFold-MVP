@@ -1,4 +1,11 @@
+fullnameOverride: chatfold-ingress-nginx
 controller:
+  # Use VKE mirror registry (registry.k8s.io is not accessible in China)
+  image:
+    registry: vke-cn-shanghai.cr.volces.com
+    image: vke/ingress-nginx-controller
+    tag: "v1.11.5"
+    digest: ""
   ingressClassName: chatfold-nginx
   ingressClassResource:
     name: chatfold-nginx
@@ -23,5 +30,12 @@ controller:
     proxy-read-timeout: "600"
     proxy-send-timeout: "600"
     proxy-buffering: "off"
+  admissionWebhooks:
+    patch:
+      image:
+        registry: vke-cn-shanghai.cr.volces.com
+        image: vke/kube-webhook-certgen
+        tag: "v1.5.2"
+        digest: ""
 defaultBackend:
   enabled: false

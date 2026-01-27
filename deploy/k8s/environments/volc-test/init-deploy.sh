@@ -140,7 +140,7 @@ deploy_ingress_controller() {
 
     helm upgrade --install chatfold-ingress ingress-nginx/ingress-nginx \
         --namespace ${NAMESPACE} \
-        --values "$DEPLOY_DIR/ingress-nginx-values.yaml" \
+        --values "$DEPLOY_DIR/ingress-nginx.yaml" \
         --wait --timeout 300s
 
     kubectl wait --for=condition=ready pod \
