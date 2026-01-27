@@ -1,6 +1,6 @@
 """Structure storage service with dual mode support.
 
-Supports two storage modes controlled by CHATFOLD_USE_MEMORY_STORE:
+Supports two storage modes controlled by USE_MEMORY_STORE:
 - Memory mode (use_memory_store=true): Stores in-memory, lost on restart
 - Filesystem mode (use_memory_store=false): Stores on disk, persistent
 

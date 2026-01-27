@@ -35,7 +35,7 @@ data:
   # NanoCC 文件系统根路径 (vePFS)
   NANOCC_FS_ROOT: "/SPXvePFS/mewtool/sessions"
   # 是否使用 Mock NanoCC (false = 使用真实 NanoCC 服务)
-  CHATFOLD_USE_MOCK_NANOCC: "false"
+  USE_MOCK_NANOCC: "false"
 
   ## =============================================================================
   ## 缓存配置 - Redis (Cache - Redis) 火山云测试环境

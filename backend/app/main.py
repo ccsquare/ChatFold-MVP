@@ -35,7 +35,7 @@ async def lifespan(app: FastAPI):
         logger.warning(
             "⚠️  CRITICAL: use_memory_store=true is NOT recommended for non-local environments! "
             "Each instance has its own memory - data will be lost across instances. "
-            "Set CHATFOLD_USE_MEMORY_STORE=false for multi-instance deployment."
+            "Set USE_MEMORY_STORE=false for multi-instance deployment."
         )
 
     # Initialize MySQL when not in memory-only mode

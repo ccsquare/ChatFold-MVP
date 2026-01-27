@@ -29,7 +29,7 @@ Usage:
 Requirements:
     - Redis server running (localhost:6379)
     - MySQL server running (for persistent mode)
-    - Environment: CHATFOLD_USE_MEMORY_STORE=true for isolated testing
+    - Environment: USE_MEMORY_STORE=true for isolated testing
 """
 
 import time

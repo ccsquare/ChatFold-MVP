@@ -63,25 +63,25 @@ services:
       - "8001:8000"
     environment:
       # Instance identification
-      CHATFOLD_INSTANCE_ID: backend-1
+      INSTANCE_ID: backend-1
 
       # Database
-      CHATFOLD_DATABASE_URL: mysql+pymysql://chatfold:chatfold123@mysql:3306/chatfold
+      DATABASE_URL: mysql+pymysql://chatfold:chatfold123@mysql:3306/chatfold
 
       # Redis (shared across instances)
-      CHATFOLD_REDIS_HOST: redis
-      CHATFOLD_REDIS_PORT: 6379
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
 
       # Mock NanoCC for testing
-      CHATFOLD_USE_MOCK_NANOCC: "true"
-      CHATFOLD_USE_NANOCC: "true"
+      USE_MOCK_NANOCC: "true"
+      USE_NANOCC: "true"
 
       # Storage mode
-      CHATFOLD_USE_MEMORY_STORE: "false"
+      USE_MEMORY_STORE: "false"
 
       # Debug
-      CHATFOLD_DEBUG: "true"
-      CHATFOLD_ENVIRONMENT: local-dev
+      DEBUG: "true"
+      ENVIRONMENT: local-dev
     depends_on:
       redis:
         condition: service_healthy
@@ -110,25 +110,25 @@ services:
       - "8002:8000"
     environment:
       # Instance identification
-      CHATFOLD_INSTANCE_ID: backend-2
+      INSTANCE_ID: backend-2
 
       # Database (same as instance 1)
-      CHATFOLD_DATABASE_URL: mysql+pymysql://chatfold:chatfold123@mysql:3306/chatfold
+      DATABASE_URL: mysql+pymysql://chatfold:chatfold123@mysql:3306/chatfold
 
       # Redis (shared across instances)
-      CHATFOLD_REDIS_HOST: redis
-      CHATFOLD_REDIS_PORT: 6379
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
 
       # Mock NanoCC for testing
-      CHATFOLD_USE_MOCK_NANOCC: "true"
-      CHATFOLD_USE_NANOCC: "true"
+      USE_MOCK_NANOCC: "true"
+      USE_NANOCC: "true"
 
       # Storage mode
-      CHATFOLD_USE_MEMORY_STORE: "false"
+      USE_MEMORY_STORE: "false"
 
       # Debug
-      CHATFOLD_DEBUG: "true"
-      CHATFOLD_ENVIRONMENT: local-dev
+      DEBUG: "true"
+      ENVIRONMENT: local-dev
     depends_on:
       redis:
         condition: service_healthy

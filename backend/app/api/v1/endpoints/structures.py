@@ -1,6 +1,6 @@
 """Structures API endpoint for PDB/CIF file serving and storage.
 
-Supports two storage modes controlled by CHATFOLD_USE_MEMORY_STORE:
+Supports two storage modes controlled by USE_MEMORY_STORE:
 - Memory mode: Stores in-memory cache (default for backward compatibility)
 - Filesystem mode: Stores on disk with memory cache
 """

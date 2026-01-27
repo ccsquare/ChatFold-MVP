@@ -11,8 +11,8 @@ import fakeredis
 import pytest
 
 # Test configuration
-REDIS_HOST = os.getenv("CHATFOLD_REDIS_HOST", "127.0.0.1")
-REDIS_PORT = int(os.getenv("CHATFOLD_REDIS_PORT", "6379"))
+REDIS_HOST = os.getenv("REDIS_HOST", "127.0.0.1")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 API_BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
 
 

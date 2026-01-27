@@ -423,8 +423,8 @@ class SessionStore:
         if self._tos_client is None:
             if not settings.is_tos_configured():
                 raise RuntimeError(
-                    "TOS is not configured. Please set CHATFOLD_TOS_BUCKET_NAME, "
-                    "CHATFOLD_TOS_ACCESS_KEY, and CHATFOLD_TOS_SECRET_KEY environment variables."
+                    "TOS is not configured. Please set TOS_BUCKET_NAME, "
+                    "TOS_ACCESS_KEY, and TOS_SECRET_KEY environment variables."
                 )
 
             self._tos_client = TOSClient(

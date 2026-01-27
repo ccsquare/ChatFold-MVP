@@ -189,7 +189,6 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE),
         env_file_encoding="utf-8",
-        env_prefix="CHATFOLD_",
         case_sensitive=False,
         extra="ignore",
     )
