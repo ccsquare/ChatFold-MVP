@@ -218,6 +218,7 @@ export interface AppState {
   // Running task
   activeTask: Task | null;
   isStreaming: boolean;
+  streamError: string | null;  // Non-null when SSE connection lost unexpectedly (e.g. 'timeout')
 
   // Thumbnails cache
   thumbnails: Record<string, string>;
@@ -259,6 +260,7 @@ export interface AppState {
   setConsoleWidth: (width: number) => void;
   setConsoleCollapsed: (collapsed: boolean) => void;
   setIsStreaming: (streaming: boolean) => void;
+  setStreamError: (error: string | null) => void;
 
   setActiveTask: (task: Task | null) => void;
   addStepEvent: (taskId: string, event: StepEvent) => void;

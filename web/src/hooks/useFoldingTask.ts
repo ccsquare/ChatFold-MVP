@@ -17,6 +17,8 @@ export function useFoldingTask() {
     isStreaming,
     createFolder,
     addFolderInput,
+    setIsStreaming,
+    setStreamError,
   } = useAppStore();
 
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -66,9 +68,17 @@ export function useFoldingTask() {
       eventSource.onerror = () => {
         eventSource.close();
         eventSourceRef.current = null;
+
+        // Check if the task completed normally before the connection dropped.
+        // If still running, this is an unexpected disconnect (e.g. nginx timeout).
+        const { activeTask: currentTask } = useAppStore.getState();
+        if (currentTask && currentTask.status === 'running') {
+          setStreamError('timeout');
+          setIsStreaming(false);
+        }
       };
     },
-    [addStepEvent]
+    [addStepEvent, setIsStreaming, setStreamError]
   );
 
   /**

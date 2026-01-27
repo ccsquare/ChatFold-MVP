@@ -50,10 +50,11 @@ export interface AppConfig {
 function getEnvVar(key: string, defaultValue: string): string {
   if (typeof window !== 'undefined') {
     // Client-side: only NEXT_PUBLIC_ variables are available
-    return (window as any).__NEXT_PUBLIC_ENV__?.[key] || process.env[key] || defaultValue;
+    // Use ?? to preserve empty string as intentional value (e.g. relative path)
+    return (window as any).__NEXT_PUBLIC_ENV__?.[key] ?? process.env[key] ?? defaultValue;
   }
   // Server-side: all variables available
-  return process.env[key] || defaultValue;
+  return process.env[key] ?? defaultValue;
 }
 
 /**
@@ -97,15 +98,12 @@ function buildConfig(): AppConfig {
     `http://localhost:${frontendPort}`
   );
 
-  const backendUrl = getEnvVar(
-    'NEXT_PUBLIC_BACKEND_URL',
-    `http://localhost:${backendPort}`
-  );
+  // NEXT_PUBLIC_* must use direct property access (process.env.NEXT_PUBLIC_XXX)
+  // because Next.js only inlines statically-analyzed property names at build time.
+  // Dynamic bracket access like process.env[key] returns undefined in the browser.
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? `http://localhost:${backendPort}`;
 
-  const backendApiUrl = getEnvVar(
-    'NEXT_PUBLIC_API_URL',
-    `${backendUrl}/api/v1`
-  );
+  const backendApiUrl = process.env.NEXT_PUBLIC_API_URL ?? `${backendUrl}/api/v1`;
 
   return {
     environment,
@@ -189,11 +187,12 @@ export function validateConfig(): void {
     );
   }
 
-  // URL validation
+  // URL validation (skip relative paths — they mean access via ingress)
+  const isAbsoluteUrl = (url: string) => url.startsWith('http://') || url.startsWith('https://');
   try {
-    new URL(config.frontend.url);
-    new URL(config.backend.url);
-    new URL(config.backend.apiUrl);
+    if (isAbsoluteUrl(config.frontend.url)) new URL(config.frontend.url);
+    if (isAbsoluteUrl(config.backend.url)) new URL(config.backend.url);
+    if (isAbsoluteUrl(config.backend.apiUrl)) new URL(config.backend.apiUrl);
   } catch (error) {
     throw new Error(`Invalid URL configuration: ${error}`);
   }

@@ -50,6 +50,11 @@ from app.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
+# SSE keepalive: when yielded by event generators, tasks.py emits an SSE comment line.
+# SSE comment lines (starting with `:`) are ignored by EventSource but keep the
+# connection alive through nginx/CDN idle timeouts.
+SSE_HEARTBEAT_COMMENT = ":heartbeat\n\n"
+
 # Configuration
 USE_MOCK_NANOCC = os.getenv("USE_MOCK_NANOCC", "true").lower() in ("true", "1", "yes")
 MOCK_DELAY_MIN = float(os.getenv("MOCK_NANOCC_DELAY_MIN", "1.0"))
@@ -166,7 +171,7 @@ async def generate_real_cot_events(
     job_id: str,
     sequence: str,
     files: list[str] | None = None,
-) -> AsyncGenerator[JobEvent, None]:
+) -> AsyncGenerator[JobEvent | str, None]:
     """Generate folding job events from real NanoCC API.
 
     This function:
@@ -348,8 +353,7 @@ async def generate_real_cot_events(
                         # File read failed - emit as text but still close block
                         nanocc_event_type = _fallback_text_type(nanocc_event_type)
                         logger.warning(
-                            f"PDB file read failed for job {job_id}, "
-                            f"pdb_path={pdb_path}, falling back to text event"
+                            f"PDB file read failed for job {job_id}, pdb_path={pdb_path}, falling back to text event"
                         )
 
                     # Always close block when pdb_file was set (NanoCC intended a structure here)
@@ -374,6 +378,9 @@ async def generate_real_cot_events(
                     blockIndex=current_block_index,
                     artifacts=artifacts,
                 )
+
+            elif event_type == "heartbeat":
+                yield SSE_HEARTBEAT_COMMENT
 
             elif event_type == "error":
                 logger.warning(f"NanoCC SSE error for job {job_id}: {data}")
@@ -418,7 +425,7 @@ async def generate_mock_cot_events(
     files: list[str] | None = None,
     delay_min: float = MOCK_DELAY_MIN,
     delay_max: float = MOCK_DELAY_MAX,
-) -> AsyncGenerator[JobEvent, None]:
+) -> AsyncGenerator[JobEvent | str, None]:
     """Generate folding job events from Mock NanoCC.
 
     This function follows the same flow as generate_real_cot_events but uses
@@ -572,8 +579,7 @@ async def generate_mock_cot_events(
                     # File read failed - emit as text but still close block
                     nanocc_event_type = _fallback_text_type(nanocc_event_type)
                     logger.warning(
-                        f"Mock PDB file read failed for job {job_id}, "
-                        f"pdb_path={pdb_path}, falling back to text event"
+                        f"Mock PDB file read failed for job {job_id}, pdb_path={pdb_path}, falling back to text event"
                     )
 
                 # Always close block when pdb_file was set (NanoCC intended a structure here)
@@ -599,6 +605,9 @@ async def generate_mock_cot_events(
                 artifacts=artifacts,
             )
 
+        elif event_type == "heartbeat":
+            yield SSE_HEARTBEAT_COMMENT
+
         elif event_type == "error":
             logger.warning(f"Mock NanoCC SSE error for job {job_id}: {data}")
 
@@ -614,7 +623,7 @@ async def generate_cot_events(
     job_id: str,
     sequence: str,
     files: list[str] | None = None,
-) -> AsyncGenerator[JobEvent, None]:
+) -> AsyncGenerator[JobEvent | str, None]:
     """Generate folding job events with NanoCC/Mock integration.
 
     This is the main entry point that routes to either:

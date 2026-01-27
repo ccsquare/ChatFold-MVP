@@ -152,8 +152,12 @@ data: {"eventId":"evt_001","eventType":"PROLOGUE","stage":"MODEL","progress":10,
 event: step
 data: {"eventId":"evt_002","eventType":"THINKING_TEXT","stage":"MODEL","progress":25,"message":"分析序列组成...", "blockIndex":0}
 
+: heartbeat 2026-01-27T12:40:32Z
+
 event: step
 data: {"eventId":"evt_003","eventType":"THINKING_PDB","stage":"MODEL","progress":40,"message":"快速折叠完成","blockIndex":0,"artifacts":[...]}
+
+: heartbeat 2026-01-27T12:41:02Z
 
 event: step
 data: {"eventId":"evt_010","eventType":"CONCLUSION","stage":"DONE","progress":100,"message":"综合考虑后，我决定接受当前预测结果"}
@@ -161,6 +165,45 @@ data: {"eventId":"evt_010","eventType":"CONCLUSION","stage":"DONE","progress":10
 event: done
 data: {"jobId":"job_xxx"}
 ```
+
+### 4.4 SSE 连接保活与超时处理
+
+**背景**: 一个折叠任务通常耗时 1 小时级别。NanoCC 在执行长时间 Skill（如 structure-prediction GPU 推理）期间，只产生 `tool_use`/`tool_result` 等内部事件，不产生 `cot_step`。后端当前仅转发 `cot_step` 事件，导致浏览器 SSE 连接可能长时间无数据，被 nginx ingress 的 `proxy-read-timeout`（当前 600s）切断。
+
+#### 4.4.1 后端: Heartbeat 转发 (TODO)
+
+NanoCC 每 30 秒发送一次 `heartbeat` 事件。后端应将其转发为 SSE comment，保持浏览器连接存活：
+
+```
+NanoCC heartbeat (每30s)
+    ↓
+后端 folding.py: 转发为 SSE comment
+    ↓
+: heartbeat 2026-01-27T12:40:32Z    ← SSE comment（冒号开头，EventSource 不触发事件回调）
+    ↓
+浏览器 EventSource: 连接保持存活
+```
+
+**实现要点**:
+- 在 `folding.py` 的 NanoCC 事件循环中，遇到 `event_type == "heartbeat"` 时，不再仅 debug log，而是 yield 一个 SSE comment
+- 在 `tasks.py` 的 SSE generator 中，区分 comment 和 step event 的格式化
+- SSE comment 格式: `: heartbeat {timestamp}\n\n`（冒号开头，浏览器 EventSource 自动忽略，但保持连接活跃）
+
+#### 4.4.2 前端: SSE 超时检测 (TODO)
+
+即使有 heartbeat 保活，仍需处理异常断连场景（网络故障、服务重启等）。前端应检测 SSE 连接中断并给用户明确反馈，而非让状态图标持续闪烁暗示任务仍在运行。
+
+**问题现象**: SSE 连接被断开后，`BlockBubble` 的 status icon 仍在闪烁（`isThinking=true`），用户以为任务在继续，实际已中断。
+
+**期望行为**:
+- 前端维护一个 heartbeat 超时定时器（建议 90s，即 3 次 heartbeat 间隔）
+- 每次收到任何 SSE 数据（step event 或 comment）时重置定时器
+- 超时触发时：
+  1. 关闭 EventSource 连接
+  2. 更新 `activeTask.status = 'failed'`
+  3. 停止 status icon 闪烁
+  4. 显示错误提示："任务连接超时，请重试"
+- `EventSource.onerror` 也应触发相同的超时/断连处理逻辑
 
 ---
 
@@ -404,4 +447,4 @@ interface JobState {
 
 ---
 
-**更新日期**: 2026-01-06
+**更新日期**: 2026-01-27

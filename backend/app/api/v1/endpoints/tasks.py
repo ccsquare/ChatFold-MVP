@@ -264,14 +264,10 @@ async def cancel_task(task_id: str):
             )
             await client.interrupt_session(nanocc_session["session_id"])
             nanocc_interrupted = True
-            logger.info(
-                f"Interrupted NanoCC session {nanocc_session['session_id']} for task {task_id}"
-            )
+            logger.info(f"Interrupted NanoCC session {nanocc_session['session_id']} for task {task_id}")
         except Exception as e:
             # Log but don't fail - the task may have already finished
-            logger.warning(
-                f"Failed to interrupt NanoCC session for task {task_id}: {e}"
-            )
+            logger.warning(f"Failed to interrupt NanoCC session for task {task_id}: {e}")
 
     # Mark as canceled in Redis (visible to all instances)
     success = task_state_service.mark_canceled(task_id)
@@ -347,7 +343,14 @@ async def stream_task(
 
         if enable_nanocc:
             # Use NanoCC-powered async generator
-            async for event in generate_cot_events(task_id, final_sequence, files=file_list):
+            async for item in generate_cot_events(task_id, final_sequence, files=file_list):
+                # Heartbeat keepalive: raw SSE comment line, skip all processing
+                if isinstance(item, str):
+                    yield item
+                    continue
+
+                event = item
+
                 # Check if task was canceled before each event (Redis + memory)
                 if _is_task_canceled(task_id):
                     task_state_service.mark_canceled(task_id, "Task canceled by user")

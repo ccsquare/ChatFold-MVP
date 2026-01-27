@@ -142,6 +142,7 @@ export const useAppStore = create<AppState>()(
 
   activeTask: null,
   isStreaming: false,
+  streamError: null,
   thumbnails: {},
   isMolstarExpanded: false,
   compareSelection: null,
@@ -553,12 +554,17 @@ export const useAppStore = create<AppState>()(
     set({ isStreaming: streaming });
   },
 
+  setStreamError: (error: string | null) => {
+    set({ streamError: error });
+  },
+
   // Task actions
   setActiveTask: (task) => {
     const isRunning = task?.status === 'running';
     set({
       activeTask: task,
       isStreaming: isRunning,
+      streamError: isRunning ? null : get().streamError,  // Clear error when starting new task
       // Don't auto-switch layout mode - let user stay in their current mode
       // This prevents EventSource from being closed when ChatView unmounts
       consoleCollapsed: isRunning ? false : get().consoleCollapsed
