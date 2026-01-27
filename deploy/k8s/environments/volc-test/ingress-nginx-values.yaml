@@ -1,0 +1,27 @@
+controller:
+  ingressClassName: chatfold-nginx
+  ingressClassResource:
+    name: chatfold-nginx
+    enabled: true
+    default: false
+    controllerValue: "k8s.io/chatfold-ingress-nginx"
+  scope:
+    enabled: true
+    namespace: chatfold
+  electionID: chatfold-ingress-leader
+  replicaCount: 1
+  service:
+    type: LoadBalancer
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  config:
+    proxy-read-timeout: "600"
+    proxy-send-timeout: "600"
+    proxy-buffering: "off"
+defaultBackend:
+  enabled: false

@@ -126,6 +126,30 @@ deploy_namespace() {
     info "✓ Namespace ${NAMESPACE} 已创建"
 }
 
+# 安装独立 ingress-nginx controller
+deploy_ingress_controller() {
+    step "安装独立 ingress-nginx controller"
+
+    if ! command -v helm &>/dev/null; then
+        error "helm 未安装，请先安装 helm"
+        exit 1
+    fi
+
+    helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx 2>/dev/null || true
+    helm repo update
+
+    helm upgrade --install chatfold-ingress ingress-nginx/ingress-nginx \
+        --namespace ${NAMESPACE} \
+        --values "$DEPLOY_DIR/ingress-nginx-values.yaml" \
+        --wait --timeout 300s
+
+    kubectl wait --for=condition=ready pod \
+        -l app.kubernetes.io/name=ingress-nginx,app.kubernetes.io/instance=chatfold-ingress \
+        -n ${NAMESPACE} --timeout=120s
+
+    info "✓ 独立 ingress-nginx controller 已部署"
+}
+
 # 部署 ConfigMap
 deploy_configmap() {
     step "部署 ConfigMap"
@@ -210,8 +234,10 @@ show_status() {
     echo "Ingress:"
     kubectl get ingress -n ${NAMESPACE}
 
-    # 获取 Ingress IP
-    INGRESS_IP=$(kubectl get ingress -n ${NAMESPACE} -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
+    # 从独立 controller 的 LoadBalancer Service 获取 IP
+    INGRESS_IP=$(kubectl get svc -n ${NAMESPACE} \
+        -l app.kubernetes.io/instance=chatfold-ingress \
+        -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
 
     echo ""
     info "=== 访问地址 ==="
@@ -250,6 +276,7 @@ main() {
     check_secret_file
 
     deploy_namespace
+    deploy_ingress_controller
     deploy_configmap
     deploy_secret
     deploy_backend

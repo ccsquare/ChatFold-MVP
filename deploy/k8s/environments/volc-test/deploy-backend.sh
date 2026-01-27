@@ -188,7 +188,11 @@ show_status() {
     echo "============================================================"
     info "Deployment complete!"
     echo ""
-    echo "Health check: curl http://14.103.213.146/chatfold/api/v1/health"
+    # Get Ingress IP from independent controller's LoadBalancer Service
+    INGRESS_IP=$(kubectl get svc -n ${NAMESPACE} \
+        -l app.kubernetes.io/instance=chatfold-ingress \
+        -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "<INGRESS_IP>")
+    echo "Health check: curl http://${INGRESS_IP}/api/v1/health"
     echo ""
     echo "To check logs:"
     echo "  kubectl logs -f deployment/chatfold-backend -n $NAMESPACE"

@@ -39,14 +39,14 @@ COPY . .
 # ============================================
 #
 # NEXT_PUBLIC_BASE_PATH: Sub-path for deployment
-# - Set to '/chatfold' for http://ip/chatfold access
 # - Empty string for root path access (http://ip/)
+# - Set to '/chatfold' if deploying under shared Ingress
 #
 # NEXT_PUBLIC_BACKEND_URL: Backend API URL for SSE streaming
 # - Set to empty string for relative path access via Ingress
 # - Browser will use current origin + /api/v1/* paths
 #
-ENV NEXT_PUBLIC_BASE_PATH="/chatfold"
+ENV NEXT_PUBLIC_BASE_PATH=""
 ENV NEXT_PUBLIC_BACKEND_URL=""
 
 # Build the application
@@ -124,9 +124,9 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Health check (use /chatfold path for sub-path deployment)
+# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:3000/chatfold', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+    CMD node -e "require('http').get('http://localhost:3000/', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
 # Start command
 CMD ["npm", "start"]

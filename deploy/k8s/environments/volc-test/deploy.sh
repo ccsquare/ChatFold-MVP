@@ -260,16 +260,18 @@ show_status() {
     echo "Pods:"
     kubectl get pods -n "$NAMESPACE"
 
-    # 获取 Ingress IP
-    INGRESS_IP=$(kubectl get ingress -n ${NAMESPACE} -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
+    # 从独立 controller 的 LoadBalancer Service 获取 IP
+    INGRESS_IP=$(kubectl get svc -n ${NAMESPACE} \
+        -l app.kubernetes.io/instance=chatfold-ingress \
+        -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
 
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     info "部署完成！"
     echo ""
     if [ -n "$INGRESS_IP" ]; then
-        echo "访问地址: http://${INGRESS_IP}/chatfold"
-        echo "API 健康检查: http://${INGRESS_IP}/chatfold/api/v1/health"
+        echo "访问地址: http://${INGRESS_IP}/"
+        echo "API 健康检查: http://${INGRESS_IP}/api/v1/health"
     fi
 }
 

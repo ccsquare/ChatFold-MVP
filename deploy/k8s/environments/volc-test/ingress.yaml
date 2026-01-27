@@ -1,33 +1,3 @@
----
-# Ingress for /api/v1/* (no rewrite needed)
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: chatfold-ingress-api
-  namespace: chatfold
-  labels:
-    app: chatfold
-    environment: test
-  annotations:
-    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
-    nginx.ingress.kubernetes.io/proxy-buffering: "off"
-spec:
-  ingressClassName: nginx
-  rules:
-  - http:
-      paths:
-      # Backend API (direct): /api/v1/* -> chatfold-backend:8000/api/v1/*
-      - path: /api/v1
-        pathType: Prefix
-        backend:
-          service:
-            name: chatfold-backend
-            port:
-              number: 8000
----
-# Ingress for /chatfold/* (with rewrite)
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -40,25 +10,23 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-body-size: "50m"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
-    # Rewrite: strip /chatfold prefix before forwarding
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
     nginx.ingress.kubernetes.io/proxy-buffering: "off"
 spec:
-  ingressClassName: nginx
+  ingressClassName: chatfold-nginx
   rules:
   - http:
       paths:
-      # Backend API: /chatfold/api/* -> chatfold-backend:8000/api/*
-      - path: /chatfold(/)(api/.*)
-        pathType: ImplementationSpecific
+      # Backend API: /api/v1/* -> chatfold-backend:8000/api/v1/*
+      - path: /api/v1
+        pathType: Prefix
         backend:
           service:
             name: chatfold-backend
             port:
               number: 8000
-      # Frontend: /chatfold/* -> chatfold-web:3000/*
-      - path: /chatfold(/|$)(.*)
-        pathType: ImplementationSpecific
+      # Frontend: /* -> chatfold-web:3000/*
+      - path: /
+        pathType: Prefix
         backend:
           service:
             name: chatfold-web

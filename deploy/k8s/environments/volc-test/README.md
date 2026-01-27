@@ -7,18 +7,19 @@
 ```
 volc-test/
 ├── README.md                   # 本文档
-├── init-deploy.sh              # 首次部署脚本 (创建 namespace、secret、configmap 等)
+├── init-deploy.sh              # 首次部署脚本 (创建 namespace、controller、secret、configmap 等)
 ├── deploy.sh                   # 统一部署脚本 (构建、推送、部署)
 ├── build-and-push-images.sh    # 镜像构建和推送脚本
 ├── deploy-backend.sh           # 单独部署后端脚本
 ├── deploy-web.sh               # 单独部署前端脚本
+├── ingress-nginx-values.yaml   # 独立 ingress-nginx controller 的 Helm values
 ├── configmap.yaml              # ConfigMap 配置
 ├── secret.yaml.example         # Secret 配置模板 (需复制为 secret.yaml 并填入实际值)
 ├── backend-deployment.yaml     # 后端 Deployment 配置
 ├── backend-service.yaml        # 后端 Service 配置
 ├── web-deployment.yaml         # 前端 Deployment 配置
 ├── web-service.yaml            # 前端 Service 配置
-└── ingress.yaml                # Ingress 配置
+└── ingress.yaml                # Ingress 配置 (使用独立 IngressClass: chatfold-nginx)
 ```
 
 ## 快速开始
@@ -27,7 +28,8 @@ volc-test/
 
 1. **kubectl**: 已配置连接到火山云 Kubernetes 集群
 2. **Docker**: 已安装并运行，已登录到火山云镜像仓库
-3. **镜像仓库访问权限**: `spx-cn-shanghai.cr.volces.com/chatfold`
+3. **helm**: 已安装（用于部署独立 ingress-nginx controller）
+4. **镜像仓库访问权限**: `spx-cn-shanghai.cr.volces.com/chatfold`
 
 ### 首次部署
 
@@ -63,6 +65,7 @@ chmod +x init-deploy.sh
 
 首次部署脚本，执行以下操作:
 - 创建 namespace `chatfold`
+- 通过 Helm 安装独立 ingress-nginx controller（IngressClass: `chatfold-nginx`）
 - 应用 ConfigMap 配置
 - 应用 Secret 配置
 - 部署后端和前端 Deployment/Service
@@ -132,17 +135,29 @@ kubectl get ingress -n chatfold
 # 重启部署
 kubectl rollout restart deployment/chatfold-backend -n chatfold
 kubectl rollout restart deployment/chatfold-web -n chatfold
+
+# 查看独立 ingress-nginx controller 状态
+kubectl get pods -n chatfold -l app.kubernetes.io/instance=chatfold-ingress
+kubectl get svc -n chatfold -l app.kubernetes.io/instance=chatfold-ingress
+
+# 查看 controller 日志
+kubectl logs -f -n chatfold -l app.kubernetes.io/instance=chatfold-ingress
+
+# 升级 controller
+helm upgrade chatfold-ingress ingress-nginx/ingress-nginx \
+    --namespace chatfold \
+    --values ingress-nginx-values.yaml
 ```
 
 ## 访问地址
 
-部署完成后，通过 Ingress 访问:
-- Web 应用: `http://<INGRESS_IP>/chatfold`
-- API 健康检查: `http://<INGRESS_IP>/chatfold/api/v1/health`
+部署完成后，通过独立 ingress-nginx controller 的公网 IP 访问:
+- Web 应用: `http://<INGRESS_IP>/`
+- API 健康检查: `http://<INGRESS_IP>/api/v1/health`
 
-获取 Ingress IP:
+获取 Ingress IP（从独立 controller 的 LoadBalancer Service）:
 ```bash
-kubectl get ingress -n chatfold -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}'
+kubectl get svc -n chatfold -l app.kubernetes.io/instance=chatfold-ingress -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}'
 ```
 
 ## 故障排除

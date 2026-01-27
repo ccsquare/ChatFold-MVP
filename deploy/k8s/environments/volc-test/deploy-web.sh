@@ -239,8 +239,10 @@ show_status() {
     echo "Ingress:"
     kubectl get ingress -n "$NAMESPACE"
 
-    # Get Ingress IP
-    INGRESS_IP=$(kubectl get ingress chatfold-ingress -n "$NAMESPACE" -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
+    # Get Ingress IP from independent controller's LoadBalancer Service
+    INGRESS_IP=$(kubectl get svc -n "$NAMESPACE" \
+        -l app.kubernetes.io/instance=chatfold-ingress \
+        -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
 
     echo ""
     echo "============================================================"
@@ -248,7 +250,7 @@ show_status() {
     echo ""
 
     if [ -n "$INGRESS_IP" ]; then
-        echo "Access URL: http://${INGRESS_IP}/chatfold"
+        echo "Access URL: http://${INGRESS_IP}/"
     else
         echo "Ingress IP not yet assigned. Check later with:"
         echo "  kubectl get ingress -n $NAMESPACE"
@@ -260,7 +262,7 @@ show_status() {
     echo ""
     echo "To port-forward for local testing:"
     echo "  kubectl port-forward svc/chatfold-web 3000:3000 -n $NAMESPACE"
-    echo "  Then access: http://localhost:3000/chatfold"
+    echo "  Then access: http://localhost:3000/"
 }
 
 # Main
