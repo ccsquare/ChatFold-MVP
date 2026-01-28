@@ -5,6 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db.models import User
@@ -180,6 +181,8 @@ async def register(body: UserRegister, db: Session = Depends(get_db)):
     user_id = generate_id("user")
 
     # Create user in MySQL
+    # Use try-except to handle race condition where another request
+    # might have created the same user between our check and insert
     user = User(
         id=user_id,
         name=body.username,
@@ -190,9 +193,29 @@ async def register(body: UserRegister, db: Session = Depends(get_db)):
         onboarding_completed=False,
         created_at=now,
     )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    try:
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    except IntegrityError as e:
+        db.rollback()
+        # Check which constraint was violated
+        error_msg = str(e.orig).lower() if e.orig else ""
+        if "email" in error_msg or "users.email" in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered",
+            ) from e
+        if "username" in error_msg or "users.username" in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username already taken",
+            ) from e
+        # Unknown constraint violation
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Registration failed due to duplicate data",
+        ) from e
 
     # Write to Redis cache for faster subsequent access
     cache = get_redis_cache()
