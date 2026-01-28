@@ -82,6 +82,48 @@ async def get_current_user(
     return user
 
 
+# Optional security for endpoints that can work with or without auth
+optional_security = HTTPBearer(auto_error=False)
+
+
+async def get_current_user_optional(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(optional_security)],
+    db: Session = Depends(get_db),
+) -> User | None:
+    """Get current user if authenticated, None otherwise.
+
+    Use this for endpoints that work both authenticated and unauthenticated.
+    """
+    if not credentials:
+        return None
+
+    token = credentials.credentials
+    user_id = verify_token(token)
+    if not user_id:
+        return None
+
+    return get_user_from_cache(db, user_id)
+
+
+async def get_current_user_from_token_param(
+    token: str | None = None,
+    db: Session = Depends(get_db),
+) -> User | None:
+    """Get current user from token query parameter.
+
+    Use this for SSE endpoints where EventSource can't send headers.
+    The token is passed as a query parameter instead.
+    """
+    if not token:
+        return None
+
+    user_id = verify_token(token)
+    if not user_id:
+        return None
+
+    return get_user_from_cache(db, user_id)
+
+
 @router.post("/send-verification-code", response_model=SendCodeResponse)
 async def send_code(request: Request, body: SendCodeRequest):
     """Send verification code to email."""

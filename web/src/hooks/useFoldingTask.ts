@@ -4,6 +4,7 @@ import { useCallback, useRef, useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
 import { StepEvent, Task } from '@/lib/types';
 import { getBackendUrl } from '@/config';
+import { api, getAuthenticatedUrl } from '@/lib/api/client';
 
 /**
  * Shared hook for managing protein folding tasks with SSE streaming.
@@ -45,13 +46,13 @@ export function useFoldingTask() {
       }
 
       // Connect directly to Python backend for SSE (bypasses Next.js proxy buffering)
-      const params = new URLSearchParams({ sequence });
+      // Use getAuthenticatedUrl to include token for SSE authentication
+      const params: Record<string, string> = { sequence };
       if (query) {
-        params.set('query', query);
+        params.query = query;
       }
-      const eventSource = new EventSource(
-        `${getBackendUrl()}/api/v1/tasks/${taskId}/stream?${params.toString()}`
-      );
+      const sseUrl = getAuthenticatedUrl(`/api/v1/tasks/${taskId}/stream`, params);
+      const eventSource = new EventSource(sseUrl);
       eventSourceRef.current = eventSource;
 
       eventSource.addEventListener('step', (event) => {
@@ -119,24 +120,11 @@ export function useFoldingTask() {
           });
         }
 
-        // Create task via API
-        const response = await fetch('/api/v1/tasks', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            conversationId,
-            sequence,
-          }),
+        // Create task via API with auth token
+        const { task } = await api.post<{ task: Task }>('/tasks', {
+          conversationId,
+          sequence,
         });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(
-            errorData.details?.join(', ') || errorData.error || 'Failed to create task'
-          );
-        }
-
-        const { task } = await response.json();
 
         // Set active task and start streaming
         setActiveTask({ ...task, status: 'running' });
@@ -176,13 +164,11 @@ export function useFoldingTask() {
       eventSourceRef.current.close();
       eventSourceRef.current = null;
 
-      // 2. Call backend cancel API
-      const response = await fetch(`${getBackendUrl()}/api/v1/tasks/${currentTask.id}/cancel`, {
-        method: 'POST',
-      });
-
-      if (!response.ok) {
-        console.error('Failed to cancel task on backend');
+      // 2. Call backend cancel API with auth token
+      try {
+        await api.post(`/tasks/${currentTask.id}/cancel`);
+      } catch (error) {
+        console.error('Failed to cancel task on backend:', error);
       }
 
       // 3. Update local state regardless of backend response

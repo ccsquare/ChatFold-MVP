@@ -23,8 +23,11 @@ import os
 import random
 import re
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
+
+from app.api.v1.endpoints.auth import get_current_user, get_current_user_from_token_param
+from app.db.models import User
 
 from app.components.nanocc import (
     CreateJobRequest,
@@ -131,8 +134,13 @@ def _update_task_status_mysql(task_id: str, status: str, stage: str | None = Non
 
 
 @router.post("")
-async def create_task(request: CreateJobRequest):
+async def create_task(
+    request: CreateJobRequest,
+    current_user: User = Depends(get_current_user),
+):
     """Create a new protein folding task.
+
+    Requires authentication.
 
     Storage order (MySQL-first for consistency):
     1. MySQL (source of truth) - fails fast if DB is unavailable
@@ -190,8 +198,11 @@ async def create_task(request: CreateJobRequest):
 
 
 @router.get("")
-async def list_tasks(taskId: str | None = Query(None)):
-    """List tasks or get a specific task by ID."""
+async def list_tasks(
+    taskId: str | None = Query(None),
+    current_user: User = Depends(get_current_user),
+):
+    """List tasks or get a specific task by ID. Requires authentication."""
     logger.info(f"GET /tasks: taskId={taskId}")
     if taskId:
         task = storage.get_task(taskId)
@@ -204,8 +215,12 @@ async def list_tasks(taskId: str | None = Query(None)):
 
 
 @router.post("/{task_id}/stream")
-async def register_sequence(task_id: str, request: RegisterSequenceRequest):
-    """Pre-register a sequence for streaming."""
+async def register_sequence(
+    task_id: str,
+    request: RegisterSequenceRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """Pre-register a sequence for streaming. Requires authentication."""
     logger.info(f"POST /tasks/{task_id}/stream: sequence_len={len(request.sequence)}")
     if not TASK_ID_PATTERN.match(task_id):
         raise HTTPException(status_code=400, detail="Invalid task ID")
@@ -225,8 +240,11 @@ async def register_sequence(task_id: str, request: RegisterSequenceRequest):
 
 
 @router.post("/{task_id}/cancel")
-async def cancel_task(task_id: str):
-    """Cancel a running task.
+async def cancel_task(
+    task_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """Cancel a running task. Requires authentication.
 
     This endpoint:
     1. Sends interrupt signal to NanoCC if session is active
@@ -293,8 +311,11 @@ async def stream_task(
     query: str | None = Query(None, description="User's natural language instruction"),
     files: str | None = Query(None, description="Comma-separated list of filenames in TOS upload directory"),
     use_nanocc: bool | None = Query(None, alias="nanocc"),
+    current_user: User | None = Depends(get_current_user_from_token_param),
 ):
     """Stream task progress events via Server-Sent Events (SSE).
+
+    Authentication via query parameter 'token' (since EventSource can't send headers).
 
     Args:
         task_id: The task identifier
