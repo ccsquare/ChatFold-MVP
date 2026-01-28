@@ -4,7 +4,7 @@ import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react'
 import { TimelineItem, TimelineByEventType, ThinkingBlock } from '@/hooks/useConversationTimeline';
 import { Structure, ChatMessage } from '@/lib/types';
 import { cn, formatTimestamp } from '@/lib/utils';
-import { Link2, Link2Off, RotateCcw, ChevronDown, CheckCircle2, Sparkle, Sparkles, FileText, Copy, Check, AlertCircle } from 'lucide-react';
+import { Link2, Link2Off, RotateCcw, ChevronDown, CheckCircle2, Sparkle, Sparkles, FileText, Copy, Check } from 'lucide-react';
 import { HelixIcon } from '@/components/icons/ProteinIcon';
 import { BlockStructureCard } from '@/components/BlockStructureCard';
 import { resetSyncGroupCamera } from '@/hooks/useCameraSync';
@@ -180,19 +180,16 @@ export function TimelineRenderer({
                   timestamp={allStructures[allStructures.length - 1].timestamp}
                 />
               )}
-              {/* Show timeout error after artifact group when SSE connection lost */}
-              {!isStreaming && streamError && (
-                <TimeoutErrorBubble isCompact={isCompact} />
-              )}
             </React.Fragment>
           );
         }
         return null;
       })}
 
-      {/* Streaming: render FoldingProgress with empty artifacts before first artifact-group exists.
-          Once artifact-group exists, groups.map renders FoldingProgress with real artifacts. */}
-      {isStreaming && (() => {
+      {/* Streaming or error: render FoldingProgress with empty artifacts before first artifact-group exists.
+          Once artifact-group exists, groups.map renders FoldingProgress with real artifacts.
+          For timeout errors without artifacts, show Timeline with "Thinking......." header */}
+      {(isStreaming || streamError) && (() => {
         const hasArtifactGroup = groups.some(g => g.type === 'artifact-group');
         if (hasArtifactGroup) return null;
         return (
@@ -201,17 +198,13 @@ export function TimelineRenderer({
             artifacts={[]}
             allStructures={allStructures}
             isStreaming={isStreaming}
+            streamError={streamError}
             thinkingBlocks={thinkingBlocks}
             currentThinkingText={currentThinkingText}
             conclusionMessage={conclusionContent}
           />
         );
       })()}
-
-      {/* Timeout error when no artifact-group exists (timed out before producing structures) */}
-      {!isStreaming && streamError && !groups.some(g => g.type === 'artifact-group') && (
-        <TimeoutErrorBubble isCompact={isCompact} />
-      )}
 
       {/* Auto-scroll anchor */}
       <div ref={endRef} />
@@ -414,7 +407,8 @@ function PrologueBubble({
       <div
         className={cn(
           "rounded-lg px-3 py-2 overflow-hidden shadow-sm group relative",
-          isCompact ? "max-w-[85%]" : "max-w-[70%]",
+          // Fixed width for aesthetics regardless of text length
+          isCompact ? "w-[85%]" : "w-[70%]",
           "bg-cf-bg border border-cf-border text-cf-text"
         )}
       >
@@ -490,34 +484,6 @@ function BestBlock({
             showPreview={true}
           />
         </div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Timeout error bubble - shown when SSE connection is lost unexpectedly.
- * Red left border, AlertCircle icon, "任务连接超时" message.
- */
-function TimeoutErrorBubble({ isCompact }: { isCompact: boolean }) {
-  return (
-    <div className="flex pb-3 justify-start">
-      <div
-        className={cn(
-          "rounded-lg px-3 py-2 overflow-hidden shadow-sm",
-          isCompact ? "max-w-[85%]" : "max-w-[70%]",
-          "bg-cf-error/10 border border-cf-error/30 text-cf-text"
-        )}
-      >
-        <div className="flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 text-cf-error flex-shrink-0" />
-          <p className="text-sm font-medium text-cf-error">
-            Task connection timed out
-          </p>
-        </div>
-        <p className="text-xs text-cf-text-muted mt-1">
-          The connection to the server was lost. The task may still be running on the server.
-        </p>
       </div>
     </div>
   );
@@ -787,45 +753,41 @@ function FoldingProgress({
 
   return (
     <div className="pb-4">
-      {/* Container wrapper with border - green when complete, red on error, accent when streaming */}
+      {/* Container wrapper with border - green when complete, accent when streaming/error (friendlier) */}
       <div className={cn(
         "rounded-lg border-l-4 bg-cf-bg-secondary/50 overflow-hidden transition-all duration-300",
-        isStreaming
+        (isStreaming || streamError)
           ? "border-l-cf-accent"
-          : streamError
-            ? "border-l-cf-error"
-            : "border-l-cf-success"
+          : "border-l-cf-success"
       )}>
         {/* Header - thinking summary with 2-line display, expandable */}
         <div
           className={cn(
             "flex items-start gap-2 px-4 py-3 border-b cursor-pointer",
-            isStreaming
+            (isStreaming || streamError)
               ? "border-cf-accent/20 bg-cf-accent/10"
-              : streamError
-                ? "border-cf-error/20 bg-cf-error/10"
-                : "border-cf-success/20 bg-cf-success/10"
+              : "border-cf-success/20 bg-cf-success/10"
           )}
           onClick={() => setHeaderExpanded(!headerExpanded)}
         >
-          {/* Left: Status indicator - blinking Sparkle/Sparkles when streaming, AlertCircle on error, CheckCircle2 when done */}
+          {/* Left: Status indicator - blinking Sparkle/Sparkles when streaming/error, CheckCircle2 when done */}
+          {/* For errors: show blinking icon like streaming for friendlier UX */}
           <div className="flex-shrink-0 pt-0.5">
-            {isStreaming ? (
+            {(isStreaming || streamError) ? (
               showHeaderSparkles ? (
                 <Sparkles className="w-4 h-4 text-cf-accent" />
               ) : (
                 <Sparkle className="w-4 h-4 text-cf-accent" />
               )
-            ) : streamError ? (
-              <AlertCircle className="w-4 h-4 text-cf-error" />
             ) : (
               <CheckCircle2 className="w-4 h-4 text-cf-success" />
             )}
           </div>
 
           {/* Middle: Thinking text - scrolling container showing latest 2 lines */}
+          {/* For errors: show "Thinking......." (7 dots) to differentiate from normal "Thinking......" (6 dots) */}
           <FoldingProgressHeaderText
-            text={allNonPrologueText || currentThinkingText || 'Thinking...'}
+            text={streamError ? 'Thinking.......' : (allNonPrologueText || currentThinkingText || 'Thinking......')}
             isExpanded={headerExpanded}
           />
 

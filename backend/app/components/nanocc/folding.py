@@ -392,7 +392,7 @@ async def generate_real_cot_events(
                 stage=StageType.ERROR,
                 status=StatusType.failed,
                 progress=0,
-                message="Connection to NanoCC lost unexpectedly. The task may still be running on the server.",
+                message="The connection to the server was lost. The task may still be running on the server.",
                 blockIndex=None,
                 artifacts=None,
             )
