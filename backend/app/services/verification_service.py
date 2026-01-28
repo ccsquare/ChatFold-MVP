@@ -145,6 +145,9 @@ class VerificationCodeService:
         The entire check-and-update operation runs as a single atomic Redis
         command, preventing concurrent requests from bypassing MAX_ATTEMPTS.
 
+        Falls back to non-atomic verification if Lua scripts are not supported
+        (e.g., when using FakeRedis for development/testing).
+
         Args:
             email: User email address
             code: Verification code to verify
@@ -154,11 +157,17 @@ class VerificationCodeService:
         """
         try:
             code_key = self._get_code_key(email)
-            result_str = self.redis.eval(
-                VERIFY_CODE_SCRIPT, 1, code_key, code, str(MAX_ATTEMPTS)
-            )
 
-            result = json.loads(result_str)
+            # Try Lua script first (atomic, for production Redis)
+            try:
+                result_str = self.redis.eval(
+                    VERIFY_CODE_SCRIPT, 1, code_key, code, str(MAX_ATTEMPTS)
+                )
+                result = json.loads(result_str)
+            except Exception as lua_error:
+                # Fallback for FakeRedis or Redis without Lua support
+                logger.debug(f"Lua script not supported, using fallback: {lua_error}")
+                return self._verify_code_fallback(email, code, code_key)
 
             if result.get("ok"):
                 logger.info(f"Verification code verified for {email}")
@@ -178,6 +187,49 @@ class VerificationCodeService:
         except Exception as e:
             logger.error(f"Error verifying code: {e}")
             return False, "Verification failed. Please try again"
+
+    def _verify_code_fallback(self, email: str, code: str, code_key: str) -> tuple[bool, str]:
+        """Non-atomic fallback for verification when Lua scripts are not supported.
+
+        This is used for FakeRedis in development/testing. Not suitable for
+        production with multiple instances due to race conditions.
+
+        Args:
+            email: User email address
+            code: Verification code to verify
+            code_key: Redis key for the verification code
+
+        Returns:
+            Tuple of (success: bool, message: str)
+        """
+        data = self.redis.get(code_key)
+        if not data:
+            return False, "Verification code has expired"
+
+        try:
+            obj = json.loads(data)
+        except json.JSONDecodeError:
+            return False, "Verification failed. Please try again"
+
+        attempts = obj.get("attempts", 0)
+
+        if attempts >= MAX_ATTEMPTS:
+            self.redis.delete(code_key)
+            return False, "Maximum verification attempts exceeded"
+
+        if obj.get("code") == code:
+            self.redis.delete(code_key)
+            logger.info(f"Verification code verified for {email} (fallback)")
+            return True, "Verification successful"
+
+        # Wrong code - increment attempts
+        obj["attempts"] = attempts + 1
+        ttl = self.redis.ttl(code_key)
+        if ttl > 0:
+            self.redis.setex(code_key, ttl, json.dumps(obj))
+
+        remaining = MAX_ATTEMPTS - obj["attempts"]
+        return False, f"Invalid verification code. {remaining} attempts remaining"
 
 
 # Global instance

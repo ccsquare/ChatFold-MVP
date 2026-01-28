@@ -7,20 +7,29 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import Link from 'next/link';
+import { config } from '@/config';
+
+// Test credentials for development mode
+const DEV_TEST_CREDENTIALS = {
+  email: 'test@chatfold.ai',
+  username: 'testuser',
+  password: 'test123456',
+};
 
 interface SignupFormProps {
   onSuccess?: () => void;
 }
 
 export function SignupForm({ onSuccess }: SignupFormProps) {
-  const [email, setEmail] = useState('');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const isDev = config.development.isDev;
+  const [email, setEmail] = useState(isDev ? DEV_TEST_CREDENTIALS.email : '');
+  const [username, setUsername] = useState(isDev ? DEV_TEST_CREDENTIALS.username : '');
+  const [password, setPassword] = useState(isDev ? DEV_TEST_CREDENTIALS.password : '');
+  const [confirmPassword, setConfirmPassword] = useState(isDev ? DEV_TEST_CREDENTIALS.password : '');
   const [verificationCode, setVerificationCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [acceptTerms, setAcceptTerms] = useState(isDev); // Auto-accept in dev mode
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [countdown, setCountdown] = useState(0);
@@ -48,7 +57,7 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
     setSending(true);
 
     try {
-      const response = await fetch('/api/v1/auth/send-verification-code', {
+      const response = await fetch(`${config.backend.apiUrl}/auth/send-verification-code`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -63,6 +72,11 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
       }
 
       setSuccess('Verification code sent to your email');
+
+      // In dev mode, auto-fill the verification code if returned by backend
+      if (isDev && data.code) {
+        setVerificationCode(data.code);
+      }
 
       // Start countdown
       setCountdown(60);
@@ -107,7 +121,7 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/v1/auth/register', {
+      const response = await fetch(`${config.backend.apiUrl}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
