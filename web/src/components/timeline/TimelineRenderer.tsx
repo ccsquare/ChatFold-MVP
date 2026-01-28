@@ -223,17 +223,77 @@ export function TimelineRenderer({
  * Copy button that appears on hover over a bubble.
  * Copies the given text to clipboard with brief "Copied!" feedback.
  */
+/** Inline copy button for header controls (non-absolute positioned). */
+function CopyIconButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!text) return;
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // ignore
+    }
+  }, [text]);
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleCopy}
+          className="h-6 w-6 text-cf-text-secondary hover:text-cf-text hover:bg-cf-highlight"
+        >
+          {copied ? (
+            <Check className="w-3.5 h-3.5 text-cf-success" />
+          ) : (
+            <Copy className="w-3.5 h-3.5" />
+          )}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">{copied ? "Copied!" : "Copy text"}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 function BubbleCopyButton({ text, light = false, className }: { text: string; light?: boolean; className?: string }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      await navigator.clipboard.writeText(text);
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        // Fallback for non-secure contexts (HTTP)
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      // clipboard API may fail in non-secure contexts
+      // ignore
     }
   }, [text]);
 
@@ -771,6 +831,9 @@ function FoldingProgress({
 
           {/* Right: Controls */}
           <div className="flex items-center gap-1.5 flex-shrink-0">
+            {/* Copy button for header text */}
+            <CopyIconButton text={allNonPrologueText || currentThinkingText || ''} />
+
             {/* Camera controls - only for multiple structures */}
             {hasMultipleArtifacts && (
               <>

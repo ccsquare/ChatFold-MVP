@@ -216,7 +216,7 @@ async def generate_real_cot_events(
             stage=StageType.QUEUED,
             status=StatusType.running,
             progress=0,
-            message="Allocating NanoCC instance...",
+            message="Thinking...",
             blockIndex=None,
             artifacts=None,
         )
@@ -245,20 +245,6 @@ async def generate_real_cot_events(
             instance_id=instance.instance_id,
             session_id=session.session_id,
             backend_url=instance.backend_url,
-        )
-
-        event_num += 1
-        yield JobEvent(
-            eventId=f"evt_{task_id}_{event_num:04d}",
-            taskId=task_id,
-            ts=get_timestamp_ms(),
-            eventType=EventType.THINKING_TEXT,
-            stage=StageType.MODEL,
-            status=StatusType.running,
-            progress=5,
-            message="Session created, starting analysis...",
-            blockIndex=None,
-            artifacts=None,
         )
 
         # Build and send prompt
@@ -466,7 +452,7 @@ async def generate_mock_cot_events(
         stage=StageType.QUEUED,
         status=StatusType.running,
         progress=0,
-        message="Allocating NanoCC instance...",
+        message="Thinking...",
         blockIndex=None,
         artifacts=None,
     )
@@ -486,20 +472,6 @@ async def generate_mock_cot_events(
 
     # Create session with working_directory
     session = await backend.create_session(working_directory=fs_root)
-
-    event_num += 1
-    yield JobEvent(
-        eventId=f"evt_{task_id}_{event_num:04d}",
-        taskId=task_id,
-        ts=get_timestamp_ms(),
-        eventType=EventType.THINKING_TEXT,
-        stage=StageType.MODEL,
-        status=StatusType.running,
-        progress=5,
-        message="Session created, starting analysis...",
-        blockIndex=None,
-        artifacts=None,
-    )
 
     # Build prompt
     prompt = build_folding_prompt(query, sequence)
