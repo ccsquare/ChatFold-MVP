@@ -199,6 +199,7 @@ async def generate_real_cot_events(
     prev_was_pdb = False
     instance = None
     session = None
+    received_done = False  # Track if NanoCC sent 'done' event
 
     # Initialize clients
     scheduler = NanoCCSchedulerClient()
@@ -375,8 +376,26 @@ async def generate_real_cot_events(
                 logger.warning(f"NanoCC SSE error for task {task_id}: {data}")
 
             elif event_type == "done":
-                # Final done event handled after loop
+                # Mark that we received a proper 'done' event
+                received_done = True
                 break
+
+        # Check if NanoCC stream ended unexpectedly (without 'done' event)
+        if not received_done:
+            logger.warning(f"NanoCC stream ended without 'done' event for task {task_id}")
+            event_num += 1
+            yield JobEvent(
+                eventId=f"evt_{task_id}_{event_num:04d}",
+                taskId=task_id,
+                ts=get_timestamp_ms(),
+                eventType=EventType.CONCLUSION,
+                stage=StageType.ERROR,
+                status=StatusType.failed,
+                progress=0,
+                message="Connection to NanoCC lost unexpectedly. The task may still be running on the server.",
+                blockIndex=None,
+                artifacts=None,
+            )
 
         # Cleanup session
         if session:
