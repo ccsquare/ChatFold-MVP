@@ -86,8 +86,7 @@ class SSEEventsService:
         Returns:
             Total number of events in the queue after push
         """
-        # Note: event.jobId is the nanocc field name (external dependency)
-        key = self._key(event.jobId)
+        key = self._key(event.taskId)
         data = event.model_dump_json()
 
         try:
@@ -106,11 +105,11 @@ class SSEEventsService:
                 self._cache.ltrim(key, -MAX_EVENTS_PER_TASK, -1)
                 count = MAX_EVENTS_PER_TASK
 
-            logger.debug(f"Pushed event to queue: {event.jobId}, eventId={event.eventId}")
+            logger.debug(f"Pushed event to queue: {event.taskId}, eventId={event.eventId}")
             return count
 
         except redis.RedisError as e:
-            logger.error(f"Failed to push event to queue {event.jobId}: {e}")
+            logger.error(f"Failed to push event to queue {event.taskId}: {e}")
             # Fallback to non-pipeline approach
             count = self._cache.rpush(key, data)
             self._cache.expire(key, ttl)

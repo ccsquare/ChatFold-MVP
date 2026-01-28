@@ -48,8 +48,8 @@ COT_TEMPLATES = {
 }
 
 
-def generate_step_events(job_id: str, sequence: str) -> Generator[JobEvent, None, None]:
-    """Generate mock folding job events.
+def generate_step_events(task_id: str, sequence: str) -> Generator[JobEvent, None, None]:
+    """Generate mock folding task events.
 
     Simulates the protein folding pipeline with realistic stages:
     QUEUED -> MSA -> MODEL -> RELAX -> QA -> DONE
@@ -109,7 +109,7 @@ def generate_step_events(job_id: str, sequence: str) -> Generator[JobEvent, None
             if stage == StageType.MODEL and i >= 2:
                 structure_count += 1
                 candidate_num = i - 1  # 1, 2, 3, 4, 5
-                structure_id = f"str_{job_id}_{candidate_num}"
+                structure_id = f"str_{task_id}_{candidate_num}"
 
                 # Generate PDB data for this candidate
                 pdb_data = generate_mock_pdb(sequence, structure_id, structure_count)
@@ -133,7 +133,7 @@ def generate_step_events(job_id: str, sequence: str) -> Generator[JobEvent, None
             # Generate final structure at DONE stage
             if stage == StageType.DONE:
                 structure_count += 1
-                structure_id = f"str_{job_id}_final"
+                structure_id = f"str_{task_id}_final"
 
                 # Generate PDB data for final structure
                 pdb_data = generate_mock_pdb(sequence, structure_id, structure_count)
@@ -161,8 +161,8 @@ def generate_step_events(job_id: str, sequence: str) -> Generator[JobEvent, None
                 overall_progress = 100
 
             yield JobEvent(
-                eventId=f"evt_{job_id}_{event_num:04d}",
-                jobId=job_id,
+                eventId=f"evt_{task_id}_{event_num:04d}",
+                taskId=task_id,
                 ts=get_timestamp_ms(),
                 stage=stage,
                 status=status,

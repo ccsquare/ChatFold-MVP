@@ -38,7 +38,7 @@ Usage:
     state = cache.hgetall(key)
 
     # List operations (for SSE events)
-    events_key = RedisKeyPrefix.job_events_key("job_abc123")
+    events_key = RedisKeyPrefix.task_events_key("task_abc123")
     cache.lpush(events_key, {"eventId": "evt_1", "stage": "MSA"})
     events = cache.lrange(events_key, 0, -1)
 """
@@ -401,7 +401,7 @@ def get_redis_cache() -> RedisCache:
 
     Example:
         cache = get_redis_cache()
-        key = RedisKeyPrefix.job_state_key("job_abc123")
+        key = RedisKeyPrefix.task_state_key("task_abc123")
         cache.hset(key, {"status": "running"})
     """
     global _redis_cache
@@ -413,28 +413,28 @@ def get_redis_cache() -> RedisCache:
 # ==================== Backward Compatibility ====================
 # These functions are deprecated but maintained for gradual migration
 
-_job_state_cache: RedisCache | None = None
+_task_state_cache: RedisCache | None = None
 _sse_events_cache: RedisCache | None = None
 
 
-def get_job_state_cache() -> RedisCache:
-    """Get cache instance for job state.
+def get_task_state_cache() -> RedisCache:
+    """Get cache instance for task state.
 
     DEPRECATED: Use get_redis_cache() with RedisKeyPrefix.task_state_key() instead.
 
     This function now returns the same shared cache instance (db=0).
     The old multi-DB pattern has been replaced with single DB + key prefix.
     """
-    global _job_state_cache
-    if _job_state_cache is None:
-        _job_state_cache = RedisCache(db=RedisDB.JOB_STATE)
-    return _job_state_cache
+    global _task_state_cache
+    if _task_state_cache is None:
+        _task_state_cache = RedisCache(db=RedisDB.TASK_STATE)
+    return _task_state_cache
 
 
 def get_sse_events_cache() -> RedisCache:
     """Get cache instance for SSE events.
 
-    DEPRECATED: Use get_redis_cache() with RedisKeyPrefix.job_events_key() instead.
+    DEPRECATED: Use get_redis_cache() with RedisKeyPrefix.task_events_key() instead.
 
     This function now returns the same shared cache instance (db=0).
     The old multi-DB pattern has been replaced with single DB + key prefix.

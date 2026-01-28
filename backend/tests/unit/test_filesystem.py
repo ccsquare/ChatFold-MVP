@@ -114,20 +114,20 @@ class TestFileSystemServiceDirs:
     def test_ensure_structures_dir(self):
         """ensure_structures_dir creates and returns structures directory."""
         service = FileSystemService()
-        path = service.ensure_structures_dir("job_001")
+        path = service.ensure_structures_dir("task_001")
 
         assert path.exists()
         assert "structures" in str(path)
-        assert "job_001" in str(path)
+        assert "task_001" in str(path)
 
-    def test_ensure_job_dir(self):
-        """ensure_job_dir creates and returns job directory."""
+    def test_ensure_task_dir(self):
+        """ensure_task_dir creates and returns task directory."""
         service = FileSystemService()
-        path = service.ensure_job_dir("job_001")
+        path = service.ensure_task_dir("task_001")
 
         assert path.exists()
         assert "jobs" in str(path)
-        assert "job_001" in str(path)
+        assert "task_001" in str(path)
 
 
 class TestFileSystemServiceFiles:
@@ -342,8 +342,8 @@ class TestFileSystemServiceStructures:
         service.initialize()
 
         # Use a custom user/project to avoid conflicts with default directories
-        job_id = "job_test_pdb"
-        structures_dir = service.ensure_structures_dir(job_id, "test_user", "test_project")
+        task_id = "task_test_pdb"
+        structures_dir = service.ensure_structures_dir(task_id, "test_user", "test_project")
         pdb_file = structures_dir / "candidate_1.pdb"
 
         pdb_content = """HEADER    TEST STRUCTURE
@@ -356,9 +356,9 @@ END
         assert pdb_file.exists()
         assert service.read_file(pdb_file) == pdb_content
 
-        # Cleanup - remove job dir and its parents (custom user/project only)
+        # Cleanup - remove task dir and its parents (custom user/project only)
         pdb_file.unlink()
-        structures_dir.rmdir()  # job_test_pdb/
+        structures_dir.rmdir()  # task_test_pdb/
         structures_dir.parent.rmdir()  # structures/
         structures_dir.parent.parent.rmdir()  # test_project/
         structures_dir.parent.parent.parent.rmdir()  # projects/
@@ -370,8 +370,8 @@ END
         service.initialize()
 
         # Use a custom user/project to avoid conflicts with default directories
-        job_id = "job_test_list_pdb"
-        structures_dir = service.ensure_structures_dir(job_id, "test_user2", "test_project2")
+        task_id = "task_test_list_pdb"
+        structures_dir = service.ensure_structures_dir(task_id, "test_user2", "test_project2")
 
         # Create test PDB files
         (structures_dir / "candidate_1.pdb").write_text("PDB1")
@@ -394,18 +394,18 @@ END
         structures_dir.parent.parent.parent.parent.rmdir()
 
 
-class TestFileSystemServiceJobs:
-    """TC-13.5: Job artifacts storage."""
+class TestFileSystemServiceTasks:
+    """TC-13.5: Task artifacts storage."""
 
-    def test_write_job_artifact(self):
-        """Can write job artifact to job directory."""
+    def test_write_task_artifact(self):
+        """Can write task artifact to task directory."""
         service = FileSystemService()
         service.initialize()
 
         # Use a custom user to avoid conflicts with default directories
-        job_id = "job_test_artifact"
-        job_dir = service.ensure_job_dir(job_id, "test_user3")
-        artifact_file = job_dir / "msa_result.a3m"
+        task_id = "task_test_artifact"
+        task_dir = service.ensure_task_dir(task_id, "test_user3")
+        artifact_file = task_dir / "msa_result.a3m"
 
         artifact_content = ">query\nMKFLVLVA\n>hit1\nMKFLVLVA"
         service.write_file(artifact_file, artifact_content)
@@ -415,6 +415,6 @@ class TestFileSystemServiceJobs:
 
         # Cleanup
         artifact_file.unlink()
-        job_dir.rmdir()  # job_test_artifact/
-        job_dir.parent.rmdir()  # jobs/
-        job_dir.parent.parent.rmdir()  # test_user3/
+        task_dir.rmdir()  # task_test_artifact/
+        task_dir.parent.rmdir()  # jobs/
+        task_dir.parent.parent.rmdir()  # test_user3/

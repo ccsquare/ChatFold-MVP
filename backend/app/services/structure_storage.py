@@ -5,7 +5,7 @@ Supports two storage modes controlled by USE_MEMORY_STORE:
 - Filesystem mode (use_memory_store=false): Stores on disk, persistent
 
 Directory Structure (filesystem mode):
-{outputs}/users/{user_id}/projects/{project_id}/structures/{job_id}/
+{outputs}/users/{user_id}/projects/{project_id}/structures/{task_id}/
     ├── fast-folding.cif
     ├── general-folding-first.cif
     ├── general-folding-cycle-1.cif
@@ -41,39 +41,39 @@ class StructureStorageService:
 
     def _get_structure_dir(
         self,
-        job_id: str,
+        task_id: str,
         user_id: str = DEFAULT_USER_ID,
         project_id: str = DEFAULT_PROJECT_ID,
     ) -> Path:
         """Get the directory path for structure files.
 
         Args:
-            job_id: The job ID
+            task_id: The task identifier
             user_id: User ID (defaults to DEFAULT_USER_ID)
             project_id: Project ID (defaults to DEFAULT_PROJECT_ID)
 
         Returns:
             Path to the structures directory
         """
-        return settings.get_structures_path(user_id, project_id, job_id)
+        return settings.get_structures_path(user_id, project_id, task_id)
 
     def _ensure_structure_dir(
         self,
-        job_id: str,
+        task_id: str,
         user_id: str = DEFAULT_USER_ID,
         project_id: str = DEFAULT_PROJECT_ID,
     ) -> Path:
         """Ensure structure directory exists and return path.
 
         Args:
-            job_id: The job ID
+            task_id: The task identifier
             user_id: User ID (defaults to DEFAULT_USER_ID)
             project_id: Project ID (defaults to DEFAULT_PROJECT_ID)
 
         Returns:
             Path to the structures directory
         """
-        path = self._get_structure_dir(job_id, user_id, project_id)
+        path = self._get_structure_dir(task_id, user_id, project_id)
         path.mkdir(parents=True, exist_ok=True)
         return path
 
@@ -81,7 +81,7 @@ class StructureStorageService:
         self,
         structure_id: str,
         pdb_data: str,
-        job_id: str | None = None,
+        task_id: str | None = None,
         filename: str | None = None,
         user_id: str = DEFAULT_USER_ID,
         project_id: str = DEFAULT_PROJECT_ID,
@@ -94,7 +94,7 @@ class StructureStorageService:
         Args:
             structure_id: Unique structure identifier
             pdb_data: PDB/CIF file content
-            job_id: Job ID for filesystem path (required in filesystem mode)
+            task_id: Task ID for filesystem path (required in filesystem mode)
             filename: Filename for filesystem storage (e.g., "fast-folding.cif")
             user_id: User ID for path
             project_id: Project ID for path
@@ -111,15 +111,15 @@ class StructureStorageService:
                 return structure_id
 
             # Filesystem mode: write to disk
-            if not job_id:
-                logger.warning(f"job_id required for filesystem storage: {structure_id}")
+            if not task_id:
+                logger.warning(f"task_id required for filesystem storage: {structure_id}")
                 return structure_id  # Fall back to memory-only
 
             if not filename:
                 filename = f"{structure_id}.cif"
 
             try:
-                structure_dir = self._ensure_structure_dir(job_id, user_id, project_id)
+                structure_dir = self._ensure_structure_dir(task_id, user_id, project_id)
                 file_path = structure_dir / filename
                 file_path.write_text(pdb_data, encoding="utf-8")
                 logger.info(f"Saved structure to filesystem: {file_path}")
@@ -131,7 +131,7 @@ class StructureStorageService:
     def get_structure(
         self,
         structure_id: str,
-        job_id: str | None = None,
+        task_id: str | None = None,
         filename: str | None = None,
         user_id: str = DEFAULT_USER_ID,
         project_id: str = DEFAULT_PROJECT_ID,
@@ -142,7 +142,7 @@ class StructureStorageService:
 
         Args:
             structure_id: Unique structure identifier
-            job_id: Job ID for filesystem path
+            task_id: Task ID for filesystem path
             filename: Filename for filesystem lookup
             user_id: User ID for path
             project_id: Project ID for path
@@ -160,14 +160,14 @@ class StructureStorageService:
                 return None
 
             # Filesystem mode: try to read from disk
-            if not job_id:
+            if not task_id:
                 return None
 
             if not filename:
                 filename = f"{structure_id}.cif"
 
             try:
-                structure_dir = self._get_structure_dir(job_id, user_id, project_id)
+                structure_dir = self._get_structure_dir(task_id, user_id, project_id)
                 file_path = structure_dir / filename
                 if file_path.exists():
                     content = file_path.read_text(encoding="utf-8")
@@ -205,7 +205,7 @@ class StructureStorageService:
 
     def list_structures(
         self,
-        job_id: str,
+        task_id: str,
         user_id: str = DEFAULT_USER_ID,
         project_id: str = DEFAULT_PROJECT_ID,
         pattern: str = "*.cif",
@@ -213,7 +213,7 @@ class StructureStorageService:
         """List structure files for a job.
 
         Args:
-            job_id: The job ID
+            task_id: The task identifier
             user_id: User ID for path
             project_id: Project ID for path
             pattern: Glob pattern for file matching
@@ -222,7 +222,7 @@ class StructureStorageService:
             List of file paths
         """
         with self._lock:
-            structure_dir = self._get_structure_dir(job_id, user_id, project_id)
+            structure_dir = self._get_structure_dir(task_id, user_id, project_id)
             if not structure_dir.exists():
                 return []
             return list(structure_dir.glob(pattern))
@@ -230,7 +230,7 @@ class StructureStorageService:
     def delete_structure(
         self,
         structure_id: str,
-        job_id: str | None = None,
+        task_id: str | None = None,
         filename: str | None = None,
         user_id: str = DEFAULT_USER_ID,
         project_id: str = DEFAULT_PROJECT_ID,
@@ -239,7 +239,7 @@ class StructureStorageService:
 
         Args:
             structure_id: Unique structure identifier
-            job_id: Job ID for filesystem path
+            task_id: Task ID for filesystem path
             filename: Filename for filesystem deletion
             user_id: User ID for path
             project_id: Project ID for path
@@ -259,12 +259,12 @@ class StructureStorageService:
                 return deleted
 
             # Filesystem mode: delete from disk
-            if job_id:
+            if task_id:
                 if not filename:
                     filename = f"{structure_id}.cif"
 
                 try:
-                    structure_dir = self._get_structure_dir(job_id, user_id, project_id)
+                    structure_dir = self._get_structure_dir(task_id, user_id, project_id)
                     file_path = structure_dir / filename
                     if file_path.exists():
                         file_path.unlink()

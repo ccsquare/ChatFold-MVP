@@ -80,7 +80,7 @@ class TestRedisDB:
         """Test that all RedisDB values now map to 0 (single DB pattern)"""
         # All databases now use db=0 for Redis Cluster compatibility
         assert RedisDB.DEFAULT == 0
-        assert RedisDB.JOB_STATE == 0
+        assert RedisDB.TASK_STATE == 0
         assert RedisDB.SESSION_STORE == 0
         assert RedisDB.WORKSPACE == 0
         assert RedisDB.SSE_EVENTS == 0
@@ -95,7 +95,7 @@ class TestRedisDB:
 
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            RedisDB.get_description(RedisDB.JOB_STATE)
+            RedisDB.get_description(RedisDB.TASK_STATE)
             assert len(w) == 1
             assert issubclass(w[0].category, DeprecationWarning)
             assert "deprecated" in str(w[0].message).lower()
@@ -253,34 +253,34 @@ class TestTaskStateCacheWithFakeRedis:
     @pytest.fixture
     def task_cache(self, fake_redis_client) -> RedisCache:
         """Get task state cache instance with fakeredis"""
-        return RedisCache(db=RedisDB.JOB_STATE, client=fake_redis_client)
+        return RedisCache(db=RedisDB.TASK_STATE, client=fake_redis_client)
 
     def test_task_state_storage(
         self,
         task_cache: RedisCache,
-        test_job_id: str,
-        sample_job_state: dict,
+        test_task_id: str,
+        sample_task_state: dict,
     ):
         """Test storing and retrieving task state"""
-        key = f"task:{test_job_id}:state"
+        key = f"task:{test_task_id}:state"
 
         # Store task state as hash
-        task_cache.hset(key, sample_job_state)
+        task_cache.hset(key, sample_task_state)
 
         # Retrieve and verify
         result = task_cache.hgetall(key)
-        assert result["status"] == sample_job_state["status"]
-        assert result["stage"] == sample_job_state["stage"]
-        assert result["progress"] == sample_job_state["progress"]
-        assert result["message"] == sample_job_state["message"]
+        assert result["status"] == sample_task_state["status"]
+        assert result["stage"] == sample_task_state["stage"]
+        assert result["progress"] == sample_task_state["progress"]
+        assert result["message"] == sample_task_state["message"]
 
     def test_task_state_update(
         self,
         task_cache: RedisCache,
-        test_job_id: str,
+        test_task_id: str,
     ):
         """Test updating individual task state fields"""
-        key = f"task:{test_job_id}:state"
+        key = f"task:{test_task_id}:state"
 
         # Initial state
         task_cache.hset(key, {"status": "queued", "progress": 0})
@@ -304,10 +304,10 @@ class TestSSEEventsCacheWithFakeRedis:
     def test_sse_events_queue(
         self,
         events_cache: RedisCache,
-        test_job_id: str,
+        test_task_id: str,
     ):
         """Test SSE events queue operations"""
-        key = f"task:{test_job_id}:events"
+        key = f"task:{test_task_id}:events"
 
         events = [
             {"eventId": "evt_1", "stage": "MSA", "progress": 20},
@@ -327,10 +327,10 @@ class TestSSEEventsCacheWithFakeRedis:
     def test_sse_events_partial_read(
         self,
         events_cache: RedisCache,
-        test_job_id: str,
+        test_task_id: str,
     ):
         """Test reading partial events from queue"""
-        key = f"task:{test_job_id}:events"
+        key = f"task:{test_task_id}:events"
 
         events = [
             {"eventId": "evt_1", "stage": "MSA"},

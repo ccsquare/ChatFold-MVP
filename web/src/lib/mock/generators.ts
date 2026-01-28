@@ -121,7 +121,7 @@ export function parseFasta(content: string): { header: string; sequence: string;
 }
 
 // Generate step events for a folding task
-export function* generateStepEvents(jobId: string, sequence: string): Generator<StepEvent> {
+export function* generateStepEvents(taskId: string, sequence: string): Generator<StepEvent> {
   const stages: { stage: StageType; messages: string[] }[] = [
     {
       stage: 'QUEUED',
@@ -187,7 +187,7 @@ export function* generateStepEvents(jobId: string, sequence: string): Generator<
       // Messages: 0=init, 1=inference, 2-6=generating candidates
       if (stage === 'MODEL' && i >= 2) {
         const candidateNum = i - 1; // 1, 2, 3, 4, 5
-        const structureId = `str_${jobId}_${candidateNum}`;
+        const structureId = `str_${taskId}_${candidateNum}`;
 
         artifacts.push({
           type: 'structure',
@@ -200,7 +200,7 @@ export function* generateStepEvents(jobId: string, sequence: string): Generator<
 
       // Generate final structure at DONE stage
       if (stage === 'DONE') {
-        const structureId = `str_${jobId}_final`;
+        const structureId = `str_${taskId}_final`;
 
         artifacts.push({
           type: 'structure',
@@ -222,8 +222,8 @@ export function* generateStepEvents(jobId: string, sequence: string): Generator<
       }
 
       yield {
-        eventId: `evt_${jobId}_${eventNum.toString().padStart(4, '0')}`,
-        jobId,
+        eventId: `evt_${taskId}_${eventNum.toString().padStart(4, '0')}`,
+        taskId,
         ts: Date.now(),
         eventType: 'THINKING_TEXT' as const,  // Default to THINKING_TEXT for legacy mock
         stage,

@@ -38,15 +38,19 @@ export function useFoldingTask() {
    * Note: SSE connects directly to Python backend to avoid Next.js proxy buffering
    */
   const startStream = useCallback(
-    (taskId: string, sequence: string) => {
+    (taskId: string, sequence: string, query?: string) => {
       // Close any existing connection
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
       }
 
       // Connect directly to Python backend for SSE (bypasses Next.js proxy buffering)
+      const params = new URLSearchParams({ sequence });
+      if (query) {
+        params.set('query', query);
+      }
       const eventSource = new EventSource(
-        `${getBackendUrl()}/api/v1/tasks/${taskId}/stream?sequence=${encodeURIComponent(sequence)}`
+        `${getBackendUrl()}/api/v1/tasks/${taskId}/stream?${params.toString()}`
       );
       eventSourceRef.current = eventSource;
 
@@ -95,6 +99,7 @@ export function useFoldingTask() {
       options?: {
         filename?: string;
         fastaContent?: string;
+        query?: string;
       }
     ): Promise<{ task: Task; folderId: string } | null> => {
       try {
@@ -135,7 +140,7 @@ export function useFoldingTask() {
 
         // Set active task and start streaming
         setActiveTask({ ...task, status: 'running' });
-        startStream(task.id, sequence);
+        startStream(task.id, sequence, options?.query);
 
         return { task, folderId };
       } catch (error) {

@@ -40,7 +40,7 @@ def create_test_event(
     """Create a test JobEvent."""
     return JobEvent(
         eventId=f"evt_{task_id}_{event_num:04d}",
-        jobId=task_id,
+        taskId=task_id,
         ts=get_timestamp_ms(),
         eventType=EventType.THINKING_TEXT,
         stage=stage,
@@ -215,7 +215,7 @@ class TestSSEEventsServiceRaw:
 
         event_data = {
             "eventId": "evt_raw_001",
-            "jobId": task_id,
+            "taskId": task_id,
             "ts": get_timestamp_ms(),
             "eventType": "THINKING_TEXT",
             "stage": "QUEUED",

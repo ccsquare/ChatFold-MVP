@@ -160,7 +160,7 @@ class RedisDB(IntEnum):
     DEFAULT = 0
 
     # 以下仅用于向后兼容，实际都映射到 db=0
-    JOB_STATE = 0
+    TASK_STATE = 0
     SESSION_STORE = 0
     WORKSPACE = 0
     SSE_EVENTS = 0

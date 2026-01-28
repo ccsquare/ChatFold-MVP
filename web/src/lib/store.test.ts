@@ -197,7 +197,7 @@ describe('AppStore', () => {
       useAppStore.getState().setActiveTask(task);
       useAppStore.getState().addStepEvent('task_1', {
         eventId: 'evt_1',
-        jobId: 'task_1',
+        taskId: 'task_1',
         ts: Date.now(),
         stage: 'MSA',
         status: 'running',
@@ -222,7 +222,7 @@ describe('AppStore', () => {
       useAppStore.getState().setActiveTask(task);
       useAppStore.getState().addStepEvent('task_1', {
         eventId: 'evt_1',
-        jobId: 'task_1',
+        taskId: 'task_1',
         ts: Date.now(),
         stage: 'MODEL',
         status: 'running',
@@ -254,7 +254,7 @@ describe('AppStore', () => {
       useAppStore.getState().setActiveTask(task);
       useAppStore.getState().addStepEvent('task_1', {
         eventId: 'evt_done',
-        jobId: 'task_1',
+        taskId: 'task_1',
         ts: Date.now(),
         stage: 'DONE',
         status: 'complete',

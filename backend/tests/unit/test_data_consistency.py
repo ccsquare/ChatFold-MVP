@@ -340,7 +340,7 @@ class TestEventPersistence:
 
         event = JobEvent(
             eventId=generate_id("evt"),
-            jobId=setup_data["task_id"],
+            taskId=setup_data["task_id"],
             ts=get_timestamp_ms(),
             eventType=EventType.THINKING_TEXT,
             stage=StageType.MODEL,
@@ -372,7 +372,7 @@ class TestEventPersistence:
 
         event = JobEvent(
             eventId=generate_id("evt"),
-            jobId=setup_data["task_id"],
+            taskId=setup_data["task_id"],
             ts=get_timestamp_ms(),
             eventType=EventType.THINKING_PDB,
             stage=StageType.MODEL,

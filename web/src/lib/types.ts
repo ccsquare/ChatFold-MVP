@@ -47,7 +47,7 @@ export interface Structure {
 
 export interface StepEvent {
   eventId: string;
-  jobId: string;
+  taskId: string;
   ts: number;
   eventType: EventType;        // How this event maps to UI areas
   stage: StageType;

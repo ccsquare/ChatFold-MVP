@@ -37,7 +37,7 @@ class TestRedisKeyPrefixArchitecture:
     def test_all_db_values_are_zero(self):
         """Verify all RedisDB enum values map to db=0 (Cluster compatible)."""
         assert RedisDB.DEFAULT.value == 0
-        assert RedisDB.JOB_STATE.value == 0
+        assert RedisDB.TASK_STATE.value == 0
         assert RedisDB.SSE_EVENTS.value == 0
         assert RedisDB.WORKSPACE.value == 0
         # All values should be 0 for Redis Cluster compatibility
@@ -168,7 +168,7 @@ class TestServiceKeyPrefixUsage:
         # Push an event
         event = JobEvent(
             eventId=f"evt_{task_id}_0001",
-            jobId=task_id,
+            taskId=task_id,
             ts=get_timestamp_ms(),
             eventType=EventType.THINKING_TEXT,
             stage=StageType.MODEL,

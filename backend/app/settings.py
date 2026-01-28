@@ -322,7 +322,7 @@ class Settings(BaseSettings):
             get_structures_path_legacy() -> {outputs_root}/structures
             get_structures_path_legacy("job_123.pdb") -> {outputs_root}/structures/job_123.pdb
 
-        Note: 请使用 get_structures_path(user_id, project_id, job_id) 替代
+        Note: 请使用 get_structures_path(user_id, project_id, task_id) 替代
         """
         if paths:
             return self.get_output_path("structures", *paths)
@@ -335,7 +335,7 @@ class Settings(BaseSettings):
             get_jobs_path_legacy() -> {outputs_root}/jobs
             get_jobs_path_legacy("job_123") -> {outputs_root}/jobs/job_123
 
-        Note: 请使用 get_jobs_path(user_id, job_id) 替代
+        Note: 请使用 get_jobs_path(user_id, task_id) 替代
         """
         if paths:
             return self.get_output_path("jobs", *paths)
@@ -396,27 +396,27 @@ class Settings(BaseSettings):
         """
         return self.get_project_path(user_id, project_id) / "uploads" / folder_id
 
-    def get_structures_path(self, user_id: str, project_id: str, job_id: str) -> Path:
+    def get_structures_path(self, user_id: str, project_id: str, task_id: str) -> Path:
         """获取结构文件目录
 
-        目录结构: {outputs}/users/{user_id}/projects/{project_id}/structures/{job_id}
+        目录结构: {outputs}/users/{user_id}/projects/{project_id}/structures/{task_id}
 
         Examples:
-            get_structures_path("u001", "p001", "job001") -> .../structures/job001
+            get_structures_path("u001", "p001", "task001") -> .../structures/task001
         """
-        return self.get_project_path(user_id, project_id) / "structures" / job_id
+        return self.get_project_path(user_id, project_id) / "structures" / task_id
 
-    def get_jobs_path(self, user_id: str, job_id: str) -> Path:
-        """获取 Job 目录
+    def get_jobs_path(self, user_id: str, task_id: str) -> Path:
+        """获取任务工作目录
 
-        Job 在用户级别（不在项目级别），因为 Job 可能跨项目共享
+        任务在用户级别（不在项目级别），因为任务可能跨项目共享
 
-        目录结构: {outputs}/users/{user_id}/jobs/{job_id}
+        目录结构: {outputs}/users/{user_id}/jobs/{task_id}
 
         Examples:
-            get_jobs_path("u001", "job001") -> {outputs}/users/u001/jobs/job001
+            get_jobs_path("u001", "task001") -> {outputs}/users/u001/jobs/task001
         """
-        return self.get_user_path(user_id) / "jobs" / job_id
+        return self.get_user_path(user_id) / "jobs" / task_id
 
     # ==================== MVP 便捷方法 ====================
     # 使用默认用户和项目，简化 MVP 阶段的 API 调用
@@ -433,13 +433,13 @@ class Settings(BaseSettings):
         """MVP: 使用默认用户和项目获取上传目录"""
         return self.get_uploads_path(DEFAULT_USER_ID, DEFAULT_PROJECT_ID, folder_id)
 
-    def get_default_structures_path(self, job_id: str) -> Path:
+    def get_default_structures_path(self, task_id: str) -> Path:
         """MVP: 使用默认用户和项目获取结构目录"""
-        return self.get_structures_path(DEFAULT_USER_ID, DEFAULT_PROJECT_ID, job_id)
+        return self.get_structures_path(DEFAULT_USER_ID, DEFAULT_PROJECT_ID, task_id)
 
-    def get_default_jobs_path(self, job_id: str) -> Path:
-        """MVP: 使用默认用户获取 Job 目录"""
-        return self.get_jobs_path(DEFAULT_USER_ID, job_id)
+    def get_default_jobs_path(self, task_id: str) -> Path:
+        """MVP: 使用默认用户获取任务工作目录"""
+        return self.get_jobs_path(DEFAULT_USER_ID, task_id)
 
     # ==================== TOS 配置检查 ====================
 

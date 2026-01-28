@@ -519,41 +519,45 @@ nanocc_scheduler = NanoCCSchedulerClient()
 nanocc_client = NanoCCClient()
 
 
-def build_folding_prompt(sequence: str, job_id: str, name: str | None = None) -> str:
-    """Build a prompt for NanoCC to analyze and fold a protein sequence.
+def build_folding_prompt(query: str, sequence: str) -> str:
+    """Build prompt for NanoCC by combining user query with protein sequence.
+
+    The user's natural language query is placed first, followed by the sequence
+    in a fenced code block. This allows NanoCC to understand the user's intent
+    (e.g. "fold this protein", "compare with PDB xxx") alongside the sequence data.
 
     Args:
-        sequence: The amino acid sequence to analyze
-        job_id: The job ID for tracking
-        name: Optional protein name
+        query: User's natural language instruction or question.
+        sequence: Validated uppercase amino acid sequence (e.g. "MVLSPADKTN...").
 
     Returns:
-        A formatted prompt string for NanoCC
+        Formatted prompt string ready to send to NanoCC.
+
+    Example:
+        >>> build_folding_prompt("请分析这个蛋白质", "MVLSPADKTN")
+        '请分析这个蛋白质\\n\\nsequence:\\n```\\nMVLSPADKTN\\n```'
     """
-    name_info = f"\n**蛋白名称**: {name}" if name else ""
+    return f"""{query}
 
-    return f"""请分析以下蛋白质序列并进行结构预测。
-
-**序列** (Job ID: {job_id}):
+sequence:
 ```
 {sequence}
-```
-
-**序列长度**: {len(sequence)} 氨基酸{name_info}
-
-请执行完整的蛋白质结构预测流程。"""
+```"""
 
 
-def job_id_to_session_id(job_id: str) -> str:
-    """Convert job_id to session_id format.
+def task_id_to_session_id(task_id: str) -> str:
+    """Convert task_id to NanoCC session_id format.
+
+    Strips the ``task_`` prefix and prepends ``session_`` so that each
+    ChatFold task maps to a unique NanoCC working directory.
 
     Args:
-        job_id: Job identifier (format: job_xxx)
+        task_id: Task identifier (format: task_xxx)
 
     Returns:
         Session identifier (format: session_xxx)
     """
-    unique_part = job_id.replace("job_", "") if job_id.startswith("job_") else job_id
+    unique_part = task_id.replace("task_", "", 1) if task_id.startswith("task_") else task_id
     return f"session_{unique_part}"
 
 

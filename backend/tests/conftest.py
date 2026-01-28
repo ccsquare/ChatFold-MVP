@@ -42,9 +42,6 @@ def test_task_id() -> str:
     return f"test_task_{uuid.uuid4().hex[:8]}"
 
 
-# Alias for backward compatibility in tests
-test_job_id = test_task_id
-
 
 @pytest.fixture
 def sample_task_state() -> dict:
@@ -56,9 +53,6 @@ def sample_task_state() -> dict:
         "message": "Running prediction...",
     }
 
-
-# Alias for backward compatibility in tests
-sample_job_state = sample_task_state
 
 
 @pytest.fixture

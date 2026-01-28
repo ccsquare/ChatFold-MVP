@@ -254,10 +254,9 @@ class DataConsistencyService:
             Created TaskEvent ORM entity or None on failure
         """
         try:
-            # Note: event.jobId is the nanocc field name (external dependency)
             task_event = self._task_event_repo.create_event(
                 db,
-                task_id=event.jobId,
+                task_id=event.taskId,
                 event_type=event.eventType.value,
                 stage=event.stage.value,
                 status=event.status.value,

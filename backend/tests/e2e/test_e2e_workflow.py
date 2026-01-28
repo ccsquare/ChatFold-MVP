@@ -472,7 +472,7 @@ class TestTaskEventsWorkflow:
             for i in range(5):
                 event = JobEvent(
                     eventId=f"evt_{task_id}_{i + 1:04d}",
-                    jobId=task_id,
+                    taskId=task_id,
                     ts=get_timestamp_ms(),
                     eventType=EventType.THINKING_TEXT,
                     stage=StageType.MODEL,
@@ -506,7 +506,7 @@ class TestTaskEventsWorkflow:
             for i in range(10):
                 event = JobEvent(
                     eventId=f"evt_{task_id}_{i + 1:04d}",
-                    jobId=task_id,
+                    taskId=task_id,
                     ts=get_timestamp_ms(),
                     eventType=EventType.THINKING_TEXT,
                     stage=StageType.MODEL,
@@ -659,7 +659,7 @@ class TestRedisKeyPrefixConsistency:
         # Push event
         event = JobEvent(
             eventId=f"evt_{task_id}_0001",
-            jobId=task_id,
+            taskId=task_id,
             ts=get_timestamp_ms(),
             eventType=EventType.THINKING_TEXT,
             stage=StageType.MSA,

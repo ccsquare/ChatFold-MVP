@@ -7,6 +7,10 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 
+# Use China mirrors for faster builds
+RUN sed -i 's|dl-cdn.alpinelinux.org|mirrors.aliyun.com|g' /etc/apk/repositories
+RUN npm config set registry https://registry.npmmirror.com
+
 # Install libc6-compat and tzdata for better compatibility
 RUN apk add --no-cache libc6-compat tzdata
 
@@ -23,6 +27,10 @@ RUN npm ci --omit=dev && \
 FROM node:20-alpine AS builder
 
 WORKDIR /app
+
+# Use China mirrors for faster builds
+RUN sed -i 's|dl-cdn.alpinelinux.org|mirrors.aliyun.com|g' /etc/apk/repositories
+RUN npm config set registry https://registry.npmmirror.com
 
 # Install build tools
 RUN apk add --no-cache git curl libc6-compat tzdata
@@ -77,6 +85,9 @@ LABEL git.commit="${GIT_COMMIT}" \
 ARG NODE_ENV=production
 
 WORKDIR /app
+
+# Use China mirror for faster builds
+RUN sed -i 's|dl-cdn.alpinelinux.org|mirrors.aliyun.com|g' /etc/apk/repositories
 
 # Install tzdata for timezone support
 RUN apk add --no-cache tzdata

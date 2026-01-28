@@ -36,7 +36,7 @@ class TestMultiInstanceTaskCancel:
     @pytest.fixture
     def shared_task_state(self, fake_redis_client):
         """Shared Redis-backed task state service (simulates shared Redis)."""
-        cache = RedisCache(db=RedisDB.JOB_STATE, client=fake_redis_client)
+        cache = RedisCache(db=RedisDB.TASK_STATE, client=fake_redis_client)
         return TaskStateService(cache=cache)
 
     def test_cancel_from_different_instance(self, instance1_memory, instance2_memory, shared_task_state):
@@ -122,7 +122,7 @@ class TestMultiInstanceConcurrentOperations:
     @pytest.fixture
     def shared_task_state(self, fake_redis_client):
         """Shared Redis-backed task state service."""
-        cache = RedisCache(db=RedisDB.JOB_STATE, client=fake_redis_client)
+        cache = RedisCache(db=RedisDB.TASK_STATE, client=fake_redis_client)
         return TaskStateService(cache=cache)
 
     @pytest.mark.asyncio

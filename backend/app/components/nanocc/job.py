@@ -81,7 +81,7 @@ class JobEvent(BaseModel):
     """
 
     eventId: str
-    jobId: str
+    taskId: str
     ts: int  # Unix timestamp in milliseconds
     eventType: EventType = EventType.THINKING_TEXT  # Default to THINKING_TEXT for backward compatibility
     stage: StageType
@@ -149,5 +149,5 @@ class CreateJobRequest(BaseModel):
 class RegisterSequenceRequest(BaseModel):
     """Request to pre-register a sequence for streaming."""
 
-    jobId: str
+    taskId: str
     sequence: str

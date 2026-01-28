@@ -554,16 +554,14 @@ class TaskStateService:
         return self.exists(task_id) or self._cache.exists(self._meta_key(task_id))
 
     # ==================== NanoCC Session Tracking ====================
-    # Note: These methods keep `job_id` parameter name for backward compatibility
-    # with the nanocc external module which calls them directly.
 
-    def _nanocc_key(self, job_id: str) -> str:
+    def _nanocc_key(self, task_id: str) -> str:
         """Generate Redis key for NanoCC session info."""
-        return f"chatfold:task:nanocc:{job_id}"
+        return f"chatfold:task:nanocc:{task_id}"
 
     def save_nanocc_session(
         self,
-        job_id: str,
+        task_id: str,
         instance_id: str,
         session_id: str,
         backend_url: str,
@@ -575,7 +573,7 @@ class TaskStateService:
         endpoint can call interrupt_session when user cancels a task.
 
         Args:
-            job_id: Job ID (nanocc external identifier)
+            task_id: The task identifier
             instance_id: NanoCC instance ID from scheduler
             session_id: NanoCC session ID from backend
             backend_url: NanoCC backend URL (via scheduler proxy)
@@ -584,7 +582,7 @@ class TaskStateService:
         Returns:
             True if successful
         """
-        key = self._nanocc_key(job_id)
+        key = self._nanocc_key(task_id)
         data = {
             "instance_id": instance_id,
             "session_id": session_id,
@@ -597,19 +595,19 @@ class TaskStateService:
         if result and ttl:
             self._cache.expire(key, ttl)
 
-        logger.debug(f"Saved NanoCC session: task={job_id}, session={session_id}")
+        logger.debug(f"Saved NanoCC session: task={task_id}, session={session_id}")
         return result
 
-    def get_nanocc_session(self, job_id: str) -> dict | None:
+    def get_nanocc_session(self, task_id: str) -> dict | None:
         """Get NanoCC session info for a task.
 
         Args:
-            job_id: Job ID (nanocc external identifier)
+            task_id: The task identifier
 
         Returns:
             Dict with instance_id, session_id, backend_url or None if not found
         """
-        data = self._cache.hgetall(self._nanocc_key(job_id))
+        data = self._cache.hgetall(self._nanocc_key(task_id))
         if not data:
             return None
 
@@ -620,51 +618,21 @@ class TaskStateService:
             "created_at": int(data.get("created_at", 0)),
         }
 
-    def delete_nanocc_session(self, job_id: str) -> bool:
+    def delete_nanocc_session(self, task_id: str) -> bool:
         """Delete NanoCC session info.
 
         Called when task completes or is canceled.
 
         Args:
-            job_id: Job ID (nanocc external identifier)
+            task_id: The task identifier
 
         Returns:
             True if deleted
         """
-        result = self._cache.delete(self._nanocc_key(job_id))
+        result = self._cache.delete(self._nanocc_key(task_id))
         if result:
-            logger.debug(f"Deleted NanoCC session info: {job_id}")
+            logger.debug(f"Deleted NanoCC session info: {task_id}")
         return result
-
-    # ==================== Backward Compatibility ====================
-    # These methods maintain the old `job_` naming for callers that haven't
-    # been updated yet. They delegate to the renamed methods.
-
-    def save_job_meta(
-        self,
-        job_id: str,
-        sequence: str,
-        conversation_id: str | None = None,
-        ttl: int | None = TASK_STATE_TTL,
-    ) -> bool:
-        """Backward-compatible alias for save_task_meta."""
-        return self.save_task_meta(job_id, sequence, conversation_id, ttl)
-
-    def get_job_meta(self, job_id: str) -> dict | None:
-        """Backward-compatible alias for get_task_meta."""
-        return self.get_task_meta(job_id)
-
-    def get_job_sequence(self, job_id: str) -> str | None:
-        """Backward-compatible alias for get_task_sequence."""
-        return self.get_task_sequence(job_id)
-
-    def delete_job_meta(self, job_id: str) -> bool:
-        """Backward-compatible alias for delete_task_meta."""
-        return self.delete_task_meta(job_id)
-
-    def job_exists(self, job_id: str) -> bool:
-        """Backward-compatible alias for task_exists."""
-        return self.task_exists(job_id)
 
     # ==================== Orphan Cleanup ====================
 
@@ -846,8 +814,6 @@ class TaskStateService:
             logger.error(f"Error during stale task cleanup: {e}")
             return (scanned, deleted)
 
-    # Backward-compatible alias
-    cleanup_stale_job_states = cleanup_stale_task_states
 
 
 # Singleton instance

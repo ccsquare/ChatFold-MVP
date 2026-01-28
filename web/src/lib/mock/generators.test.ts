@@ -125,12 +125,12 @@ describe('generateStepEvents', () => {
     expect(uniqueIds.size).toBe(ids.length);
   });
 
-  it('should include jobId in all events', () => {
-    const jobId = 'task_test123';
-    const events = Array.from(generateStepEvents(jobId, 'MVLSPADKT'));
+  it('should include taskId in all events', () => {
+    const taskId = 'task_test123';
+    const events = Array.from(generateStepEvents(taskId, 'MVLSPADKT'));
 
     events.forEach(event => {
-      expect(event.jobId).toBe(jobId);
+      expect(event.taskId).toBe(taskId);
     });
   });
 

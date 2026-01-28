@@ -165,7 +165,7 @@ export function ChatView() {
         } else if (sequence.length >= 10) {
           // File already added to folder by handleExampleClick or handleFileUpload
           // Don't pass filename/fastaContent to avoid duplicate addition
-          const result = await submit(convId, sequence);
+          const result = await submit(convId, sequence, { query: messageContent || undefined });
 
           if (!result) {
             addMessage(convId, {
@@ -199,7 +199,7 @@ export function ChatView() {
             const filename = generateSequenceFilename();
             const fastaContent = fastaMatch ? content : `>user_input_sequence\n${sequence}`;
 
-            const result = await submit(convId, sequence, { filename, fastaContent });
+            const result = await submit(convId, sequence, { filename, fastaContent, query: messageContent || undefined });
             if (!result) {
               addMessage(convId, {
                 role: 'assistant',

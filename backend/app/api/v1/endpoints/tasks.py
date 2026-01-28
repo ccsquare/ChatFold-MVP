@@ -290,6 +290,7 @@ async def cancel_task(task_id: str):
 async def stream_task(
     task_id: str,
     sequence: str | None = Query(None),
+    query: str | None = Query(None, description="User's natural language instruction"),
     files: str | None = Query(None, description="Comma-separated list of filenames in TOS upload directory"),
     use_nanocc: bool | None = Query(None, alias="nanocc"),
 ):
@@ -298,6 +299,8 @@ async def stream_task(
     Args:
         task_id: The task identifier
         sequence: Optional amino acid sequence (if not pre-registered)
+        query: User's natural language instruction, combined with sequence
+               to form the NanoCC prompt
         files: Comma-separated list of filenames to download from TOS.
                Files should be pre-uploaded to tos://bucket/sessions/{session_id}/upload/
         use_nanocc: Override NanoCC usage (default: USE_NANOCC env var)
@@ -307,9 +310,12 @@ async def stream_task(
     if files:
         file_list = [f.strip() for f in files.split(",") if f.strip()]
 
+    # Default query when user sends no text (e.g. only uploads a FASTA file)
+    final_query = query or "请分析以下蛋白质序列并进行结构预测。"
+
     logger.info(
         f"GET /tasks/{task_id}/stream: sequence_len={len(sequence) if sequence else 'None'}, "
-        f"files={file_list}, nanocc={use_nanocc}"
+        f"query={final_query[:50]!r}, files={file_list}, nanocc={use_nanocc}"
     )
     # Validate task_id format
     if not TASK_ID_PATTERN.match(task_id):
@@ -343,7 +349,7 @@ async def stream_task(
 
         if enable_nanocc:
             # Use NanoCC-powered async generator
-            async for item in generate_cot_events(task_id, final_sequence, files=file_list):
+            async for item in generate_cot_events(task_id, final_sequence, final_query, files=file_list):
                 # Heartbeat keepalive: raw SSE comment line, skip all processing
                 if isinstance(item, str):
                     yield item

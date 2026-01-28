@@ -62,7 +62,7 @@ async def get_structure(
     # Try to get from storage (checks memory cache, then filesystem if applicable)
     cached = structure_storage.get_structure(
         structure_id,
-        job_id=task_id,
+        task_id=task_id,
         filename=filename,
     )
     if cached:
@@ -91,7 +91,7 @@ async def get_structure(
         structure_storage.save_structure(
             structure_id,
             pdb_data,
-            job_id=task_id,
+            task_id=task_id,
             filename=filename,
         )
 
@@ -139,7 +139,7 @@ async def cache_structure(
     file_path = structure_storage.save_structure(
         structure_id,
         request.pdbData,
-        job_id=task_id,
+        task_id=task_id,
         filename=filename,
     )
 

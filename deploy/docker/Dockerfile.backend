@@ -19,6 +19,9 @@ LABEL git.commit="${GIT_COMMIT}" \
 
 WORKDIR /app
 
+# Use China mirrors for faster builds
+RUN sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources
+
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
@@ -26,7 +29,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv (fast Python package manager)
-RUN pip install --no-cache-dir uv
+RUN pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple --timeout 600 --retries 5 uv
 
 # Create non-root user
 RUN groupadd --system --gid 1001 chatfold && \
@@ -37,8 +40,8 @@ COPY pyproject.toml uv.lock* README.md ./
 COPY vendor/ditto ./vendor/ditto
 
 # Install dependencies directly into system Python (no venv in container)
-RUN uv pip install --system --no-cache -r pyproject.toml && \
-    uv pip install --system --no-cache ./vendor/ditto
+RUN uv pip install --system --no-cache --index-url https://pypi.tuna.tsinghua.edu.cn/simple -r pyproject.toml && \
+    uv pip install --system --no-cache --index-url https://pypi.tuna.tsinghua.edu.cn/simple ./vendor/ditto
 
 # Copy application code
 COPY . .

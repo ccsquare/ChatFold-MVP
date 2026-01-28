@@ -33,7 +33,7 @@ from app.components.nanocc.client import (
     TOSConfig,
     build_folding_prompt,
     get_fs_root,
-    job_id_to_session_id,
+    task_id_to_session_id,
 )
 from app.components.nanocc.job import EventType, JobEvent, StageType, StatusType
 from app.components.nanocc.mock import (
@@ -41,7 +41,7 @@ from app.components.nanocc.mock import (
     MockNanoCCSchedulerClient,
 )
 from app.components.workspace.models import Structure
-from app.services.job_state import job_state_service
+from app.services.task_state import task_state_service
 from app.services.session_store import TOS_BUCKET, SessionPaths, get_session_store
 from app.services.structure_storage import structure_storage
 from app.settings import settings
@@ -168,11 +168,12 @@ def _fallback_text_type(event_type: EventType) -> EventType:
 
 
 async def generate_real_cot_events(
-    job_id: str,
+    task_id: str,
     sequence: str,
+    query: str,
     files: list[str] | None = None,
 ) -> AsyncGenerator[JobEvent | str, None]:
-    """Generate folding job events from real NanoCC API.
+    """Generate folding task events from real NanoCC API.
 
     This function:
     1. Allocates a NanoCC instance via scheduler
@@ -182,8 +183,10 @@ async def generate_real_cot_events(
     5. Releases the instance when done
 
     Args:
-        job_id: The job identifier
+        task_id: The task identifier
         sequence: The amino acid sequence
+        query: User's natural language instruction (combined with sequence to form
+               the final NanoCC prompt via build_folding_prompt)
         files: List of filenames to download from TOS upload directory.
                These files should already be uploaded to tos://bucket/sessions/{session_id}/upload/
 
@@ -199,15 +202,15 @@ async def generate_real_cot_events(
 
     # Initialize clients
     scheduler = NanoCCSchedulerClient()
-    session_id = job_id_to_session_id(job_id)
+    session_id = task_id_to_session_id(task_id)
     fs_root = get_fs_root(session_id)
 
     try:
         # Stage 1: QUEUED - allocating instance
         event_num += 1
         yield JobEvent(
-            eventId=f"evt_{job_id}_{event_num:04d}",
-            jobId=job_id,
+            eventId=f"evt_{task_id}_{event_num:04d}",
+            taskId=task_id,
             ts=get_timestamp_ms(),
             eventType=EventType.THINKING_TEXT,
             stage=StageType.QUEUED,
@@ -220,7 +223,7 @@ async def generate_real_cot_events(
 
         # Allocate instance
         instance = await scheduler.allocate_instance(fs_root)
-        logger.info(f"Allocated instance {instance.instance_id} for job {job_id}")
+        logger.info(f"Allocated instance {instance.instance_id} for task {task_id}")
 
         # Health check
         await scheduler.health_check(instance)
@@ -233,12 +236,12 @@ async def generate_real_cot_events(
 
         # Create session with working_directory
         session = await backend.create_session(working_directory=fs_root)
-        logger.info(f"Created session {session.session_id} for job {job_id}")
+        logger.info(f"Created session {session.session_id} for task {task_id}")
         logger.info(f"NanoCC working_directory (trajectory): {fs_root}")
 
         # Save NanoCC session info for interrupt support
-        job_state_service.save_nanocc_session(
-            job_id=job_id,
+        task_state_service.save_nanocc_session(
+            task_id=task_id,
             instance_id=instance.instance_id,
             session_id=session.session_id,
             backend_url=instance.backend_url,
@@ -246,8 +249,8 @@ async def generate_real_cot_events(
 
         event_num += 1
         yield JobEvent(
-            eventId=f"evt_{job_id}_{event_num:04d}",
-            jobId=job_id,
+            eventId=f"evt_{task_id}_{event_num:04d}",
+            taskId=task_id,
             ts=get_timestamp_ms(),
             eventType=EventType.THINKING_TEXT,
             stage=StageType.MODEL,
@@ -259,7 +262,7 @@ async def generate_real_cot_events(
         )
 
         # Build and send prompt
-        prompt = build_folding_prompt(sequence, job_id)
+        prompt = build_folding_prompt(query, sequence)
 
         # Build TOS config for file sync
         paths = SessionPaths(session_id)
@@ -270,14 +273,14 @@ async def generate_real_cot_events(
             output=paths.output.rstrip("/"),  # sessions/{session_id}/output
         )
         logger.info(
-            f"NanoCC TOS config for job {job_id}: "
+            f"NanoCC TOS config for task {task_id}: "
             f"bucket={TOS_BUCKET}, "
             f"upload=tos://{TOS_BUCKET}/{tos_config.upload}, "
             f"state=tos://{TOS_BUCKET}/{tos_config.state}, "
             f"output=tos://{TOS_BUCKET}/{tos_config.output}"
         )
         if files:
-            logger.info(f"NanoCC input files for job {job_id}: {files}")
+            logger.info(f"NanoCC input files for task {task_id}: {files}")
 
         # Stream events from NanoCC
         async for event in backend.send_message(
@@ -321,7 +324,7 @@ async def generate_real_cot_events(
 
                 if _is_pdb_event(nanocc_event_type) and pdb_path:
                     structure_count += 1
-                    structure_id = f"str_{job_id}_{structure_count}"
+                    structure_id = f"str_{task_id}_{structure_count}"
                     pdb_data = _read_pdb_file_from_tos(session_id, pdb_path)
 
                     # Use current block index for this event
@@ -334,7 +337,7 @@ async def generate_real_cot_events(
                         structure_storage.save_structure(
                             structure_id=structure_id,
                             pdb_data=pdb_data,
-                            job_id=job_id,
+                            task_id=task_id,
                             filename=filename,
                         )
 
@@ -353,7 +356,7 @@ async def generate_real_cot_events(
                         # File read failed - emit as text but still close block
                         nanocc_event_type = _fallback_text_type(nanocc_event_type)
                         logger.warning(
-                            f"PDB file read failed for job {job_id}, pdb_path={pdb_path}, falling back to text event"
+                            f"PDB file read failed for task {task_id}, pdb_path={pdb_path}, falling back to text event"
                         )
 
                     # Always close block when pdb_file was set (NanoCC intended a structure here)
@@ -367,8 +370,8 @@ async def generate_real_cot_events(
 
                 event_num += 1
                 yield JobEvent(
-                    eventId=f"evt_{job_id}_{event_num:04d}",
-                    jobId=job_id,
+                    eventId=f"evt_{task_id}_{event_num:04d}",
+                    taskId=task_id,
                     ts=get_timestamp_ms(),
                     eventType=nanocc_event_type,
                     stage=stage,
@@ -383,7 +386,7 @@ async def generate_real_cot_events(
                 yield SSE_HEARTBEAT_COMMENT
 
             elif event_type == "error":
-                logger.warning(f"NanoCC SSE error for job {job_id}: {data}")
+                logger.warning(f"NanoCC SSE error for task {task_id}: {data}")
 
             elif event_type == "done":
                 # Final done event handled after loop
@@ -394,11 +397,11 @@ async def generate_real_cot_events(
             await backend.delete_session(session.session_id)
 
     except Exception as e:
-        logger.error(f"Error in real NanoCC flow for job {job_id}: {e}")
+        logger.error(f"Error in real NanoCC flow for task {task_id}: {e}")
         event_num += 1
         yield JobEvent(
-            eventId=f"evt_{job_id}_{event_num:04d}",
-            jobId=job_id,
+            eventId=f"evt_{task_id}_{event_num:04d}",
+            taskId=task_id,
             ts=get_timestamp_ms(),
             eventType=EventType.CONCLUSION,
             stage=StageType.ERROR,
@@ -411,29 +414,31 @@ async def generate_real_cot_events(
 
     finally:
         # Clean up NanoCC session info from Redis
-        job_state_service.delete_nanocc_session(job_id)
+        task_state_service.delete_nanocc_session(task_id)
 
         # Release instance
         if instance:
             await scheduler.release_instance(instance)
-            logger.info(f"Released instance {instance.instance_id} for job {job_id}")
+            logger.info(f"Released instance {instance.instance_id} for task {task_id}")
 
 
 async def generate_mock_cot_events(
-    job_id: str,
+    task_id: str,
     sequence: str,
+    query: str,
     files: list[str] | None = None,
     delay_min: float = MOCK_DELAY_MIN,
     delay_max: float = MOCK_DELAY_MAX,
 ) -> AsyncGenerator[JobEvent | str, None]:
-    """Generate folding job events from Mock NanoCC.
+    """Generate folding task events from Mock NanoCC.
 
     This function follows the same flow as generate_real_cot_events but uses
     mock clients that read from JSONL files instead of making real API calls.
 
     Args:
-        job_id: The job identifier
+        task_id: The task identifier
         sequence: The amino acid sequence
+        query: User's natural language instruction
         files: List of filenames (ignored in mock mode, but kept for API consistency)
         delay_min: Minimum delay in seconds between messages
         delay_max: Maximum delay in seconds between messages
@@ -448,14 +453,14 @@ async def generate_mock_cot_events(
 
     # Initialize mock clients
     scheduler = MockNanoCCSchedulerClient()
-    session_id = job_id_to_session_id(job_id)
+    session_id = task_id_to_session_id(task_id)
     fs_root = get_fs_root(session_id)
 
     # Stage 1: QUEUED - allocating instance
     event_num += 1
     yield JobEvent(
-        eventId=f"evt_{job_id}_{event_num:04d}",
-        jobId=job_id,
+        eventId=f"evt_{task_id}_{event_num:04d}",
+        taskId=task_id,
         ts=get_timestamp_ms(),
         eventType=EventType.THINKING_TEXT,
         stage=StageType.QUEUED,
@@ -484,8 +489,8 @@ async def generate_mock_cot_events(
 
     event_num += 1
     yield JobEvent(
-        eventId=f"evt_{job_id}_{event_num:04d}",
-        jobId=job_id,
+        eventId=f"evt_{task_id}_{event_num:04d}",
+        taskId=task_id,
         ts=get_timestamp_ms(),
         eventType=EventType.THINKING_TEXT,
         stage=StageType.MODEL,
@@ -497,7 +502,7 @@ async def generate_mock_cot_events(
     )
 
     # Build prompt
-    prompt = build_folding_prompt(sequence, job_id)
+    prompt = build_folding_prompt(query, sequence)
 
     # Build TOS config (ignored in mock mode, but kept for consistency)
     paths = SessionPaths(session_id)
@@ -544,7 +549,7 @@ async def generate_mock_cot_events(
 
             if _is_pdb_event(nanocc_event_type) and pdb_path:
                 structure_count += 1
-                structure_id = f"str_{job_id}_{structure_count}"
+                structure_id = f"str_{task_id}_{structure_count}"
 
                 # Read PDB content from local filesystem
                 # pdb_path is relative to project root (test fixtures)
@@ -560,7 +565,7 @@ async def generate_mock_cot_events(
                     structure_storage.save_structure(
                         structure_id=structure_id,
                         pdb_data=pdb_data,
-                        job_id=job_id,
+                        task_id=task_id,
                         filename=filename,
                     )
 
@@ -579,7 +584,7 @@ async def generate_mock_cot_events(
                     # File read failed - emit as text but still close block
                     nanocc_event_type = _fallback_text_type(nanocc_event_type)
                     logger.warning(
-                        f"Mock PDB file read failed for job {job_id}, pdb_path={pdb_path}, falling back to text event"
+                        f"Mock PDB file read failed for task {task_id}, pdb_path={pdb_path}, falling back to text event"
                     )
 
                 # Always close block when pdb_file was set (NanoCC intended a structure here)
@@ -593,8 +598,8 @@ async def generate_mock_cot_events(
 
             event_num += 1
             yield JobEvent(
-                eventId=f"evt_{job_id}_{event_num:04d}",
-                jobId=job_id,
+                eventId=f"evt_{task_id}_{event_num:04d}",
+                taskId=task_id,
                 ts=get_timestamp_ms(),
                 eventType=nanocc_event_type,
                 stage=stage,
@@ -609,7 +614,7 @@ async def generate_mock_cot_events(
             yield SSE_HEARTBEAT_COMMENT
 
         elif event_type == "error":
-            logger.warning(f"Mock NanoCC SSE error for job {job_id}: {data}")
+            logger.warning(f"Mock NanoCC SSE error for task {task_id}: {data}")
 
         elif event_type == "done":
             break
@@ -620,11 +625,12 @@ async def generate_mock_cot_events(
 
 
 async def generate_cot_events(
-    job_id: str,
+    task_id: str,
     sequence: str,
+    query: str,
     files: list[str] | None = None,
 ) -> AsyncGenerator[JobEvent | str, None]:
-    """Generate folding job events with NanoCC/Mock integration.
+    """Generate folding task events with NanoCC/Mock integration.
 
     This is the main entry point that routes to either:
     - Mock NanoCC (USE_MOCK_NANOCC=true): reads from JSONL file with random delays
@@ -639,8 +645,10 @@ async def generate_cot_events(
     6. Release instance
 
     Args:
-        job_id: The job identifier
+        task_id: The task identifier
         sequence: The amino acid sequence
+        query: User's natural language instruction (combined with sequence to form
+               the final NanoCC prompt via build_folding_prompt)
         files: List of filenames to download from TOS upload directory.
                Files should be pre-uploaded to tos://bucket/sessions/{session_id}/upload/
 
@@ -648,12 +656,12 @@ async def generate_cot_events(
         JobEvent objects with progress updates and structure artifacts
     """
     if USE_MOCK_NANOCC:
-        logger.info(f"Using Mock NanoCC for job {job_id}")
-        async for event in generate_mock_cot_events(job_id, sequence, files=files):
+        logger.info(f"Using Mock NanoCC for task {task_id}")
+        async for event in generate_mock_cot_events(task_id, sequence, query, files=files):
             yield event
     else:
-        logger.info(f"Using Real NanoCC for job {job_id}")
-        async for event in generate_real_cot_events(job_id, sequence, files=files):
+        logger.info(f"Using Real NanoCC for task {task_id}")
+        async for event in generate_real_cot_events(task_id, sequence, query, files=files):
             yield event
 
 

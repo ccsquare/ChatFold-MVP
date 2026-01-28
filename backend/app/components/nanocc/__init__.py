@@ -20,7 +20,7 @@ Usage:
     from app.components.nanocc import NanoCCJob, generate_cot_events
 
     # Using the high-level API (recommended)
-    async for event in generate_cot_events(job_id, sequence):
+    async for event in generate_cot_events(task_id, sequence, query):
         yield event
 
     # Using the low-level client API
@@ -44,7 +44,7 @@ from app.components.nanocc.client import (
     TOSConfig,
     build_folding_prompt,
     get_fs_root,
-    job_id_to_session_id,
+    task_id_to_session_id,
 )
 from app.components.nanocc.folding import (
     generate_cot_events,
@@ -96,5 +96,5 @@ __all__ = [
     # Utils
     "build_folding_prompt",
     "get_fs_root",
-    "job_id_to_session_id",
+    "task_id_to_session_id",
 ]

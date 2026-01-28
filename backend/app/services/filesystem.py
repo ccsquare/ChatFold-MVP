@@ -36,9 +36,9 @@ class FileSystemService:
     │       │   └── project_default/
     │       │       ├── uploads/{folder_id}/
     │       │       │   └── {files}
-    │       │       └── structures/{job_id}/
+    │       │       └── structures/{task_id}/
     │       │           └── {pdb_files}
-    │       └── jobs/{job_id}/
+    │       └── jobs/{task_id}/
     │           └── {artifacts}
     └── shared/
         ├── templates/
@@ -134,35 +134,35 @@ class FileSystemService:
 
     def ensure_structures_dir(
         self,
-        job_id: str,
+        task_id: str,
         user_id: str = DEFAULT_USER_ID,
         project_id: str = DEFAULT_PROJECT_ID,
     ) -> Path:
         """Ensure structure files directory exists and return path.
 
         Args:
-            job_id: The job ID for structure files
+            task_id: The task identifier
             user_id: User ID (defaults to DEFAULT_USER_ID for MVP)
             project_id: Project ID (defaults to DEFAULT_PROJECT_ID for MVP)
 
         Returns:
             Path to the structures directory
         """
-        path = settings.get_structures_path(user_id, project_id, job_id)
+        path = settings.get_structures_path(user_id, project_id, task_id)
         path.mkdir(parents=True, exist_ok=True)
         return path
 
-    def ensure_job_dir(self, job_id: str, user_id: str = DEFAULT_USER_ID) -> Path:
-        """Ensure job artifacts directory exists and return path.
+    def ensure_task_dir(self, task_id: str, user_id: str = DEFAULT_USER_ID) -> Path:
+        """Ensure task artifacts directory exists and return path.
 
         Args:
-            job_id: The job ID
+            task_id: The task identifier
             user_id: User ID (defaults to DEFAULT_USER_ID for MVP)
 
         Returns:
-            Path to the job directory
+            Path to the task directory
         """
-        path = settings.get_jobs_path(user_id, job_id)
+        path = settings.get_jobs_path(user_id, task_id)
         path.mkdir(parents=True, exist_ok=True)
         return path
 

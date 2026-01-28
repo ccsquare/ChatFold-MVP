@@ -21,7 +21,7 @@ from app.services.task_state import TaskStateService
 @pytest.fixture
 def task_cache(fake_redis_client) -> RedisCache:
     """Create a RedisCache instance with fakeredis for task state."""
-    return RedisCache(db=RedisDB.JOB_STATE, client=fake_redis_client)
+    return RedisCache(db=RedisDB.TASK_STATE, client=fake_redis_client)
 
 
 @pytest.fixture
