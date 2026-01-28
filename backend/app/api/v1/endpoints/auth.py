@@ -18,6 +18,7 @@ from app.models.auth_schemas import (
     UserRegister,
     UserResponse,
 )
+from app.repositories.user import user_repository
 from app.services.auth_service import (
     create_access_token,
     get_password_hash,
@@ -111,7 +112,7 @@ async def send_code(request: Request, body: SendCodeRequest):
 
 
 @router.post("/register", response_model=UserResponse)
-async def register(body: UserRegister):
+async def register(body: UserRegister, db: Session = Depends(get_db)):
     """Register a new user."""
     logger.info(f"POST /auth/register: email={body.email}, username={body.username}")
     # Verify verification code
@@ -119,8 +120,15 @@ async def register(body: UserRegister):
     if not success:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
 
-    # Note: In memory store mode, we skip DB persistence
-    # Email and username uniqueness will be enforced when DB is available
+    # Check email uniqueness
+    existing_user = user_repository.get_by_email(db, body.email)
+    if existing_user:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
+
+    # Check username uniqueness
+    existing_username = user_repository.get_by_username(db, body.username)
+    if existing_username:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already taken")
 
     # Hash password
     hashed_password = get_password_hash(body.password)
@@ -129,7 +137,22 @@ async def register(body: UserRegister):
     now = get_timestamp_ms()
     user_id = generate_id("user")
 
-    # Store user in Redis cache for authentication in memory mode
+    # Create user in MySQL
+    user = User(
+        id=user_id,
+        name=body.username,
+        username=body.username,
+        email=body.email,
+        hashed_password=hashed_password,
+        plan="free",
+        onboarding_completed=False,
+        created_at=now,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    # Write to Redis cache for faster subsequent access
     cache = get_redis_cache()
     user_data = {
         "id": user_id,
@@ -141,12 +164,9 @@ async def register(body: UserRegister):
         "onboarding_completed": False,
         "created_at": now,
     }
-    # Store by email for login lookup
-    cache.set(f"chatfold:user:email:{body.email}", user_data, expire_seconds=86400)  # 24 hours
-    # Store by user_id for token verification
-    cache.set(f"chatfold:user:{user_id}", user_data, expire_seconds=86400)  # 24 hours
+    cache.set(f"chatfold:user:{user_id}", user_data, expire_seconds=900)  # 15 min cache
 
-    logger.info(f"New user registered (memory mode): {body.email}")
+    logger.info(f"New user registered: {body.email}")
 
     return UserResponse(
         id=user_id,
@@ -160,15 +180,14 @@ async def register(body: UserRegister):
 
 
 @router.post("/login", response_model=Token)
-async def login(body: UserLogin):
+async def login(body: UserLogin, db: Session = Depends(get_db)):
     """Login user and return JWT token."""
     logger.info(f"POST /auth/login: email={body.email}")
 
-    # In memory mode, check Redis cache for user
-    cache = get_redis_cache()
-    user_data = cache.get(f"chatfold:user:email:{body.email}")
+    # Query user from MySQL
+    user = user_repository.get_by_email(db, body.email)
 
-    if not user_data:
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -176,17 +195,31 @@ async def login(body: UserLogin):
         )
 
     # Verify password
-    if not verify_password(body.password, user_data.get("hashed_password", "")):
+    if not verify_password(body.password, user.hashed_password or ""):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Create access token
-    access_token = create_access_token(data={"sub": user_data["id"]})
+    # Write to Redis cache for faster subsequent access
+    cache = get_redis_cache()
+    user_data = {
+        "id": user.id,
+        "name": user.name,
+        "username": user.username,
+        "email": user.email,
+        "hashed_password": user.hashed_password,
+        "plan": user.plan,
+        "onboarding_completed": user.onboarding_completed,
+        "created_at": user.created_at,
+    }
+    cache.set(f"chatfold:user:{user.id}", user_data, expire_seconds=900)  # 15 min cache
 
-    logger.info(f"User logged in (memory mode): {body.email}")
+    # Create access token
+    access_token = create_access_token(data={"sub": user.id})
+
+    logger.info(f"User logged in: {body.email}")
 
     return Token(access_token=access_token, token_type="bearer")
 

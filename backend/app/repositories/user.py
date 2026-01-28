@@ -29,6 +29,20 @@ class UserRepository(BaseRepository[User]):
         result = db.execute(stmt)
         return result.scalar_one_or_none()
 
+    def get_by_username(self, db: Session, username: str) -> User | None:
+        """Get user by username.
+
+        Args:
+            db: Database session
+            username: Username
+
+        Returns:
+            User or None if not found
+        """
+        stmt = select(User).where(User.username == username)
+        result = db.execute(stmt)
+        return result.scalar_one_or_none()
+
     def get_or_create_default(self, db: Session) -> User:
         """Get or create the default user (for MVP).
 
