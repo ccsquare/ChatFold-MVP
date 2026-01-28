@@ -5,6 +5,13 @@ import { useAuthStore } from '@/lib/stores/authStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import { config } from '@/config';
+
+// Test credentials for development mode
+const DEV_TEST_CREDENTIALS = {
+  email: 'test@chatfold.ai',
+  password: 'test123456',
+};
 
 export interface LoginFormProps {
   onSuccess: () => void;
@@ -13,8 +20,9 @@ export interface LoginFormProps {
 
 export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
   const { login, isLoading, error, clearError } = useAuthStore();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  // Auto-fill test credentials in development mode
+  const [email, setEmail] = useState(config.development.isDev ? DEV_TEST_CREDENTIALS.email : '');
+  const [password, setPassword] = useState(config.development.isDev ? DEV_TEST_CREDENTIALS.password : '');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
