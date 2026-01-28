@@ -96,7 +96,10 @@ export function Canvas() {
                 <Suspense
                   fallback={
                     <div className="flex-1 flex items-center justify-center">
-                      <Loader2 className="w-8 h-8 animate-spin text-cf-text-muted" />
+                      {/* Wrap SVG in div for hardware-accelerated animation (Rule 6.1) */}
+                      <div className="animate-spin">
+                        <Loader2 className="w-8 h-8 text-cf-text-muted" />
+                      </div>
                     </div>
                   }
                 >

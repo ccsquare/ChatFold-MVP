@@ -13,6 +13,13 @@ const nextConfig = {
   reactStrictMode: false, // Temporarily disabled to debug SSE issues
   transpilePackages: ['molstar'],
 
+  // Optimize barrel file imports for better tree-shaking
+  // This is CRITICAL for lucide-react which has 1000+ icons
+  // Without this, importing a single icon could pull in the entire library
+  experimental: {
+    optimizePackageImports: ['lucide-react'],
+  },
+
   // Base path for sub-path deployment
   // Empty string for root path, '/chatfold' for sub-path
   ...(basePath && { basePath }),

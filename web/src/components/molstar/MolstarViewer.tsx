@@ -1961,7 +1961,10 @@ export const MolstarViewer = memo(forwardRef<MolstarViewerRef, MolstarViewerProp
           aria-live="polite"
         >
           <div className="flex flex-col items-center gap-2">
-            <Loader2 className="w-8 h-8 border-cf-accent animate-spin" aria-hidden="true" />
+            {/* Wrap SVG in div for hardware-accelerated animation */}
+            <div className="animate-spin">
+              <Loader2 className="w-8 h-8 text-cf-accent" aria-hidden="true" />
+            </div>
             <div className="text-center">
               <span className="text-sm text-cf-text-secondary">
                 {retryState.attempt > 0
