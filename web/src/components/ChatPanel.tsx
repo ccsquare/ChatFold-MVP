@@ -49,12 +49,6 @@ export function ChatPanel() {
     }
   }, [storeIsStreaming, isSending]);
 
-  // Debug: Set window marker and log button state
-  if (typeof window !== 'undefined') {
-    (window as any).__CHATPANEL_STATE = { isSending, storeIsStreaming };
-  }
-  console.error('[ChatPanel] Button state:', { isSending, storeIsStreaming, showStop: storeIsStreaming });
-
   // Handle send from ChatInputBase
   const handleSend = useCallback(
     async (content: string, files?: MentionableFile[]) => {
@@ -66,7 +60,6 @@ export function ChatPanel() {
 
       // Set sending state immediately BEFORE any store updates
       // This ensures the stop button shows even during conversation/folder creation
-      console.error('[ChatPanel] Setting isSending to TRUE');
       setIsSending(true);
       // Also set store streaming state immediately to prevent race conditions
       // where createConversation or other operations might cause a re-render
@@ -124,7 +117,6 @@ export function ChatPanel() {
       setMentionedFiles([]);
 
       // Add user message with attached files
-      console.log('[ChatPanel] Adding message to conversation:', convId);
       addMessage(convId, {
         role: 'user',
         content: userMessage,
@@ -282,13 +274,9 @@ export function ChatPanel() {
       } finally {
         // Only reset states if streaming wasn't actually started
         // When streaming starts, states will be reset by the task completion handler
-        console.error('[ChatPanel] Finally block: streamingStarted =', streamingStarted);
         if (!streamingStarted) {
-          console.error('[ChatPanel] Setting isSending/isStreaming to FALSE (streaming not started)');
           setIsSending(false);
           setIsStreaming(false);
-        } else {
-          console.error('[ChatPanel] Keeping streaming TRUE (streaming started)');
         }
       }
     },

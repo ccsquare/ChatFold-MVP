@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, memo } from 'react';
 import { useAppStore } from '@/lib/store';
 import { cn, formatTimestamp, downloadPDBFile } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -47,7 +47,7 @@ interface FolderItemProps {
   onUpload: (folderId: string) => void;
 }
 
-function FolderItem({
+const FolderItem = memo(function FolderItem({
   folder,
   isActive,
   onSelect,
@@ -285,7 +285,7 @@ function FolderItem({
       )}
     </li>
   );
-}
+});
 
 export function Sidebar() {
   const {

@@ -1,15 +1,19 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import React, { useState, useCallback, Suspense } from 'react';
 import { useAppStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { CanvasTabs } from './CanvasTabs';
-import { MolstarViewer } from './molstar';
 import { CompareViewer } from './CompareViewer';
 import { SequenceViewer } from './SequenceViewer';
 import { AtomInfo } from '@/lib/types';
 import { ViewerToolbar } from './ViewerToolbar';
-import { FlaskConical } from 'lucide-react';
+import { FlaskConical, Loader2 } from 'lucide-react';
+
+// Dynamic import for heavy MolstarViewer component (reduces initial bundle size)
+const MolstarViewer = React.lazy(() =>
+  import('./molstar').then(m => ({ default: m.MolstarViewer }))
+);
 
 export function Canvas() {
   const viewerTabs = useAppStore(state => state.viewerTabs);
@@ -89,17 +93,25 @@ export function Canvas() {
                   label={activeTab.label}
                 />
               ) : (
-                <MolstarViewer
-                  key={activeTab.id}
-                  tabId={activeTab.id}
-                  pdbData={activeTab.pdbData}
-                  structureId={activeTab.structureId}
-                  format={getFormat(activeTab.filename)}
-                  isExpanded={isExpanded}
-                  onToggleExpand={handleToggleExpand}
-                  onAtomClick={handleAtomClick}
-                  onAtomCountChange={handleAtomCountChange}
-                />
+                <Suspense
+                  fallback={
+                    <div className="flex-1 flex items-center justify-center">
+                      <Loader2 className="w-8 h-8 animate-spin text-cf-text-muted" />
+                    </div>
+                  }
+                >
+                  <MolstarViewer
+                    key={activeTab.id}
+                    tabId={activeTab.id}
+                    pdbData={activeTab.pdbData}
+                    structureId={activeTab.structureId}
+                    format={getFormat(activeTab.filename)}
+                    isExpanded={isExpanded}
+                    onToggleExpand={handleToggleExpand}
+                    onAtomClick={handleAtomClick}
+                    onAtomCountChange={handleAtomCountChange}
+                  />
+                </Suspense>
               )}
             </div>
           </section>
