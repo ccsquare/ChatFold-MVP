@@ -161,7 +161,22 @@ export const api = {
  */
 export function getAuthenticatedUrl(endpoint: string, params?: Record<string, string>): string {
   const baseUrl = config.backend.url;
-  const url = new URL(endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint}`);
+
+  // Handle relative paths when baseUrl is empty (k8s ingress deployment)
+  // EventSource requires absolute URL, so use current origin as base
+  let fullUrl: string;
+  if (endpoint.startsWith('http')) {
+    fullUrl = endpoint;
+  } else if (baseUrl) {
+    fullUrl = `${baseUrl}${endpoint}`;
+  } else if (typeof window !== 'undefined') {
+    fullUrl = `${window.location.origin}${endpoint}`;
+  } else {
+    // Server-side fallback (shouldn't happen for SSE)
+    fullUrl = endpoint;
+  }
+
+  const url = new URL(fullUrl);
 
   // Add any provided params
   if (params) {

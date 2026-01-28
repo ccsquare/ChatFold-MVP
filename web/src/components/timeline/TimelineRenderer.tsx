@@ -243,6 +243,11 @@ function CopyIconButton({ text }: { text: string }) {
     }
   }, [text]);
 
+  // Don't render if no text to copy
+  if (!text) {
+    return null;
+  }
+
   return (
     <Tooltip>
       <TooltipTrigger asChild>
