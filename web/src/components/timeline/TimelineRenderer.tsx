@@ -736,20 +736,20 @@ function FoldingProgress({
   // Blinking icon state for header (same as BlockTextBubble)
   const [showHeaderSparkles, setShowHeaderSparkles] = useState(false);
 
-  // Blinking effect for header icon when streaming
+  // Blinking effect for header icon when streaming or error (keep blinking on timeout)
   useEffect(() => {
-    if (!isStreaming) {
+    if (!isStreaming && !streamError) {
       setShowHeaderSparkles(true); // Show Sparkles when done (but we'll show CheckCircle2)
       return;
     }
 
-    // Toggle between Sparkle and Sparkles every 500ms
+    // Toggle between Sparkle and Sparkles every 500ms (streaming or error state)
     const interval = setInterval(() => {
       setShowHeaderSparkles(prev => !prev);
     }, 500);
 
     return () => clearInterval(interval);
-  }, [isStreaming]);
+  }, [isStreaming, streamError]);
 
   return (
     <div className="pb-4">
