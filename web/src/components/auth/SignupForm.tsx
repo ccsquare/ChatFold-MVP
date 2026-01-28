@@ -9,11 +9,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import Link from 'next/link';
 import { config } from '@/config';
 
-// Test credentials for development mode
+// Test credentials for development mode (use different email for new registrations)
 const DEV_TEST_CREDENTIALS = {
-  email: 'test@chatfold.ai',
-  username: 'testuser',
-  password: 'test123456',
+  email: 'testuser2@chatfold.ai',
+  username: 'testuser2',
+  password: 'chatfoldtest123',
 };
 
 interface SignupFormProps {

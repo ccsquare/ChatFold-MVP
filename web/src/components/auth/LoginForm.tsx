@@ -9,8 +9,8 @@ import { config } from '@/config';
 
 // Test credentials for development mode
 const DEV_TEST_CREDENTIALS = {
-  email: 'test@chatfold.ai',
-  password: 'test123456',
+  email: 'testuser@chatfold.ai',
+  password: 'chatfoldtest123',
 };
 
 export interface LoginFormProps {

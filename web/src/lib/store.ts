@@ -17,24 +17,39 @@ import {
 } from './types';
 import { generateId } from './utils';
 
-// Default user for MVP - single user mode, auth to be implemented later
-const DEFAULT_USER: User = {
-  id: 'user_default',
-  name: 'user',
-  email: 'user@simplex.com',
+// Placeholder user/project for unauthenticated state
+// These will be replaced when user logs in
+const PLACEHOLDER_USER: User = {
+  id: 'user_placeholder',
+  name: 'Guest',
+  email: '',
   plan: 'free',
   createdAt: Date.now()
 };
 
-// Default project for MVP - single project mode, multi-project to be implemented later
-const DEFAULT_PROJECT: Project = {
-  id: 'project_default',
-  userId: 'user_default',
+const PLACEHOLDER_PROJECT: Project = {
+  id: 'project_placeholder',
+  userId: 'user_placeholder',
   name: 'Default Project',
   description: 'Default project for organizing folders',
   createdAt: Date.now(),
   updatedAt: Date.now()
 };
+
+/**
+ * Create a default project for a user
+ */
+function createDefaultProject(userId: string): Project {
+  const now = Date.now();
+  return {
+    id: `project_${userId}_default`,
+    userId,
+    name: 'Default Project',
+    description: 'Default project for organizing folders',
+    createdAt: now,
+    updatedAt: now
+  };
+}
 
 // Default sidebar width
 const DEFAULT_SIDEBAR_WIDTH = 240;
@@ -111,11 +126,11 @@ let _prevConversations: Conversation[] = [];
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
-  // Current user (MVP: single default user)
-  currentUser: DEFAULT_USER,
+  // Current user (set on login, placeholder when unauthenticated)
+  currentUser: PLACEHOLDER_USER,
 
-  // Current project (MVP: single default project)
-  currentProject: DEFAULT_PROJECT,
+  // Current project (created per user)
+  currentProject: PLACEHOLDER_PROJECT,
 
   // Initial state
   conversations: [],
@@ -729,6 +744,72 @@ export const useAppStore = create<AppState>()(
 
   clearCompareSelection: () => {
     set({ compareSelection: null });
+  },
+
+  // User management actions
+  setCurrentUser: (user) => {
+    const currentUserId = get().currentUser.id;
+
+    // If same user, just update user info without clearing data
+    if (currentUserId === user.id) {
+      set({
+        currentUser: user
+      });
+      return;
+    }
+
+    // Different user - clear all user data and set up fresh state
+    const project = createDefaultProject(user.id);
+
+    // Clear intentionally deleted IDs since we're switching users
+    _intentionallyDeletedConvIds.clear();
+    _prevConversations = [];
+
+    set({
+      currentUser: user,
+      currentProject: project,
+      // Clear all user-specific data
+      conversations: [],
+      activeConversationId: null,
+      folders: [],
+      activeFolderId: null,
+      viewerTabs: [],
+      activeTabId: null,
+      activeTask: null,
+      isStreaming: false,
+      streamError: null,
+      thumbnails: {},
+      compareSelection: null,
+      // Reset layout to default
+      layoutMode: 'chat-focus',
+      isMolstarExpanded: false
+    });
+  },
+
+  resetUserData: () => {
+    // Clear intentionally deleted IDs
+    _intentionallyDeletedConvIds.clear();
+    _prevConversations = [];
+
+    set({
+      currentUser: PLACEHOLDER_USER,
+      currentProject: PLACEHOLDER_PROJECT,
+      // Clear all user-specific data
+      conversations: [],
+      activeConversationId: null,
+      folders: [],
+      activeFolderId: null,
+      viewerTabs: [],
+      activeTabId: null,
+      activeTask: null,
+      isStreaming: false,
+      streamError: null,
+      thumbnails: {},
+      compareSelection: null,
+      // Reset layout to default
+      layoutMode: 'chat-focus',
+      isMolstarExpanded: false
+    });
   }
     }),
     {
@@ -736,6 +817,10 @@ export const useAppStore = create<AppState>()(
       merge: (persistedState, currentState) => {
         const persisted = (persistedState || {}) as Partial<AppState>;
         const current = currentState as AppState;
+
+        // Preserve persisted user/project if available
+        const currentUser = persisted.currentUser || current.currentUser;
+        const currentProject = persisted.currentProject || current.currentProject;
 
         // Merge conversations by ID: preserve in-memory conversations that
         // weren't persisted (e.g., newly created ones with no messages yet).
@@ -779,6 +864,8 @@ export const useAppStore = create<AppState>()(
         return {
           ...current,
           ...persisted,
+          currentUser,
+          currentProject,
           conversations: mergedConversations,
           folders: mergedFolders,
           activeConversationId,
@@ -812,6 +899,9 @@ export const useAppStore = create<AppState>()(
         }));
 
         return {
+          // Persist current user ID for user-switch detection on reload
+          currentUser: state.currentUser,
+          currentProject: state.currentProject,
           // Persist layout settings, folders, and conversations
           // Note: active task, streaming state, layoutMode, and pdbData are not persisted
           // layoutMode is intentionally not persisted - always start in chat-focus mode on refresh

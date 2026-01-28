@@ -277,4 +277,8 @@ export interface AppState {
   // Compare selection actions (two-click compare from timeline)
   selectForCompare: (artifact: Structure) => void;
   clearCompareSelection: () => void;
+
+  // User management actions (for auth integration)
+  setCurrentUser: (user: User) => void;
+  resetUserData: () => void;
 }

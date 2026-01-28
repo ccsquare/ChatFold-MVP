@@ -16,6 +16,7 @@ import {
   type UserResponse,
   type SendCodeResponse,
 } from '../api/auth';
+import { useAppStore } from '../store';
 
 export interface AuthState {
   // State
@@ -70,6 +71,15 @@ export const useAuthStore = create<AuthState>()(
             password: data.password,
           });
 
+          // Sync user to app store (this will clear data if user changed)
+          useAppStore.getState().setCurrentUser({
+            id: user.id,
+            name: user.name || user.username,
+            email: user.email,
+            plan: (user.plan as 'free' | 'pro') || 'free',
+            createdAt: user.created_at || Date.now(),
+          });
+
           set({
             user,
             token: authResponse.access_token,
@@ -91,6 +101,15 @@ export const useAuthStore = create<AuthState>()(
           const authResponse = await apiLogin(data);
           const user = await getCurrentUser(authResponse.access_token);
 
+          // Sync user to app store (this will clear data if user changed)
+          useAppStore.getState().setCurrentUser({
+            id: user.id,
+            name: user.name || user.username,
+            email: user.email,
+            plan: (user.plan as 'free' | 'pro') || 'free',
+            createdAt: user.created_at || Date.now(),
+          });
+
           set({
             user,
             token: authResponse.access_token,
@@ -107,6 +126,10 @@ export const useAuthStore = create<AuthState>()(
 
       // Logout
       logout: () => {
+        // Don't clear app store data on logout - preserve it for the same user
+        // Data will be cleared by setCurrentUser() if a different user logs in
+        // This allows the same user to logout and login again without losing their work
+
         set({
           user: null,
           token: null,
@@ -127,13 +150,24 @@ export const useAuthStore = create<AuthState>()(
           const isValid = await verifyToken(token);
           if (isValid) {
             const user = await getCurrentUser(token);
+
+            // Sync user to app store (this will clear data if user changed)
+            useAppStore.getState().setCurrentUser({
+              id: user.id,
+              name: user.name || user.username,
+              email: user.email,
+              plan: (user.plan as 'free' | 'pro') || 'free',
+              createdAt: user.created_at || Date.now(),
+            });
+
             set({
               user,
               isAuthenticated: true,
               isLoading: false,
             });
           } else {
-            // Token is invalid, clear auth state
+            // Token is invalid, clear auth state only
+            // Don't clear app store data - preserve it for re-login
             set({
               user: null,
               token: null,
@@ -142,6 +176,8 @@ export const useAuthStore = create<AuthState>()(
             });
           }
         } catch (error) {
+          // Error loading user, clear auth state only
+          // Don't clear app store data - preserve it for re-login
           set({
             user: null,
             token: null,
