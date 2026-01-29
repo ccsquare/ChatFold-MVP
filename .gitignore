@@ -96,6 +96,7 @@ chatfold-workspace/
 round_*/
 _converted_pdb/
 tool_*/
+boltz_results_*/
 
 # External repos (symlinks, local only)
 Ditto
