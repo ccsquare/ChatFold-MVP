@@ -92,6 +92,11 @@ chatfold-workspace/
 .gemini/
 .trees/
 
+# Analysis/session outputs (local test artifacts)
+round_*/
+_converted_pdb/
+tool_*/
+
 # External repos (symlinks, local only)
 Ditto
 Mewtool
