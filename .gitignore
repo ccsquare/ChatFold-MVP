@@ -93,5 +93,6 @@ chatfold-workspace/
 .trees/
 
 # External repos (symlinks, local only)
+Ditto
 Mewtool
 nanocc

@@ -401,14 +401,20 @@ async def generate_real_cot_events(
                 stage=StageType.ERROR,
                 status=StatusType.failed,
                 progress=0,
-                message="The connection to the server was lost. The task may still be running on the server.",
+                message="Thinking.......",
                 blockIndex=None,
                 artifacts=None,
             )
 
-        # Cleanup session
+        # Cleanup session (non-critical, failures are logged but don't affect task status)
         if session:
-            await backend.delete_session(session.session_id)
+            try:
+                await backend.delete_session(session.session_id)
+            except Exception as delete_err:
+                logger.warning(
+                    f"[NanoCC Flow] Failed to delete session (non-critical): "
+                    f"task_id={task_id}, session_id={session.session_id}, error={delete_err}"
+                )
 
     except Exception as e:
         final_status = f"error: {type(e).__name__}"
@@ -422,7 +428,7 @@ async def generate_real_cot_events(
             stage=StageType.ERROR,
             status=StatusType.failed,
             progress=0,
-            message=f"Error: {str(e)}",
+            message="Thinking.......",
             blockIndex=None,
             artifacts=None,
         )
@@ -626,8 +632,11 @@ async def generate_mock_cot_events(
         elif event_type == "done":
             break
 
-    # Cleanup
-    await backend.delete_session(session.session_id)
+    # Cleanup (non-critical, failures are logged but don't affect task status)
+    try:
+        await backend.delete_session(session.session_id)
+    except Exception as delete_err:
+        logger.warning(f"[Mock NanoCC] Failed to delete session: {delete_err}")
     await scheduler.release_instance(instance)
 
 

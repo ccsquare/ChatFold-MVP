@@ -453,7 +453,18 @@ async def stream_task(
                 task_state_service.mark_complete(task_id, "Task completed successfully")
                 sse_events_service.set_completion_ttl(task_id)
                 _update_task_status_mysql(task_id, "complete", "DONE")
+                logger.info(f"[SSE] Sending done event: task_id={task_id}, events_sent={event_count}")
                 yield f'event: done\ndata: {{"taskId": "{task_id}"}}\n\n'
+                logger.info(f"[SSE] Done event sent successfully: task_id={task_id}")
+
+        except GeneratorExit:
+            # Client disconnected before stream completed
+            final_status = "client_disconnected"
+            logger.warning(
+                f"[SSE] Client disconnected: task_id={task_id}, events_sent={event_count}, "
+                f"duration={time.time() - stream_start_time:.2f}s"
+            )
+            raise
 
         except Exception as e:
             final_status = f"error: {type(e).__name__}"
