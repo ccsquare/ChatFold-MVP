@@ -481,12 +481,13 @@ function BestBlock({
           </div>
         </div>
 
-        {/* Structure card */}
+        {/* Structure card - auto-load for final structure */}
         <div className="p-3">
           <BlockStructureCard
             artifact={artifact}
             timestamp={timestamp}
             showPreview={true}
+            autoLoad={true}
           />
         </div>
       </div>

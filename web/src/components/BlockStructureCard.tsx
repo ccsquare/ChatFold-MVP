@@ -69,6 +69,8 @@ interface BlockStructureCardProps {
   syncGroupId?: string | null;
   /** Whether camera sync is enabled */
   syncEnabled?: boolean;
+  /** Auto-load pdbData on mount if not already present (for final structures) */
+  autoLoad?: boolean;
 }
 
 // Generate organic iteration labels instead of "Step N"
@@ -91,6 +93,7 @@ export function BlockStructureCard({
   showPreview = true,
   syncGroupId = null,
   syncEnabled = false,
+  autoLoad = false,
 }: BlockStructureCardProps) {
   const { openStructureTab, openCompareTab, selectForCompare, clearCompareSelection } = useAppStore();
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -155,6 +158,13 @@ export function BlockStructureCard({
       setIsLoading(false);
     }
   }, [artifact.structureId, effectivePdbData, isLoading]);
+
+  // Auto-load pdbData on mount when autoLoad is true (for final structures)
+  useEffect(() => {
+    if (autoLoad && needsLazyLoad && !isLoading) {
+      loadPdbData();
+    }
+  }, [autoLoad, needsLazyLoad, isLoading, loadPdbData]);
 
   const handleOpenStructure = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card click
