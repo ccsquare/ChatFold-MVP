@@ -24,6 +24,7 @@ Storage:
 """
 
 import os
+import time
 from collections.abc import AsyncGenerator
 from pathlib import Path
 
@@ -41,9 +42,9 @@ from app.components.nanocc.mock import (
     MockNanoCCSchedulerClient,
 )
 from app.components.workspace.models import Structure
-from app.services.task_state import task_state_service
 from app.services.session_store import TOS_BUCKET, SessionPaths, get_session_store
 from app.services.structure_storage import structure_storage
+from app.services.task_state import task_state_service
 from app.settings import settings
 from app.utils import get_timestamp_ms
 from app.utils.logging import get_logger
@@ -193,6 +194,8 @@ async def generate_real_cot_events(
     Yields:
         JobEvent objects with CoT messages and structure artifacts
     """
+    flow_start_time = time.time()
+
     event_num = 0
     structure_count = 0
     block_index = 0
@@ -200,6 +203,9 @@ async def generate_real_cot_events(
     instance = None
     session = None
     received_done = False  # Track if NanoCC sent 'done' event
+    final_status = "unknown"
+
+    logger.info(f"[NanoCC Flow] Started: task_id={task_id}, sequence_len={len(sequence)}, has_files={files is not None}")
 
     # Initialize clients
     scheduler = NanoCCSchedulerClient()
@@ -378,11 +384,14 @@ async def generate_real_cot_events(
             elif event_type == "done":
                 # Mark that we received a proper 'done' event
                 received_done = True
+                final_status = "done"
+                logger.info(f"[NanoCC Flow] Received done event: task_id={task_id}, events={event_num}, structures={structure_count}")
                 break
 
         # Check if NanoCC stream ended unexpectedly (without 'done' event)
         if not received_done:
-            logger.warning(f"NanoCC stream ended without 'done' event for task {task_id}")
+            final_status = "stream_ended_without_done"
+            logger.warning(f"[NanoCC Flow] Stream ended without done: task_id={task_id}, events={event_num}")
             event_num += 1
             yield JobEvent(
                 eventId=f"evt_{task_id}_{event_num:04d}",
@@ -402,7 +411,8 @@ async def generate_real_cot_events(
             await backend.delete_session(session.session_id)
 
     except Exception as e:
-        logger.error(f"Error in real NanoCC flow for task {task_id}: {e}")
+        final_status = f"error: {type(e).__name__}"
+        logger.error(f"[NanoCC Flow] Error: task_id={task_id}, error_type={type(e).__name__}, error={e}")
         event_num += 1
         yield JobEvent(
             eventId=f"evt_{task_id}_{event_num:04d}",
@@ -418,13 +428,19 @@ async def generate_real_cot_events(
         )
 
     finally:
+        duration = time.time() - flow_start_time
+        logger.info(
+            f"[NanoCC Flow] Ended: task_id={task_id}, status={final_status}, "
+            f"events={event_num}, structures={structure_count}, duration={duration:.2f}s"
+        )
+
         # Clean up NanoCC session info from Redis
         task_state_service.delete_nanocc_session(task_id)
 
         # Release instance
         if instance:
             await scheduler.release_instance(instance)
-            logger.info(f"Released instance {instance.instance_id} for task {task_id}")
+            logger.info(f"[NanoCC Flow] Released instance: task_id={task_id}, instance_id={instance.instance_id}")
 
 
 async def generate_mock_cot_events(

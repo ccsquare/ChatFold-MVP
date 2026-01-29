@@ -22,13 +22,12 @@ import logging
 import os
 import random
 import re
+import time
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
 from app.api.v1.endpoints.auth import get_current_user, get_current_user_from_token_param
-from app.db.models import User
-
 from app.components.nanocc import (
     CreateJobRequest,
     NanoCCClient,
@@ -39,6 +38,7 @@ from app.components.nanocc import (
     generate_cot_events,
     generate_step_events,
 )
+from app.db.models import User
 from app.db.mysql import get_db_session
 from app.repositories import task_repository
 from app.services.memory_store import storage
@@ -359,6 +359,12 @@ async def stream_task(
 
     async def event_stream():
         """Generate SSE events for the folding task."""
+        stream_start_time = time.time()
+        event_count = 0
+        final_status = "unknown"
+
+        logger.info(f"[SSE] Stream started: task_id={task_id}, nanocc={enable_nanocc}")
+
         # Update task state to running in Redis
         task_state_service.set_state(
             task_id,
@@ -368,79 +374,98 @@ async def stream_task(
             message="Starting task processing",
         )
 
-        if enable_nanocc:
-            # Use NanoCC-powered async generator
-            async for item in generate_cot_events(task_id, final_sequence, final_query, files=file_list):
-                # Heartbeat keepalive: raw SSE comment line, skip all processing
-                if isinstance(item, str):
-                    yield item
-                    continue
+        try:
+            if enable_nanocc:
+                # Use NanoCC-powered async generator
+                async for item in generate_cot_events(task_id, final_sequence, final_query, files=file_list):
+                    # Heartbeat keepalive: raw SSE comment line, skip all processing
+                    if isinstance(item, str):
+                        yield item
+                        continue
 
-                event = item
+                    event = item
 
-                # Check if task was canceled before each event (Redis + memory)
-                if _is_task_canceled(task_id):
-                    task_state_service.mark_canceled(task_id, "Task canceled by user")
-                    _update_task_status_mysql(task_id, "canceled", "ERROR")
-                    yield f'event: canceled\ndata: {{"taskId": "{task_id}", "message": "Task canceled by user"}}\n\n'
-                    return
-
-                # Push event to Redis queue for replay support
-                sse_events_service.push_event(event)
-
-                # Update task state in Redis
-                task_state_service.set_state(
-                    task_id,
-                    status=event.status,
-                    stage=event.stage,
-                    progress=event.progress,
-                    message=event.message,
-                )
-
-                # Format as SSE
-                event_data = event.model_dump_json()
-                yield f"event: step\ndata: {event_data}\n\n"
-        else:
-            # Use synchronous mock generator (legacy mode)
-            for event in generate_step_events(task_id, final_sequence):
-                # Check if task was canceled before each event (Redis + memory)
-                if _is_task_canceled(task_id):
-                    task_state_service.mark_canceled(task_id, "Task canceled by user")
-                    _update_task_status_mysql(task_id, "canceled", "ERROR")
-                    yield f'event: canceled\ndata: {{"taskId": "{task_id}", "message": "Task canceled by user"}}\n\n'
-                    return
-
-                # Push event to Redis queue for replay support
-                sse_events_service.push_event(event)
-
-                # Update task state in Redis
-                task_state_service.set_state(
-                    task_id,
-                    status=event.status,
-                    stage=event.stage,
-                    progress=event.progress,
-                    message=event.message,
-                )
-
-                # Format as SSE
-                event_data = event.model_dump_json()
-                yield f"event: step\ndata: {event_data}\n\n"
-
-                # Simulate processing time, split into smaller chunks for faster cancellation detection
-                for _ in range(5):
+                    # Check if task was canceled before each event (Redis + memory)
                     if _is_task_canceled(task_id):
+                        final_status = "canceled"
                         task_state_service.mark_canceled(task_id, "Task canceled by user")
                         _update_task_status_mysql(task_id, "canceled", "ERROR")
                         yield f'event: canceled\ndata: {{"taskId": "{task_id}", "message": "Task canceled by user"}}\n\n'
                         return
-                    await asyncio.sleep(0.1 + random.random() * 0.14)
 
-        # Send done event only if not canceled
-        if not _is_task_canceled(task_id):
-            task_state_service.mark_complete(task_id, "Task completed successfully")
-            sse_events_service.set_completion_ttl(task_id)
-            _update_task_status_mysql(task_id, "complete", "DONE")
-            yield f'event: done\ndata: {{"taskId": "{task_id}"}}\n\n'
+                    # Push event to Redis queue for replay support
+                    sse_events_service.push_event(event)
+
+                    # Update task state in Redis
+                    task_state_service.set_state(
+                        task_id,
+                        status=event.status,
+                        stage=event.stage,
+                        progress=event.progress,
+                        message=event.message,
+                    )
+
+                    # Format as SSE
+                    event_data = event.model_dump_json()
+                    event_count += 1
+                    yield f"event: step\ndata: {event_data}\n\n"
+            else:
+                # Use synchronous mock generator (legacy mode)
+                for event in generate_step_events(task_id, final_sequence):
+                    # Check if task was canceled before each event (Redis + memory)
+                    if _is_task_canceled(task_id):
+                        final_status = "canceled"
+                        task_state_service.mark_canceled(task_id, "Task canceled by user")
+                        _update_task_status_mysql(task_id, "canceled", "ERROR")
+                        yield f'event: canceled\ndata: {{"taskId": "{task_id}", "message": "Task canceled by user"}}\n\n'
+                        return
+
+                    # Push event to Redis queue for replay support
+                    sse_events_service.push_event(event)
+
+                    # Update task state in Redis
+                    task_state_service.set_state(
+                        task_id,
+                        status=event.status,
+                        stage=event.stage,
+                        progress=event.progress,
+                        message=event.message,
+                    )
+
+                    # Format as SSE
+                    event_data = event.model_dump_json()
+                    event_count += 1
+                    yield f"event: step\ndata: {event_data}\n\n"
+
+                    # Simulate processing time, split into smaller chunks for faster cancellation detection
+                    for _ in range(5):
+                        if _is_task_canceled(task_id):
+                            final_status = "canceled"
+                            task_state_service.mark_canceled(task_id, "Task canceled by user")
+                            _update_task_status_mysql(task_id, "canceled", "ERROR")
+                            yield f'event: canceled\ndata: {{"taskId": "{task_id}", "message": "Task canceled by user"}}\n\n'
+                            return
+                        await asyncio.sleep(0.1 + random.random() * 0.14)
+
+            # Send done event only if not canceled
+            if not _is_task_canceled(task_id):
+                final_status = "done"
+                task_state_service.mark_complete(task_id, "Task completed successfully")
+                sse_events_service.set_completion_ttl(task_id)
+                _update_task_status_mysql(task_id, "complete", "DONE")
+                yield f'event: done\ndata: {{"taskId": "{task_id}"}}\n\n'
+
+        except Exception as e:
+            final_status = f"error: {type(e).__name__}"
+            logger.error(f"[SSE] Stream error: task_id={task_id}, error={e}")
+            raise
+
+        finally:
+            duration = time.time() - stream_start_time
+            logger.info(
+                f"[SSE] Stream ended: task_id={task_id}, status={final_status}, "
+                f"events_sent={event_count}, duration={duration:.2f}s"
+            )
 
     return StreamingResponse(
         event_stream(),

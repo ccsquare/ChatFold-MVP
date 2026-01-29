@@ -6,6 +6,10 @@ Log files are written to workspace/logs/ directory with rotation support.
 Paths:
 - local-dev: {project_root}/chatfold-workspace/logs/
 - production: /app/logs/
+
+Multi-instance Support:
+- All log messages include instance_id for multi-instance deployment debugging
+- instance_id is automatically injected via InstanceFilter
 """
 
 import logging
@@ -14,8 +18,27 @@ from logging.handlers import RotatingFileHandler
 
 from app.settings import settings
 
-# Default log format
-LOG_FORMAT = "[%(asctime)s.%(msecs)03d][%(levelname)s][%(filename)s:%(lineno)d]: %(message)s"
+# Store original LogRecord factory
+_original_factory = logging.getLogRecordFactory()
+
+
+def _instance_record_factory(*args, **kwargs) -> logging.LogRecord:
+    """Custom LogRecord factory that injects instance_id into all log records.
+
+    This ensures every log message includes the instance_id, regardless of
+    which logger or handler is used. Essential for debugging multi-instance deployments.
+    """
+    record = _original_factory(*args, **kwargs)
+    record.instance_id = settings.instance_id
+    return record
+
+
+# Install custom factory globally
+logging.setLogRecordFactory(_instance_record_factory)
+
+# Default log format - includes instance_id for multi-instance deployment
+# Format: [timestamp][level][instance][file:line]: message
+LOG_FORMAT = "[%(asctime)s.%(msecs)03d][%(levelname)s][%(instance_id)s][%(filename)s:%(lineno)d]: %(message)s"
 LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 
@@ -53,7 +76,7 @@ def _ensure_app_logger_configured():
         # Prevent propagation to root logger
         app_logger.propagate = False
 
-        print(f"App parent logger configured (level: {logging.getLevelName(app_logger.level)})")
+        print(f"App parent logger configured (level: {logging.getLevelName(app_logger.level)}, instance: {settings.instance_id})")
 
 
 def setup_logging(log_name: str = "chatfold") -> logging.Logger:

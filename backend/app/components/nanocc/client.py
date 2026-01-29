@@ -20,6 +20,7 @@ NanoCC API Reference:
 import json
 import logging
 import os
+import time
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
 from typing import Literal
@@ -417,35 +418,78 @@ class NanoCCClient:
             payload["files"] = files
 
         request_timeout = timeout or NANOCC_MESSAGE_TIMEOUT
+        stream_start_time = time.time()
+        event_count = 0
+        last_event_type = None
 
-        async with httpx.AsyncClient() as client:
-            async with client.stream(
-                "POST",
-                f"{self.base_url}/sessions/{session_id}/messages",
-                json=payload,
-                headers=self._get_headers(),
-                timeout=httpx.Timeout(request_timeout, connect=30.0),
-            ) as response:
-                response.raise_for_status()
+        logger.info(
+            f"[NanoCC SSE] Connecting: session_id={session_id}, "
+            f"timeout={request_timeout}s, has_tos={tos is not None}, files={files}"
+        )
 
-                event_type = ""
-                async for line in response.aiter_lines():
-                    line = line.strip()
-                    if not line:
-                        continue
+        try:
+            async with httpx.AsyncClient() as client:
+                async with client.stream(
+                    "POST",
+                    f"{self.base_url}/sessions/{session_id}/messages",
+                    json=payload,
+                    headers=self._get_headers(),
+                    timeout=httpx.Timeout(request_timeout, connect=30.0),
+                ) as response:
+                    response.raise_for_status()
+                    logger.info(f"[NanoCC SSE] Connected: session_id={session_id}, status={response.status_code}")
 
-                    if line.startswith("event:"):
-                        event_type = line[6:].strip()
-                    elif line.startswith("data:"):
-                        try:
-                            data = json.loads(line[5:])
-                            yield NanoCCEvent(event_type=event_type, data=data)
-                        except json.JSONDecodeError as e:
-                            logger.warning(
-                                f"Skipping invalid JSON in NanoCC SSE stream: "
-                                f"{line[:100]}... Error: {e}"
-                            )
+                    event_type = ""
+                    async for line in response.aiter_lines():
+                        line = line.strip()
+                        if not line:
                             continue
+
+                        if line.startswith("event:"):
+                            event_type = line[6:].strip()
+                        elif line.startswith("data:"):
+                            try:
+                                data = json.loads(line[5:])
+                                event_count += 1
+                                last_event_type = event_type
+                                yield NanoCCEvent(event_type=event_type, data=data)
+                            except json.JSONDecodeError as e:
+                                logger.warning(
+                                    f"Skipping invalid JSON in NanoCC SSE stream: "
+                                    f"{line[:100]}... Error: {e}"
+                                )
+                                continue
+
+        except httpx.TimeoutException as e:
+            duration = time.time() - stream_start_time
+            logger.error(
+                f"[NanoCC SSE] Timeout: session_id={session_id}, "
+                f"events_received={event_count}, duration={duration:.2f}s, error={e}"
+            )
+            raise
+        except httpx.HTTPStatusError as e:
+            duration = time.time() - stream_start_time
+            logger.error(
+                f"[NanoCC SSE] HTTP error: session_id={session_id}, "
+                f"status={e.response.status_code}, events_received={event_count}, "
+                f"duration={duration:.2f}s"
+            )
+            raise
+        except Exception as e:
+            duration = time.time() - stream_start_time
+            logger.error(
+                f"[NanoCC SSE] Error: session_id={session_id}, "
+                f"events_received={event_count}, duration={duration:.2f}s, "
+                f"error_type={type(e).__name__}, error={e}"
+            )
+            raise
+        finally:
+            duration = time.time() - stream_start_time
+            logger.info(
+                f"[NanoCC SSE] Disconnected: session_id={session_id}, "
+                f"events_received={event_count}, last_event={last_event_type}, "
+                f"duration={duration:.2f}s"
+            )
 
     async def delete_session(self, session_id: str) -> bool:
         """Delete a NanoCC session.

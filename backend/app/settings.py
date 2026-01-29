@@ -8,9 +8,10 @@ IMPORTANT:
 - 生产环境使用系统环境变量或密钥管理服务
 """
 
+import os
 from pathlib import Path
 
-from pydantic import computed_field
+from pydantic import computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # ==================== MVP 默认常量 ====================
@@ -139,7 +140,32 @@ class Settings(BaseSettings):
     use_memory_store: bool = False
 
     # Instance identifier (for debugging multi-instance issues)
-    instance_id: str = "default"
+    # Priority: INSTANCE_ID env var > HOSTNAME env var (K8s pod name) > "default"
+    # In K8s, HOSTNAME is automatically set to the pod name (e.g., "chatfold-backend-7d8b9c6f5-abc12")
+    instance_id: str | None = None
+
+    @model_validator(mode="after")
+    def resolve_instance_id(self) -> "Settings":
+        """Resolve instance_id from environment variables if not explicitly set.
+
+        Priority:
+        1. INSTANCE_ID env var (explicit configuration)
+        2. HOSTNAME env var (K8s automatically sets this to pod name)
+        3. "default" (fallback for local development)
+
+        In K8s, HOSTNAME is automatically set to the pod name, so no additional
+        configuration is needed for multi-instance deployment.
+        """
+        if self.instance_id is None:
+            # Try HOSTNAME first (K8s pod name)
+            hostname = os.environ.get("HOSTNAME")
+            if hostname:
+                # Shorten long pod names for readability (keep last 12 chars)
+                # e.g., "chatfold-backend-7d8b9c6f5-abc12" -> "6f5-abc12"
+                self.instance_id = hostname[-12:] if len(hostname) > 12 else hostname
+            else:
+                self.instance_id = "default"
+        return self
 
     # ==================== 计算属性 ====================
 
