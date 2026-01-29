@@ -55,8 +55,13 @@ export function ChatPanel() {
       // Allow sending if there's content OR fasta files attached
       const hasFastaFiles = files?.some(f => f.type === 'fasta' && f.content);
       if (!content.trim() && !hasFastaFiles) return;
-      // Use storeIsStreaming as the source of truth for preventing duplicate submissions
-      if (storeIsStreaming) return;
+
+      // Get fresh values from store to avoid stale closure issues
+      // IMPORTANT: Use getState() to get the latest value, not the stale closure value
+      const storeState = useAppStore.getState();
+
+      // Prevent duplicate submissions - check the LATEST store value
+      if (storeState.isStreaming) return;
 
       // Set sending state immediately BEFORE any store updates
       // This ensures the stop button shows even during conversation/folder creation
@@ -64,9 +69,6 @@ export function ChatPanel() {
       // Also set store streaming state immediately to prevent race conditions
       // where createConversation or other operations might cause a re-render
       setIsStreaming(true);
-
-      // Get fresh values from store to avoid stale closure issues
-      const storeState = useAppStore.getState();
       const currentConvId = storeState.activeConversationId;
       const currentFolderId = storeState.activeFolderId;
       const currentConversation = storeState.conversations.find(c => c.id === currentConvId);

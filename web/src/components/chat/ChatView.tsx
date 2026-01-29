@@ -80,14 +80,16 @@ export function ChatView() {
     // Allow sending if there's content OR fasta files attached
     const hasFastaFiles = mentionedFiles?.some(f => f.type === 'fasta' && f.content);
     if (!content.trim() && !hasFastaFiles) return;
-    // Use storeIsStreaming as the source of truth for preventing duplicate submissions
-    if (storeIsStreaming) return;
+
+    // Get fresh values from store to avoid stale closure issues
+    // IMPORTANT: Use getState() to get the latest value, not the stale closure value
+    const storeState = useAppStore.getState();
+
+    // Prevent duplicate submissions - check the LATEST store value
+    if (storeState.isStreaming) return;
 
     // Set streaming state immediately to show stop button
     setIsStreaming(true);
-
-    // Get fresh values from store to avoid stale closure issues
-    const storeState = useAppStore.getState();
     const currentConvId = storeState.activeConversationId;
     const currentConversation = storeState.conversations.find(c => c.id === currentConvId);
     const currentIsStreaming = storeState.isStreaming;
