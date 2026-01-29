@@ -587,7 +587,7 @@ function BlockBubble({ text, isThinking = false }: { text: string; isThinking?: 
         <Sparkle className="w-4 h-4 text-cf-accent flex-shrink-0 mt-0.5" />
       )}
 
-      {/* Text content - collapsed shows last line (latest thinking), expanded shows all */}
+      {/* Text content - collapsed shows last portion (latest thinking), expanded shows all */}
       <p
         className={cn(
           "flex-1 text-sm text-cf-text-secondary",
@@ -598,7 +598,16 @@ function BlockBubble({ text, isThinking = false }: { text: string; isThinking?: 
       >
         {isExpanded
           ? text
-          : (text.split('\n').filter(Boolean).pop() || text) + '...'
+          : (() => {
+              // Get the last meaningful line or last ~80 chars
+              const lines = text.split('\n').filter(Boolean);
+              const lastLine = lines[lines.length - 1] || text;
+              // If last line is still very long, take the last ~80 chars
+              if (lastLine.length > 100) {
+                return '...' + lastLine.slice(-80);
+              }
+              return lastLine + (lines.length > 1 || lastLine !== text ? '...' : '');
+            })()
         }
       </p>
 
