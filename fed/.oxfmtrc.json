@@ -1,0 +1,27 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "experimentalSortImports": {
+    "internalPattern": ["@/"],
+    "customGroups": [{ "groupName": "workspace", "elementNamePattern": ["@simplex/"] }],
+    "groups": [
+      "side-effect",
+      "side-effect-style",
+      "type-builtin",
+      "builtin",
+      "type-external",
+      "external",
+      "type-workspace",
+      "workspace",
+      "type-internal",
+      "internal",
+      "type-index",
+      "index",
+      ["type-parent", "type-sibling"],
+      ["parent", "sibling"],
+      "style",
+      "ts-equals-import",
+      "unknown"
+    ]
+  },
+  "ignorePatterns": []
+}

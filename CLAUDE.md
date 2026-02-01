@@ -178,6 +178,7 @@ npm run lint
 ### 关键组件
 
 **前端:**
+
 - **LayoutShell.tsx**: 三栏布局 (sidebar | canvas | chat)
 - **MolstarViewer.tsx**: 3D 结构查看器，动态加载
 - **ChatPanel.tsx**: 对话交互面板
@@ -188,6 +189,7 @@ npm run lint
 - **authStore.ts**: 认证状态管理
 
 **后端:**
+
 - **auth.py**: 认证端点 (登录、注册、验证码)
 - **tasks.py**: 任务管理和 SSE 流
 - **nanocc/client.py**: NanoCC 服务客户端
@@ -203,16 +205,16 @@ User → Project → Folder ◄──► Conversation → Message
       → Task → Structure
 ```
 
-| 概念             | 说明                             |
-| ---------------- | -------------------------------- |
+| 概念             | 说明                                 |
+| ---------------- | ------------------------------------ |
 | **User**         | 用户账户 (email, username, password) |
-| **Project**      | 项目，用户的顶层组织单位         |
-| **Folder**       | 工作目录，包含输入文件和输出结构 |
-| **Conversation** | 对话会话，与 Folder 1:1 关联     |
-| **Message**      | 单条消息 (user/assistant/system) |
-| **Task**         | 折叠任务，关联用户和会话         |
-| **Structure**    | 生成的 PDB/CIF 结构文件          |
-| **Asset**        | 用户上传的文件                   |
+| **Project**      | 项目，用户的顶层组织单位             |
+| **Folder**       | 工作目录，包含输入文件和输出结构     |
+| **Conversation** | 对话会话，与 Folder 1:1 关联         |
+| **Message**      | 单条消息 (user/assistant/system)     |
+| **Task**         | 折叠任务，关联用户和会话             |
+| **Structure**    | 生成的 PDB/CIF 结构文件              |
+| **Asset**        | 用户上传的文件                       |
 
 **详细说明**: [docs/developer/data_model.md](./docs/developer/data_model.md)
 
@@ -220,27 +222,27 @@ User → Project → Folder ◄──► Conversation → Message
 
 ### 认证端点
 
-| 端点                                | 方法 | 说明           |
-| ----------------------------------- | ---- | -------------- |
-| `/api/v1/auth/send-verification-code` | POST | 发送验证码     |
-| `/api/v1/auth/register`             | POST | 注册用户       |
-| `/api/v1/auth/login`                | POST | 登录获取 JWT   |
-| `/api/v1/auth/me`                   | GET  | 获取当前用户   |
+| 端点                                  | 方法 | 说明         |
+| ------------------------------------- | ---- | ------------ |
+| `/api/v1/auth/send-verification-code` | POST | 发送验证码   |
+| `/api/v1/auth/register`               | POST | 注册用户     |
+| `/api/v1/auth/login`                  | POST | 登录获取 JWT |
+| `/api/v1/auth/me`                     | GET  | 获取当前用户 |
 
 ### 核心端点
 
-| 端点                        | 方法     | 说明           |
-| --------------------------- | -------- | -------------- |
-| `/api/v1/health`            | GET      | 健康检查       |
-| `/api/v1/users/me`          | GET/PATCH | 用户信息      |
-| `/api/v1/folders`           | POST/GET | 文件夹 CRUD    |
-| `/api/v1/conversations`     | POST/GET | 对话 CRUD      |
-| `/api/v1/tasks`             | POST/GET | 任务管理       |
-| `/api/v1/tasks/{id}/stream` | GET      | SSE 折叠进度流 |
-| `/api/v1/tasks/{id}/cancel` | POST     | 取消任务       |
-| `/api/v1/tasks/{id}/state`  | GET      | 获取任务状态   |
-| `/api/v1/tasks/{id}/events` | GET      | 获取事件重放   |
-| `/api/v1/structures/{id}`   | GET/POST | 结构文件管理   |
+| 端点                        | 方法      | 说明           |
+| --------------------------- | --------- | -------------- |
+| `/api/v1/health`            | GET       | 健康检查       |
+| `/api/v1/users/me`          | GET/PATCH | 用户信息       |
+| `/api/v1/folders`           | POST/GET  | 文件夹 CRUD    |
+| `/api/v1/conversations`     | POST/GET  | 对话 CRUD      |
+| `/api/v1/tasks`             | POST/GET  | 任务管理       |
+| `/api/v1/tasks/{id}/stream` | GET       | SSE 折叠进度流 |
+| `/api/v1/tasks/{id}/cancel` | POST      | 取消任务       |
+| `/api/v1/tasks/{id}/state`  | GET       | 获取任务状态   |
+| `/api/v1/tasks/{id}/events` | GET       | 获取事件重放   |
+| `/api/v1/structures/{id}`   | GET/POST  | 结构文件管理   |
 
 ### SSE 事件结构
 
@@ -272,6 +274,7 @@ User → Project → Folder ◄──► Conversation → Message
 ### 受保护端点
 
 需要 `Authorization: Bearer <token>` 头：
+
 - `POST /tasks` - 创建任务
 - `GET /auth/me` - 获取当前用户
 - `PATCH /users/me` - 更新用户信息

@@ -12,7 +12,7 @@ ChatFold 是一个 **ChatGPT 风格的蛋白质折叠工作台**，核心功能�
 
 - 蛋白质序列输入与折叠任务提交
 - **实时 SSE 流式**展示折叠进度和 AI 思考过程 (Chain-of-Thought)
-- **Mol* 3D 可视化**蛋白质结构
+- **Mol\* 3D 可视化**蛋白质结构
 - 多候选结构对比
 
 **设计理念**: 将计算等待时间转化为用户洞察 (Time → Insight)。
@@ -21,15 +21,15 @@ ChatFold 是一个 **ChatGPT 风格的蛋白质折叠工作台**，核心功能�
 
 ## 2. 技术栈
 
-| 技术 | 版本 | 用途 |
-|------|------|------|
-| Next.js | 14 | React 框架，App Router |
-| TypeScript | 5.x | 类型安全 |
-| TailwindCSS | 3.x | 样式 |
-| Zustand | 4.x | 状态管理 |
-| Mol* | 4.5.0 | 3D 蛋白质可视化 |
-| shadcn/ui | latest | UI 组件库 |
-| Lucide Icons | latest | 图标库 |
+| 技术         | 版本   | 用途                   |
+| ------------ | ------ | ---------------------- |
+| Next.js      | 14     | React 框架，App Router |
+| TypeScript   | 5.x    | 类型安全               |
+| TailwindCSS  | 3.x    | 样式                   |
+| Zustand      | 4.x    | 状态管理               |
+| Mol\*        | 4.5.0  | 3D 蛋白质可视化        |
+| shadcn/ui    | latest | UI 组件库              |
+| Lucide Icons | latest | 图标库                 |
 
 ---
 
@@ -58,6 +58,7 @@ uv --version
 ```
 
 启动成功后会看到：
+
 ```
 [OK] Backend running at http://localhost:28000
 [OK] API docs at http://localhost:28000/docs
@@ -66,6 +67,7 @@ uv --version
 ```
 
 **启动选项**:
+
 ```bash
 ./scripts/local-dev/start.sh           # 同时启动前后端 (默认)
 ./scripts/local-dev/start.sh frontend  # 只启动前端
@@ -79,6 +81,7 @@ uv --version
 如果需要分别启动或调试，可以手动操作：
 
 **启动前先检查端口**:
+
 ```bash
 # 检查端口是否被占用 (包括 IPv6)
 ss -tlnp | grep -E ':23000|:28000'
@@ -89,6 +92,7 @@ kill $(ss -tlnp | grep ':28000' | sed -n 's/.*pid=\([0-9]*\).*/\1/p') 2>/dev/nul
 ```
 
 **启动后端** (终端 1):
+
 ```bash
 cd backend
 uv sync                                           # 安装/同步依赖
@@ -96,6 +100,7 @@ uv run uvicorn app.main:app --reload --port 28000
 ```
 
 **启动前端** (终端 2):
+
 ```bash
 cd web
 npm install    # 首次需要安装依赖
@@ -123,12 +128,12 @@ curl -s -o /dev/null -w "%{http_code}\n" http://localhost:23000
 
 ### 3.5 常见启动问题
 
-| 问题 | 原因 | 解决方案 |
-|------|------|----------|
-| `EADDRINUSE: address already in use` | 端口被占用 | 使用启动脚本 (自动清理) 或手动 kill 进程 |
-| `lsof` 未检测到端口占用 | IPv6 监听 | 改用 `ss -tlnp` 检查端口 |
-| 前端编译慢 | 首次启动需编译 | 耐心等待，后续热更新会很快 |
-| 后端 import 错误 | 依赖未安装 | 执行 `uv sync` |
+| 问题                                 | 原因           | 解决方案                                 |
+| ------------------------------------ | -------------- | ---------------------------------------- |
+| `EADDRINUSE: address already in use` | 端口被占用     | 使用启动脚本 (自动清理) 或手动 kill 进程 |
+| `lsof` 未检测到端口占用              | IPv6 监听      | 改用 `ss -tlnp` 检查端口                 |
+| 前端编译慢                           | 首次启动需编译 | 耐心等待，后续热更新会很快               |
+| 后端 import 错误                     | 依赖未安装     | 执行 `uv sync`                           |
 
 ### 3.6 测试序列数据
 
@@ -136,11 +141,11 @@ curl -s -o /dev/null -w "%{http_code}\n" http://localhost:23000
 
 **文件位置**: `web/src/test/fixtures/`
 
-| 文件 | 内容 | 用途 |
-|------|------|------|
-| `test_sequences.ts` | TypeScript 导出 | 代码中直接 import |
-| `insulin_a.fasta` | 胰岛素A链 (21 aa) | 快速测试 |
-| `ubiquitin.fasta` | 泛素蛋白 (76 aa) | 中等长度测试 |
+| 文件                | 内容              | 用途              |
+| ------------------- | ----------------- | ----------------- |
+| `test_sequences.ts` | TypeScript 导出   | 代码中直接 import |
+| `insulin_a.fasta`   | 胰岛素A链 (21 aa) | 快速测试          |
+| `ubiquitin.fasta`   | 泛素蛋白 (76 aa)  | 中等长度测试      |
 
 **使用方式**:
 
@@ -162,12 +167,12 @@ SAMPLE_SEQUENCES.map(s => (
 
 **可用序列**:
 
-| 名称 | 长度 | 说明 |
-|------|------|------|
-| 胰岛素A链 | 21 aa | 最短，快速验证 |
-| 泛素蛋白 | 76 aa | 中等长度 |
-| 血红蛋白B链 | 147 aa | 标准测试序列 |
-| GFP | 238 aa | 长序列/压力测试 |
+| 名称        | 长度   | 说明            |
+| ----------- | ------ | --------------- |
+| 胰岛素A链   | 21 aa  | 最短，快速验证  |
+| 泛素蛋白    | 76 aa  | 中等长度        |
+| 血红蛋白B链 | 147 aa | 标准测试序列    |
+| GFP         | 238 aa | 长序列/压力测试 |
 
 ---
 
@@ -218,16 +223,16 @@ web/src/
 User → Project → Folder ◄──► Conversation → Message → Job → Structure
 ```
 
-| 概念 | 说明 | 对应前端类型 |
-|------|------|-------------|
-| **User** | 用户账户 | `User` |
-| **Project** | 项目 (MVP 单项目) | `Project` |
-| **Folder** | 工作目录 | `Folder` |
+| 概念             | 说明                    | 对应前端类型   |
+| ---------------- | ----------------------- | -------------- |
+| **User**         | 用户账户                | `User`         |
+| **Project**      | 项目 (MVP 单项目)       | `Project`      |
+| **Folder**       | 工作目录                | `Folder`       |
 | **Conversation** | 对话会话，与 Folder 1:1 | `Conversation` |
-| **Message** | 聊天消息 | `ChatMessage` |
-| **Job** | 折叠任务 | `Job` |
-| **StepEvent** | 任务进度事件 | `StepEvent` |
-| **Structure** | PDB 结构文件 | `Structure` |
+| **Message**      | 聊天消息                | `ChatMessage`  |
+| **Job**          | 折叠任务                | `Job`          |
+| **StepEvent**    | 任务进度事件            | `StepEvent`    |
+| **Structure**    | PDB 结构文件            | `Structure`    |
 
 ### 5.2 三栏布局
 
@@ -245,6 +250,7 @@ User → Project → Folder ◄──► Conversation → Message → Job → St
 ```
 
 **关键组件**:
+
 - `LayoutShell.tsx`: 三栏布局容器
 - `Sidebar.tsx`: 左侧导航
 - `Canvas.tsx` + `molstar/`: 中间 3D 查看器
@@ -258,7 +264,7 @@ User → Project → Folder ◄──► Conversation → Message → Job → St
 // hooks/useFoldingTask.ts
 const eventSource = new EventSource(`/api/v1/tasks/${taskId}/stream`);
 
-eventSource.addEventListener('step', (event) => {
+eventSource.addEventListener("step", (event) => {
   const stepEvent: StepEvent = JSON.parse(event.data);
   // 更新 UI
 });
@@ -270,25 +276,25 @@ eventSource.addEventListener('step', (event) => {
 interface StepEvent {
   eventId: string;
   jobId: string;
-  ts: number;                    // Unix 时间戳 (ms)
-  eventType: EventType;          // UI 区域映射
-  stage: StageType;              // QUEUED | MSA | MODEL | RELAX | QA | DONE
-  status: StatusType;            // queued | running | complete | failed
-  progress: number;              // 0-100
-  message: string;               // CoT 消息文本
+  ts: number; // Unix 时间戳 (ms)
+  eventType: EventType; // UI 区域映射
+  stage: StageType; // QUEUED | MSA | MODEL | RELAX | QA | DONE
+  status: StatusType; // queued | running | complete | failed
+  progress: number; // 0-100
+  message: string; // CoT 消息文本
   artifacts?: Structure[]; // 生成的结构
 }
 ```
 
 **EventType 与 UI 区域映射**:
 
-| EventType | UI 区域 | 展示方式 |
-|-----------|---------|----------|
-| `PROLOGUE` | 区域 2 | 开场白，固定展示 |
-| `ANNOTATION` | 区域 2 | 注释信息 |
-| `THINKING_TEXT` | 区域 3 | 滚动文本，显示最后 2 行 |
-| `THINKING_PDB` | 区域 4 | 带结构输出的思考块 |
-| `CONCLUSION` | 区域 5 | 最终结论 |
+| EventType       | UI 区域 | 展示方式                |
+| --------------- | ------- | ----------------------- |
+| `PROLOGUE`      | 区域 2  | 开场白，固定展示        |
+| `ANNOTATION`    | 区域 2  | 注释信息                |
+| `THINKING_TEXT` | 区域 3  | 滚动文本，显示最后 2 行 |
+| `THINKING_PDB`  | 区域 4  | 带结构输出的思考块      |
+| `CONCLUSION`    | 区域 5  | 最终结论                |
 
 ### 5.4 状态管理 (Zustand)
 
@@ -325,6 +331,7 @@ export const useStore = create<AppState>()(
 所有前后端共享的类型定义，**修改前需与后端确认**。
 
 核心类型:
+
 - `User`, `Project`, `Folder` - 组织结构
 - `Conversation`, `ChatMessage` - 对话
 - `Job`, `StepEvent`, `Structure` - 折叠任务
@@ -345,6 +352,7 @@ await submit(sequence, conversationId);
 用户输入序列、发送消息、展示对话历史。
 
 关键功能:
+
 - FASTA 格式解析
 - 序列验证 (10-5000 氨基酸)
 - @ 文件引用
@@ -368,18 +376,19 @@ timeline/
 ## 7. Figma 设计稿
 
 **设计稿地址**:
+
 ```
 https://www.figma.com/design/gjdTkVvIVBd5ou18mWpjbR/%F0%9F%9F%A1-SPX-%E8%AE%BE%E8%AE%A1--Copy--ChatFold?node-id=364-1862&p=f
 ```
 
 ### 主要界面
 
-| 界面 | Node ID | 说明 |
-|------|---------|------|
-| Components (总览) | `364:1862` | 组件库 |
-| Flow (交互流程) | `364:1863` | 完整交互流程 |
-| Workstation - 空态 | `381:3938` | 初始空白状态 |
-| Workstation - Default | `594:664` | 带序列输入状态 |
+| 界面                  | Node ID    | 说明           |
+| --------------------- | ---------- | -------------- |
+| Components (总览)     | `364:1862` | 组件库         |
+| Flow (交互流程)       | `364:1863` | 完整交互流程   |
+| Workstation - 空态    | `381:3938` | 初始空白状态   |
+| Workstation - Default | `594:664`  | 带序列输入状态 |
 
 ### 设计规范
 
@@ -430,20 +439,21 @@ git push origin feat/your-feature
 
 ## 9. 常见问题
 
-### Q: Mol* 相关组件报错
+### Q: Mol\* 相关组件报错
 
-Mol* 需要动态导入避免 SSR 问题：
+Mol\* 需要动态导入避免 SSR 问题：
 
 ```typescript
 const MolstarViewer = dynamic(
-  () => import('@/components/molstar/MolstarViewer'),
-  { ssr: false }
+  () => import("@/components/molstar/MolstarViewer"),
+  { ssr: false },
 );
 ```
 
 ### Q: SSE 连接失败
 
 检查:
+
 1. 后端是否运行: `curl http://localhost:28000/api/v1/health`
 2. CORS 配置是否正确
 3. 浏览器控制台错误信息

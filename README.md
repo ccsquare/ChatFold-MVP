@@ -9,7 +9,7 @@ ChatGPT 风格的蛋白质折叠工作台，支持三栏布局、实时 SSE 流�
 - **文件上传**: 拖拽上传 FASTA/PDB 文件
 - **结构标签页**: 多个 PDB 文件可同时打开
 - **SSE 流式**: 实时折叠进度和 Chain-of-Thought 事件
-- **3D 可视化**: Mol* 蛋白质结构渲染
+- **3D 可视化**: Mol\* 蛋白质结构渲染
 - **质量指标**: pLDDT 和 PAE 分数展示
 - **多实例部署**: Redis 状态共享支持
 - **深色/浅色主题**: Figma 对齐的设计系统
@@ -94,24 +94,24 @@ npm run dev
 
 ### 认证
 
-| 方法 | 端点                             | 描述             |
-| ---- | -------------------------------- | ---------------- |
-| POST | `/api/v1/auth/send-verification-code` | 发送验证码  |
-| POST | `/api/v1/auth/register`          | 注册用户         |
-| POST | `/api/v1/auth/login`             | 登录获取 JWT     |
-| GET  | `/api/v1/auth/me`                | 获取当前用户     |
+| 方法 | 端点                                  | 描述         |
+| ---- | ------------------------------------- | ------------ |
+| POST | `/api/v1/auth/send-verification-code` | 发送验证码   |
+| POST | `/api/v1/auth/register`               | 注册用户     |
+| POST | `/api/v1/auth/login`                  | 登录获取 JWT |
+| GET  | `/api/v1/auth/me`                     | 获取当前用户 |
 
 ### 核心功能
 
-| 方法     | 端点                        | 描述              |
-| -------- | --------------------------- | ----------------- |
-| GET      | `/api/v1/health`            | 健康检查          |
-| POST/GET | `/api/v1/conversations`     | 对话 CRUD         |
-| POST/GET | `/api/v1/folders`           | 文件夹 CRUD       |
-| POST/GET | `/api/v1/tasks`             | 任务管理          |
-| GET      | `/api/v1/tasks/{id}/stream` | SSE 进度流        |
-| POST     | `/api/v1/tasks/{id}/cancel` | 取消任务          |
-| GET      | `/api/v1/structures/{id}`   | 下载 PDB 文件     |
+| 方法     | 端点                        | 描述          |
+| -------- | --------------------------- | ------------- |
+| GET      | `/api/v1/health`            | 健康检查      |
+| POST/GET | `/api/v1/conversations`     | 对话 CRUD     |
+| POST/GET | `/api/v1/folders`           | 文件夹 CRUD   |
+| POST/GET | `/api/v1/tasks`             | 任务管理      |
+| GET      | `/api/v1/tasks/{id}/stream` | SSE 进度流    |
+| POST     | `/api/v1/tasks/{id}/cancel` | 取消任务      |
+| GET      | `/api/v1/structures/{id}`   | 下载 PDB 文件 |
 
 ## SSE 事件格式
 
@@ -172,7 +172,7 @@ ChatFold-MVP/
 - Next.js 14 (App Router) / React 18 / TypeScript
 - TailwindCSS / shadcn/ui (Radix UI)
 - Zustand (状态管理，支持持久化)
-- Mol* 4.5.0 (3D 可视化)
+- Mol\* 4.5.0 (3D 可视化)
 
 **后端**
 

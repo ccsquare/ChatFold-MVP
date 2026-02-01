@@ -1,0 +1,29 @@
+{
+  "name": "@simplex/aqua-style",
+  "version": "0.0.0",
+  "private": true,
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "lint": "oxlint",
+    "build": "tsdown",
+    "dev": "tsdown --watch"
+  },
+  "dependencies": {
+    "@simplex/shared": "workspace:^"
+  },
+  "devDependencies": {
+    "@simplex/tsconfig": "workspace:^",
+    "@types/node": "^25.2.1",
+    "oxlint": "^1.43.0",
+    "tsdown": "^0.20.3",
+    "typescript": "^5.9.3"
+  }
+}

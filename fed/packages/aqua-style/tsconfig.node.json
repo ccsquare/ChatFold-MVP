@@ -1,0 +1,4 @@
+{
+  "extends": "@simplex/tsconfig/tsconfig.node.json",
+  "include": ["tsdown.config.mts"]
+}

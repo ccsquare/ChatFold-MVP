@@ -1,0 +1,11 @@
+{
+  "name": "@simplex/tsconfig",
+  "version": "0.0.0",
+  "private": true,
+  "files": [
+    "tsconfig.app.json",
+    "tsconfig.next.json",
+    "tsconfig.node.json"
+  ],
+  "type": "module"
+}

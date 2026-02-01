@@ -27,4 +27,4 @@ cd backend && ruff check --fix . 2>/dev/null || true && ruff format . 2>/dev/nul
 cd ..
 
 # Run lint-staged for web/ directory
-cd web && npx lint-staged
+# cd web && npx lint-staged

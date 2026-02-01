@@ -41,12 +41,12 @@
 
 ### 2.1 日常沟通
 
-| 场景 | 渠道 | 响应时间 |
-|------|------|----------|
-| 紧急问题 | 企业微信/飞书 | 1 小时内 |
-| 技术讨论 | GitHub Issue | 24 小时内 |
-| 代码审查 | GitHub PR | 24 小时内 |
-| 进度同步 |  企业微信/飞书/异步文档 | 24 小时内 |
+| 场景     | 渠道                   | 响应时间  |
+| -------- | ---------------------- | --------- |
+| 紧急问题 | 企业微信/飞书          | 1 小时内  |
+| 技术讨论 | GitHub Issue           | 24 小时内 |
+| 代码审查 | GitHub PR              | 24 小时内 |
+| 进度同步 | 企业微信/飞书/异步文档 | 24 小时内 |
 
 ### 2.2 文档协作
 
@@ -77,6 +77,7 @@
 ### 3.2 API 规范
 
 **基础约定**:
+
 - Base URL: `/api/v1/`
 - 响应格式: JSON
 - 时间戳: Unix 毫秒 (ms)
@@ -123,6 +124,7 @@ data: {"jobId":"job_xxx","message":"折叠失败"}
 前端 `types.ts` 与后端 `schemas.py` 必须保持同步。
 
 **修改流程**:
+
 1. 发起方在 Issue 中提出变更
 2. 双方确认后同时修改
 3. 通过 PR 合并
@@ -130,12 +132,12 @@ data: {"jobId":"job_xxx","message":"折叠失败"}
 **关键类型对照**:
 
 | 前端 (TypeScript) | 后端 (Python) |
-|-------------------|---------------|
-| `StepEvent` | `JobEvent` |
-| `Job` | `NanoCCJob` |
-| `Structure` | `Structure` |
-| `StageType` | `StageType` |
-| `EventType` | `EventType` |
+| ----------------- | ------------- |
+| `StepEvent`       | `JobEvent`    |
+| `Job`             | `NanoCCJob`   |
+| `Structure`       | `Structure`   |
+| `StageType`       | `StageType`   |
+| `EventType`       | `EventType`   |
 
 ---
 
@@ -152,11 +154,13 @@ USE_MOCK_NANOCC=true uv run uvicorn app.main:app --reload
 ```
 
 **特点**:
+
 - SSE 流使用 JSONL 文件模拟
 - 折叠进度按预设时间间隔推送
 - 无需真实 GPU 服务
 
 **Mock 数据位置**:
+
 ```
 backend/app/components/nanocc/data/Mocking_CoT.nanocc.jsonl
 ```
@@ -164,11 +168,13 @@ backend/app/components/nanocc/data/Mocking_CoT.nanocc.jsonl
 ### 4.2 后端独立开发
 
 **API 测试**:
+
 - Swagger UI: http://localhost:28000/docs
 - Pytest: `uv run pytest`
 - cURL 脚本
 
 **无前端验证**:
+
 ```bash
 # 创建任务
 curl -X POST http://localhost:28000/api/v1/tasks \
@@ -186,11 +192,13 @@ curl -N http://localhost:28000/api/v1/tasks/{id}/stream
 ### 5.1 联调准备
 
 **前端 checklist**:
+
 - [ ] Mock 模式功能完成
 - [ ] 类型定义与后端一致
 - [ ] 错误处理覆盖
 
 **后端 checklist**:
+
 - [ ] API 端点实现完成
 - [ ] Mock 模式可用
 - [ ] API 文档更新
@@ -214,14 +222,15 @@ open http://localhost:23000
 
 **常见问题**:
 
-| 问题 | 排查步骤 |
-|------|----------|
-| CORS 错误 | 检查后端 `main.py` CORS 配置 |
-| 404 Not Found | 确认 API 路径 `/api/v1/...` |
-| SSE 中断 | 检查网络、后端日志 |
-| 类型不匹配 | 对比 `types.ts` 与 `schemas.py` |
+| 问题          | 排查步骤                        |
+| ------------- | ------------------------------- |
+| CORS 错误     | 检查后端 `main.py` CORS 配置    |
+| 404 Not Found | 确认 API 路径 `/api/v1/...`     |
+| SSE 中断      | 检查网络、后端日志              |
+| 类型不匹配    | 对比 `types.ts` 与 `schemas.py` |
 
 **调试工具**:
+
 - 浏览器 DevTools → Network → EventStream
 - 后端日志: `uv run uvicorn ... --log-level debug`
 
@@ -241,6 +250,7 @@ main                    # 稳定版本
 ### 6.2 Commit Message
 
 **格式**:
+
 ```
 type: subject
 
@@ -253,6 +263,7 @@ Benefits:
 ```
 
 **类型**:
+
 - `feat`: 新功能
 - `fix`: Bug 修复
 - `docs`: 文档

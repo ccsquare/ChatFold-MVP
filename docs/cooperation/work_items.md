@@ -11,46 +11,46 @@
 
 ### 1.1 前端工作项
 
-| 模块 | 工作项 | 优先级 | 依赖后端 | 状态 |
-|------|--------|--------|----------|------|
-| **布局** | 三栏布局完善 | P0 | 否 | 进行中 |
-| | 响应式适配 | P1 | 否 | 待开始 |
-| **侧边栏** | 文件夹树形结构 | P0 | 是 | 进行中 |
-| | 新建对话按钮 | P0 | 是 | 进行中 |
-| | 项目切换 (Future) | P2 | 是 | 待开始 |
-| **聊天面板** | 序列输入框 | P0 | 否 | 完成 |
-| | 快捷样本按钮 | P1 | 否 | 完成 |
-| | 文件上传 (@附件) | P1 | 是 | 进行中 |
-| | 知识库选择 | P2 | 是 | 待开始 |
-| **时间线** | CoT 消息展示 | P0 | 是 | 进行中 |
-| | PROLOGUE 区域 | P0 | 是 | 进行中 |
-| | THINKING 滚动文本 | P0 | 是 | 进行中 |
-| | THINKING_PDB 结构卡片 | P0 | 是 | 进行中 |
-| | CONCLUSION 区域 | P0 | 是 | 进行中 |
-| **3D 查看器** | Mol* 基础渲染 | P0 | 否 | 完成 |
-| | 多标签页 | P1 | 否 | 完成 |
-| | 结构对比 | P1 | 否 | 完成 |
-| **主题** | Light/Dark 切换 | P1 | 否 | 完成 |
-| **用户** | 登录/注册 | P1 | 是 | 进行中 |
-| | 用户菜单 | P1 | 是 | 进行中 |
+| 模块          | 工作项                | 优先级 | 依赖后端 | 状态   |
+| ------------- | --------------------- | ------ | -------- | ------ |
+| **布局**      | 三栏布局完善          | P0     | 否       | 进行中 |
+|               | 响应式适配            | P1     | 否       | 待开始 |
+| **侧边栏**    | 文件夹树形结构        | P0     | 是       | 进行中 |
+|               | 新建对话按钮          | P0     | 是       | 进行中 |
+|               | 项目切换 (Future)     | P2     | 是       | 待开始 |
+| **聊天面板**  | 序列输入框            | P0     | 否       | 完成   |
+|               | 快捷样本按钮          | P1     | 否       | 完成   |
+|               | 文件上传 (@附件)      | P1     | 是       | 进行中 |
+|               | 知识库选择            | P2     | 是       | 待开始 |
+| **时间线**    | CoT 消息展示          | P0     | 是       | 进行中 |
+|               | PROLOGUE 区域         | P0     | 是       | 进行中 |
+|               | THINKING 滚动文本     | P0     | 是       | 进行中 |
+|               | THINKING_PDB 结构卡片 | P0     | 是       | 进行中 |
+|               | CONCLUSION 区域       | P0     | 是       | 进行中 |
+| **3D 查看器** | Mol\* 基础渲染        | P0     | 否       | 完成   |
+|               | 多标签页              | P1     | 否       | 完成   |
+|               | 结构对比              | P1     | 否       | 完成   |
+| **主题**      | Light/Dark 切换       | P1     | 否       | 完成   |
+| **用户**      | 登录/注册             | P1     | 是       | 进行中 |
+|               | 用户菜单              | P1     | 是       | 进行中 |
 
 ### 1.2 后端工作项
 
-| 模块 | 工作项 | 优先级 | 状态 |
-|------|--------|--------|------|
-| **核心 API** | 任务创建 POST /tasks | P0 | 完成 |
-| | SSE 流 GET /tasks/{id}/stream | P0 | 完成 |
-| | 结构下载 GET /structures/{id} | P0 | 完成 |
-| **对话** | 对话 CRUD | P0 | 完成 |
-| | 消息存储 | P0 | 完成 |
-| **文件夹** | 文件夹 CRUD | P0 | 完成 |
-| | 输入文件管理 | P1 | 完成 |
-| **用户** | 认证 API | P1 | 进行中 |
-| | 用户信息 API | P1 | 进行中 |
-| **NanoCC** | Mock 模式 | P0 | 完成 |
-| | 真实服务集成 | P2 | 待开始 |
-| **SSE 保活** | Heartbeat 转发 (NanoCC→浏览器) | P0 | 待开始 |
-| | 前端 SSE 超时检测与错误提示 | P0 | 待开始 |
+| 模块         | 工作项                         | 优先级 | 状态   |
+| ------------ | ------------------------------ | ------ | ------ |
+| **核心 API** | 任务创建 POST /tasks           | P0     | 完成   |
+|              | SSE 流 GET /tasks/{id}/stream  | P0     | 完成   |
+|              | 结构下载 GET /structures/{id}  | P0     | 完成   |
+| **对话**     | 对话 CRUD                      | P0     | 完成   |
+|              | 消息存储                       | P0     | 完成   |
+| **文件夹**   | 文件夹 CRUD                    | P0     | 完成   |
+|              | 输入文件管理                   | P1     | 完成   |
+| **用户**     | 认证 API                       | P1     | 进行中 |
+|              | 用户信息 API                   | P1     | 进行中 |
+| **NanoCC**   | Mock 模式                      | P0     | 完成   |
+|              | 真实服务集成                   | P2     | 待开始 |
+| **SSE 保活** | Heartbeat 转发 (NanoCC→浏览器) | P0     | 待开始 |
+|              | 前端 SSE 超时检测与错误提示    | P0     | 待开始 |
 
 ---
 
@@ -61,6 +61,7 @@
 **Figma 参考**: `496:2286` (侧边栏)
 
 **组件结构**:
+
 ```
 Sidebar (280px)
 ├── Header
@@ -79,11 +80,13 @@ Sidebar (280px)
 ```
 
 **前端工作**:
+
 - [ ] 文件夹树形展开/折叠
 - [ ] 运行中任务加载动画
 - [ ] 文件夹右键菜单 (重命名/删除)
 
 **后端 API**:
+
 - `GET /api/v1/folders` - 列出文件夹
 - `POST /api/v1/folders` - 创建文件夹
 - `PUT /api/v1/folders/{id}` - 更新文件夹
@@ -94,6 +97,7 @@ Sidebar (280px)
 **Figma 参考**: `381:3995` (input)
 
 **组件结构**:
+
 ```
 ChatInput
 ├── 多行文本框 (568x72)
@@ -109,12 +113,14 @@ ChatInput
 ```
 
 **前端工作**:
+
 - [x] 序列输入与验证
 - [x] 快捷样本点击填充
 - [ ] 附件上传 UI
 - [ ] 知识库选择器
 
 **后端 API**:
+
 - `POST /api/v1/tasks` - 提交折叠任务
 - `POST /api/v1/folders/{id}/inputs` - 上传输入文件
 
@@ -147,26 +153,34 @@ ChatInput
 ```
 
 **前端工作**:
+
 - [ ] TimelineRenderer 组件优化
 - [ ] THINKING_TEXT 滚动效果
 - [ ] THINKING_PDB 结构卡片
 - [ ] 结构对比触发
 
 **后端 API**:
+
 - `GET /api/v1/tasks/{id}/stream` - SSE 事件流
 
 **SSE 事件字段**:
+
 ```typescript
 interface StepEvent {
   eventId: string;
   jobId: string;
   ts: number;
-  eventType: 'PROLOGUE' | 'ANNOTATION' | 'THINKING_TEXT' | 'THINKING_PDB' | 'CONCLUSION';
+  eventType:
+    | "PROLOGUE"
+    | "ANNOTATION"
+    | "THINKING_TEXT"
+    | "THINKING_PDB"
+    | "CONCLUSION";
   stage: StageType;
   status: StatusType;
   progress: number;
   message: string;
-  blockIndex?: number;  // THINKING 分组
+  blockIndex?: number; // THINKING 分组
   artifacts?: Structure[];
 }
 ```
@@ -174,12 +188,14 @@ interface StepEvent {
 ### 2.4 用户认证 (Auth)
 
 **前端工作**:
+
 - [ ] 登录表单
 - [ ] 注册表单
 - [ ] Token 存储
 - [ ] 路由守卫
 
 **后端 API**:
+
 - `POST /api/v1/auth/login` - 登录
 - `POST /api/v1/auth/register` - 注册
 - `POST /api/v1/auth/logout` - 登出
@@ -192,6 +208,7 @@ interface StepEvent {
 ### 3.1 前端独立开发
 
 **环境准备**:
+
 ```bash
 cd web
 npm install
@@ -203,6 +220,7 @@ npm run dev
 前端可通过以下方式独立开发：
 
 1. **直接使用后端 Mock 模式**:
+
    ```bash
    # 终端 1: 启动后端 Mock
    cd backend
@@ -217,6 +235,7 @@ npm run dev
    在 `lib/api.ts` 中添加本地 Mock 逻辑。
 
 **开发建议**:
+
 - 先完成 UI 布局和样式
 - 使用 Mock 数据验证交互逻辑
 - 最后联调真实 API
@@ -224,6 +243,7 @@ npm run dev
 ### 3.2 后端独立开发
 
 **环境准备**:
+
 ```bash
 cd backend
 uv sync
@@ -231,6 +251,7 @@ uv run uvicorn app.main:app --reload
 ```
 
 **API 测试**:
+
 ```bash
 # 健康检查
 curl http://localhost:28000/api/v1/health
@@ -245,6 +266,7 @@ curl -N http://localhost:28000/api/v1/tasks/{taskId}/stream
 ```
 
 **开发建议**:
+
 - 使用 Swagger UI 测试 API
 - 编写单元测试验证逻辑
 - Mock 模式优先，真实服务后续集成
@@ -256,12 +278,14 @@ curl -N http://localhost:28000/api/v1/tasks/{taskId}/stream
 ### 4.1 联调前准备
 
 **前端**:
+
 - [ ] 类型定义 (`types.ts`) 与后端一致
 - [ ] API 调用路径正确 (`/api/v1/...`)
 - [ ] 错误处理覆盖所有场景
 - [ ] SSE 重连机制
 
 **后端**:
+
 - [ ] CORS 配置允许前端域名
 - [ ] API 响应格式符合约定
 - [ ] Mock 模式可正常工作
@@ -288,13 +312,13 @@ open http://localhost:23000
 
 ### 4.3 常见问题排查
 
-| 问题 | 症状 | 解决方案 |
-|------|------|----------|
-| CORS | 浏览器控制台报 CORS 错误 | 检查后端 `main.py` CORS 配置 |
-| 404 | 接口返回 404 | 确认 API 路径是否正确 |
-| SSE 断开 | 进度停止更新 | 检查网络、后端日志 |
-| 类型错误 | TypeScript 报错 | 对比前后端类型定义 |
-| 序列验证失败 | 提交被拒绝 | 检查序列长度和字符 |
+| 问题         | 症状                     | 解决方案                     |
+| ------------ | ------------------------ | ---------------------------- |
+| CORS         | 浏览器控制台报 CORS 错误 | 检查后端 `main.py` CORS 配置 |
+| 404          | 接口返回 404             | 确认 API 路径是否正确        |
+| SSE 断开     | 进度停止更新             | 检查网络、后端日志           |
+| 类型错误     | TypeScript 报错          | 对比前后端类型定义           |
+| 序列验证失败 | 提交被拒绝               | 检查序列长度和字符           |
 
 ---
 
@@ -306,7 +330,7 @@ open http://localhost:23000
 
 - [x] 序列输入与验证
 - [x] SSE 流式进度
-- [x] Mol* 3D 渲染
+- [x] Mol\* 3D 渲染
 - [ ] CoT 时间线展示 (进行中)
 - [ ] 文件夹管理 (进行中)
 

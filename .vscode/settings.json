@@ -1,0 +1,5 @@
+{
+  "editor.defaultFormatter": "oxc.oxc-vscode",
+  "oxc.path.oxfmt": "./fed/node_modules/.bin/oxfmt",
+  "oxc.path.oxlint": "./fed/node_modules/.bin/oxlint"
+}

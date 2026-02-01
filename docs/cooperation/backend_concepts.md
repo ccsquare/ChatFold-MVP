@@ -30,17 +30,17 @@
 
 ### 2.1 实体定义
 
-| 实体 | 说明 | 关键字段 |
-|------|------|----------|
-| **User** | 用户账户 (MVP 单用户) | `id`, `name`, `email`, `plan` |
-| **Project** | 项目容器 (MVP 单项目) | `id`, `userId`, `name` |
-| **Folder** | 工作目录，与 Conversation 1:1 | `id`, `projectId`, `inputs`, `outputs`, `conversationId` |
-| **Conversation** | 对话会话 | `id`, `folderId`, `title`, `messages`, `assets` |
-| **ChatMessage** | 单条消息 | `id`, `role`, `content`, `timestamp`, `artifacts?` |
-| **Asset** | 用户上传文件 | `id`, `name`, `type`, `content`, `uploadedAt` |
-| **NanoCCJob** | 折叠任务 | `id`, `conversationId`, `sequence`, `status`, `steps`, `structures` |
-| **JobEvent** | 任务进度事件 | `eventId`, `jobId`, `eventType`, `stage`, `status`, `progress`, `message`, `blockIndex?`, `artifacts?` |
-| **Structure** | 结构文件 | `structureId`, `label`, `filename`, `pdbData?`, `thumbnail?`, `cot?` |
+| 实体             | 说明                          | 关键字段                                                                                               |
+| ---------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------ |
+| **User**         | 用户账户 (MVP 单用户)         | `id`, `name`, `email`, `plan`                                                                          |
+| **Project**      | 项目容器 (MVP 单项目)         | `id`, `userId`, `name`                                                                                 |
+| **Folder**       | 工作目录，与 Conversation 1:1 | `id`, `projectId`, `inputs`, `outputs`, `conversationId`                                               |
+| **Conversation** | 对话会话                      | `id`, `folderId`, `title`, `messages`, `assets`                                                        |
+| **ChatMessage**  | 单条消息                      | `id`, `role`, `content`, `timestamp`, `artifacts?`                                                     |
+| **Asset**        | 用户上传文件                  | `id`, `name`, `type`, `content`, `uploadedAt`                                                          |
+| **NanoCCJob**    | 折叠任务                      | `id`, `conversationId`, `sequence`, `status`, `steps`, `structures`                                    |
+| **JobEvent**     | 任务进度事件                  | `eventId`, `jobId`, `eventType`, `stage`, `status`, `progress`, `message`, `blockIndex?`, `artifacts?` |
+| **Structure**    | 结构文件                      | `structureId`, `label`, `filename`, `pdbData?`, `thumbnail?`, `cot?`                                   |
 
 ### 2.2 关系说明
 
@@ -64,11 +64,11 @@ NanoCCJob 1:N Structure
 
 ```typescript
 type EventType =
-  | 'PROLOGUE'       // 开场白
-  | 'ANNOTATION'     // 注释
-  | 'THINKING_TEXT'  // 纯文本思考
-  | 'THINKING_PDB'   // 带结构的思考
-  | 'CONCLUSION';    // 结论
+  | "PROLOGUE" // 开场白
+  | "ANNOTATION" // 注释
+  | "THINKING_TEXT" // 纯文本思考
+  | "THINKING_PDB" // 带结构的思考
+  | "CONCLUSION"; // 结论
 ```
 
 ### 3.2 UI 区域映射
@@ -121,27 +121,27 @@ Block 1:
 
 ```typescript
 interface JobEvent {
-  eventId: string;           // 唯一事件 ID
-  jobId: string;             // 任务 ID
-  ts: number;                // Unix 时间戳 (毫秒)
-  eventType: EventType;      // UI 区域映射 ⭐
-  stage: StageType;          // QUEUED | MSA | MODEL | RELAX | QA | DONE | ERROR
-  status: StatusType;        // queued | running | partial | complete | failed | canceled
-  progress: number;          // 0-100
-  message: string;           // CoT 消息文本
-  blockIndex?: number;       // Thinking block 分组 (仅 THINKING_* 类型)
-  artifacts?: Structure[];  // 生成的结构 (仅 THINKING_PDB)
+  eventId: string; // 唯一事件 ID
+  jobId: string; // 任务 ID
+  ts: number; // Unix 时间戳 (毫秒)
+  eventType: EventType; // UI 区域映射 ⭐
+  stage: StageType; // QUEUED | MSA | MODEL | RELAX | QA | DONE | ERROR
+  status: StatusType; // queued | running | partial | complete | failed | canceled
+  progress: number; // 0-100
+  message: string; // CoT 消息文本
+  blockIndex?: number; // Thinking block 分组 (仅 THINKING_* 类型)
+  artifacts?: Structure[]; // 生成的结构 (仅 THINKING_PDB)
 }
 ```
 
 ### 4.2 SSE 事件类型
 
-| SSE Event | 说明 | 触发时机 |
-|-----------|------|----------|
-| `step` | 进度事件 | 每个 JobEvent |
-| `done` | 完成事件 | 任务成功完成 |
-| `canceled` | 取消事件 | 用户取消任务 |
-| `error` | 错误事件 | 任务失败 |
+| SSE Event  | 说明     | 触发时机      |
+| ---------- | -------- | ------------- |
+| `step`     | 进度事件 | 每个 JobEvent |
+| `done`     | 完成事件 | 任务成功完成  |
+| `canceled` | 取消事件 | 用户取消任务  |
+| `error`    | 错误事件 | 任务失败      |
 
 ### 4.3 事件流示例
 
@@ -185,6 +185,7 @@ NanoCC heartbeat (每30s)
 ```
 
 **实现要点**:
+
 - 在 `folding.py` 的 NanoCC 事件循环中，遇到 `event_type == "heartbeat"` 时，不再仅 debug log，而是 yield 一个 SSE comment
 - 在 `tasks.py` 的 SSE generator 中，区分 comment 和 step event 的格式化
 - SSE comment 格式: `: heartbeat {timestamp}\n\n`（冒号开头，浏览器 EventSource 自动忽略，但保持连接活跃）
@@ -196,6 +197,7 @@ NanoCC heartbeat (每30s)
 **问题现象**: SSE 连接被断开后，`BlockBubble` 的 status icon 仍在闪烁（`isThinking=true`），用户以为任务在继续，实际已中断。
 
 **期望行为**:
+
 - 前端维护一个 heartbeat 超时定时器（建议 90s，即 3 次 heartbeat 间隔）
 - 每次收到任何 SSE 数据（step event 或 comment）时重置定时器
 - 超时触发时：
@@ -211,28 +213,28 @@ NanoCC heartbeat (每30s)
 
 ### 5.1 任务相关
 
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| `/api/v1/tasks` | POST | 创建折叠任务 |
-| `/api/v1/tasks` | GET | 列出任务 |
-| `/api/v1/tasks/{id}` | GET | 获取任务详情 |
-| `/api/v1/tasks/{id}/stream` | GET | **SSE 进度流** ⭐ |
-| `/api/v1/tasks/{id}/cancel` | POST | 取消任务 |
+| 端点                        | 方法 | 说明              |
+| --------------------------- | ---- | ----------------- |
+| `/api/v1/tasks`             | POST | 创建折叠任务      |
+| `/api/v1/tasks`             | GET  | 列出任务          |
+| `/api/v1/tasks/{id}`        | GET  | 获取任务详情      |
+| `/api/v1/tasks/{id}/stream` | GET  | **SSE 进度流** ⭐ |
+| `/api/v1/tasks/{id}/cancel` | POST | 取消任务          |
 
 ### 5.2 结构相关
 
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| `/api/v1/structures/{id}` | GET | 下载 PDB 文件 |
+| 端点                      | 方法 | 说明          |
+| ------------------------- | ---- | ------------- |
+| `/api/v1/structures/{id}` | GET  | 下载 PDB 文件 |
 | `/api/v1/structures/{id}` | POST | 缓存 PDB 数据 |
 
 ### 5.3 对话/文件夹相关
 
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| `/api/v1/conversations` | POST/GET | 对话 CRUD |
-| `/api/v1/folders` | POST/GET | 文件夹 CRUD |
-| `/api/v1/folders/{id}/inputs` | POST | 添加输入文件 |
+| 端点                          | 方法     | 说明         |
+| ----------------------------- | -------- | ------------ |
+| `/api/v1/conversations`       | POST/GET | 对话 CRUD    |
+| `/api/v1/folders`             | POST/GET | 文件夹 CRUD  |
+| `/api/v1/folders/{id}/inputs` | POST     | 添加输入文件 |
 
 ---
 
@@ -317,6 +319,7 @@ outputs_root/
 ```
 
 **环境配置**:
+
 - `local-dev`: `{project}/chatfold-workspace/outputs/`
 - `production`: `/app/outputs/` (K8s PVC)
 
@@ -324,15 +327,15 @@ outputs_root/
 
 ## 7. Stage 阶段说明
 
-| Stage | 进度 | 说明 |
-|-------|------|------|
-| `QUEUED` | 0% | 任务排队中 |
-| `MSA` | 20% | 多序列比对 |
-| `MODEL` | 50% | 模型预测 |
-| `RELAX` | 80% | 结构优化 |
-| `QA` | 90% | 质量评估 |
-| `DONE` | 100% | 任务完成 |
-| `ERROR` | - | 任务出错 |
+| Stage    | 进度 | 说明       |
+| -------- | ---- | ---------- |
+| `QUEUED` | 0%   | 任务排队中 |
+| `MSA`    | 20%  | 多序列比对 |
+| `MODEL`  | 50%  | 模型预测   |
+| `RELAX`  | 80%  | 结构优化   |
+| `QA`     | 90%  | 质量评估   |
+| `DONE`   | 100% | 任务完成   |
+| `ERROR`  | -    | 任务出错   |
 
 **注意**: 当前实现主要使用 `MODEL` 阶段进行 CoT 消息推送，其他阶段在未来完整集成 NanoCC 时使用。
 
@@ -350,9 +353,11 @@ MOCK_NANOCC_DELAY_MAX=5.0
 ```
 
 **Mock 数据来源**:
+
 - JSONL 文件: `backend/app/components/nanocc/data/Mocking_CoT.nanocc.jsonl`
 
 **JSONL 格式**:
+
 ```json
 {"TYPE": "PROLOGUE", "STATE": "MODEL", "MESSAGE": "让我先明确需要验证的关键点..."}
 {"TYPE": "THINKING", "STATE": "MODEL", "MESSAGE": "分析序列组成..."}
@@ -378,30 +383,30 @@ MOCK_NANOCC_DELAY_MAX=5.0
 ```typescript
 const eventSource = new EventSource(`/api/v1/tasks/${taskId}/stream`);
 
-eventSource.addEventListener('step', (e) => {
+eventSource.addEventListener("step", (e) => {
   const event: JobEvent = JSON.parse(e.data);
 
   switch (event.eventType) {
-    case 'PROLOGUE':
-    case 'ANNOTATION':
+    case "PROLOGUE":
+    case "ANNOTATION":
       // 显示在区域 2
       break;
-    case 'THINKING_TEXT':
+    case "THINKING_TEXT":
       // 显示在区域 3 (滚动)
       // 使用 blockIndex 分组
       break;
-    case 'THINKING_PDB':
+    case "THINKING_PDB":
       // 显示在区域 4 (结构卡片)
       // 使用 blockIndex 分组
       // 处理 artifacts
       break;
-    case 'CONCLUSION':
+    case "CONCLUSION":
       // 显示在区域 5
       break;
   }
 });
 
-eventSource.addEventListener('done', () => {
+eventSource.addEventListener("done", () => {
   eventSource.close();
 });
 ```
@@ -431,7 +436,7 @@ interface JobState {
 
   // 按 eventType 分组的事件
   prologueEvents: JobEvent[];
-  thinkingBlocks: Map<number, JobEvent[]>;  // blockIndex -> events
+  thinkingBlocks: Map<number, JobEvent[]>; // blockIndex -> events
   conclusionEvent: JobEvent | null;
 }
 ```
