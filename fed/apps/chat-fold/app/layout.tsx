@@ -1,8 +1,11 @@
+import "./globals.css";
+
 import type { Metadata } from "next";
 
+import { ThemeProvider } from "next-themes";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
 
-import "./globals.css";
+import { cx } from "@simplex/aqua-style";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -26,8 +29,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={inter.variable}>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>{children}</body>
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
+      <body className={cx(geistSans.variable, geistMono.variable, "antialiased")}>
+        <ThemeProvider
+          disableTransitionOnChange
+          enableSystem
+          attribute="class"
+          defaultTheme="system"
+        >
+          {children}
+        </ThemeProvider>
+      </body>
     </html>
   );
 }
