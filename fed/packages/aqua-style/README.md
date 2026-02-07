@@ -25,7 +25,7 @@ A framework-agnostic, type-safe styling library for building component variants 
 
 ## Quick Start
 
-### Setup with tailwind-merge
+### Setup
 
 ```typescript
 // lib/aqua.config.ts
@@ -38,7 +38,7 @@ export const { createId, createTokens, createStyles } = create({
 });
 ```
 
-### Define Theme Tokens (Optional)
+### Theme Tokens
 
 ```typescript
 // components/simplex/theme/tokens.ts
@@ -68,7 +68,7 @@ export const ThemeTokens = createTokens<{
 export type ThemeTokensConfig = InferTokensConfig<typeof ThemeTokens>;
 ```
 
-### Define Component Styles
+### Component Styles
 
 ```typescript
 // components/simplex/button/button.styles.ts
@@ -147,7 +147,7 @@ export const ButtonStyles = createStyles({
 export type ButtonStylesConfig = InferComponentStylesConfig<typeof ButtonStyles>;
 ```
 
-### Define Component
+### Component
 
 ```tsx
 // components/simplex/button/button.tsx
@@ -176,7 +176,7 @@ export * from "./button";
 export * from "./button.styles";
 ```
 
-### Multi-Slot Component Example
+### Multi-Slot Component
 
 ```typescript
 // components/simplex/input/input.styles.ts
@@ -265,7 +265,7 @@ export function Input(props: InputProps) {
 <Input label="Email" size="lg" error description="Large error input" />
 ```
 
-### Custom Theme Example
+### Custom Theme
 
 ```tsx
 import { sx } from "@simplex/aqua-style";
@@ -482,36 +482,28 @@ interface ThemeProviderProps {
 
 ### File Structure
 
-Each component follows a 3-file pattern:
+Follow a 3-file pattern per component:
 
 ```
-components/
-  simplex/                    # @simplex component group
-    button/
-      button.styles.ts        # styles and variants
-      button.tsx              # component
-      index.ts                # barrel export
-  ui/                         # shadcn/ui components
-    ...
+components/simplex/
+  button/
+    button.styles.ts      # styles and variants
+    button.tsx            # component
+    index.ts              # barrel export
 ```
 
-| Pattern       | Description         |
-| ------------- | ------------------- |
-| `*.styles.ts` | Styles and variants |
-| `*.tsx`       | Component           |
-| `*.tokens.ts` | Design tokens       |
-| `index.ts`    | Barrel export       |
+Optional files: `*.tokens.ts` for design tokens, sub-component helpers.
 
 ### Exports
 
-Only export what consumers actually need. Internal sub-components and their styles stay internal:
+Export only what consumers need:
 
 ```typescript
-// ✅ correct
+// ✅
 export * from "./button";
 export * from "./button.styles";
 
-// ❌ wrong — internal sub-component leaked
+// ❌ internal sub-component leaked
 export * from "./button-icon";
 ```
 
@@ -521,76 +513,61 @@ export * from "./button-icon";
 
 #### Root Class
 
-Every component style **must** define a `root` class, even if empty. Route components (pages, layouts) are exempt:
+Define a `root` class in every style. Route components are exempt:
 
 ```typescript
-// ✅ correct
-export const ButtonStyles = createStyles({
-  classes: { root: cx("inline-flex items-center") },
-});
-
-// ✅ correct — empty root is fine
-export const DividerStyles = createStyles({
-  classes: { root: "" },
-});
-
-// ❌ wrong — missing root
-export const BadStyles = createStyles({
-  classes: { container: cx("flex") },
-});
+createStyles({ classes: { root: cx("inline-flex") } }); // ✅
+createStyles({ classes: { root: "" } }); // ✅ empty
+createStyles({ classes: { container: cx("flex") } }); // ❌ no root
 ```
 
-#### Parts as Slots
+#### Slots
 
-Every visible part that consumers might want to customize **must** have a slot in `classes`:
+Give every visible part a slot in `classes`:
 
 ```typescript
-export const ThemeToggleStyles = createStyles({
+export const CardStyles = createStyles({
   classes: {
-    root: "", // trigger button
-    menu: "", // dropdown panel
-    option: "", // each menu item
+    root: cx("rounded-lg border shadow-sm"),
+    header: cx("p-4 border-b"),
+    body: cx("p-4"),
+    footer: cx("p-4 border-t flex justify-end gap-2"),
   },
 });
 ```
+
+Apply `$classes` in JSX — never hardcode class names:
 
 ```tsx
-// In component — apply $classes to each part
-<DropdownMenuContent className={$classes.menu}>
-  {options.map(({ value, label }) => (
-    <DropdownMenuItem className={$classes.option}>...</DropdownMenuItem>
-  ))}
-</DropdownMenuContent>
+// ✅
+<div className={$classes.root}>
+  <div className={$classes.header}>...</div>
+</div>
 
-// ❌ wrong — hardcoded classes, no slot for override
-<DropdownMenuContent className="w-48">
-  <DropdownMenuItem className="text-lg">...</DropdownMenuItem>
-</DropdownMenuContent>
+// ❌
+<div className="rounded-lg border">
+  <div className="p-4 border-b">...</div>
+</div>
 ```
 
-#### Variants and Defaults
+#### Variants
 
-If a component defines `variants`, it **must** define `defaultVariants` for every variant:
+Provide `defaultVariants` for every variant key:
 
 ```typescript
-export const ButtonStyles = createStyles({
-  classes: { root: cx("inline-flex items-center") },
+createStyles({
+  classes: { root: cx("inline-flex") },
   variants: {
     size: {
-      sm: { root: cx("h-8 px-3 text-sm") },
-      md: { root: cx("h-9 px-4 text-base") },
-      lg: { root: cx("h-10 px-6 text-lg") },
-    },
-    variant: {
-      solid: { root: cx("bg-primary text-white") },
-      ghost: { root: cx("bg-transparent") },
+      sm: { root: cx("h-8 text-sm") },
+      lg: { root: cx("h-10 text-lg") },
     },
   },
-  defaultVariants: { size: "md", variant: "solid" }, // ← required for every variant
+  defaultVariants: { size: "sm" }, // ← required
 });
 ```
 
-Use string `"true"` / `"false"` as keys for boolean variants:
+Use string `"true"` / `"false"` keys for boolean variants:
 
 ```typescript
 variants: {
@@ -599,24 +576,17 @@ variants: {
     false: { root: cx("cursor-pointer") },
   },
 }
-
-// Usage
-Styles({ variants: { disabled: true } });
 ```
 
-#### Classes Override
+#### Class Overrides
 
-Consumers override styles via the `classes` prop. Two forms:
-
-**Object** — static overrides:
+Override styles via the `classes` prop:
 
 ```tsx
+// static
 <Button classes={{ root: "w-full" }} />
-```
 
-**Function** — overrides that depend on resolved variants:
-
-```tsx
+// variant-dependent
 <Button
   size="lg"
   classes={(variants) => ({
@@ -625,71 +595,60 @@ Consumers override styles via the `classes` prop. Two forms:
 />
 ```
 
-The function receives the final variant values (after merging with `defaultVariants`), so you can conditionally apply classes without duplicating variant logic.
+#### Class Grouping
 
-#### CSS Class Grouping
-
-Group Tailwind classes by category for readability:
+Group Tailwind classes by category:
 
 ```typescript
 root: cx(
   // layout
-  "flex items-center justify-center gap-2",
+  "flex items-center gap-2",
   // box
   "h-9 px-4 py-2",
   // typography
   "text-sm font-medium",
   // surface
-  "bg-primary rounded-md border border-input shadow-sm",
+  "bg-primary rounded-md shadow-sm",
   // motion
   "transition-colors",
   // state
-  "hover:bg-primary/90 focus-visible:outline-none disabled:pointer-events-none",
+  "hover:bg-primary/90 disabled:pointer-events-none",
   // responsive
-  "sm:h-10 md:h-11 lg:px-6",
+  "sm:h-10 lg:px-6",
 ),
 ```
 
-Split into sub-groups when a category has 3+ classes:
+Split a category when it has 3+ classes:
 
 ```typescript
-root: cx(
-  // ...
-  // state: hover
-  "hover:bg-primary/90",
-  // state: focus
-  "focus-visible:outline-none focus-visible:ring-1",
-  // state: disabled
-  "disabled:pointer-events-none disabled:opacity-50",
-),
+// state: hover
+"hover:bg-primary/90",
+// state: focus
+"focus-visible:outline-none focus-visible:ring-1",
+// state: disabled
+"disabled:pointer-events-none disabled:opacity-50",
 ```
 
 ---
 
 ### Component
 
-#### React Import
+#### Import
 
-Always use namespace import:
+Use namespace import for React:
 
 ```typescript
-// ✅ correct
-import * as React from "react";
+import * as React from "react"; // ✅
 
-React.useState();
-React.useEffect();
-React.CSSProperties;
-
-// ❌ wrong
-import React from "react";
-import { useState, useEffect } from "react";
+import React from "react"; // ❌
+import { useState } from "react"; // ❌
 ```
 
 #### Definition
 
-> Add `"use client";` only when using hooks, event handlers, context, or browser APIs. Pure presentational components don't need it.
+Add `"use client"` only when using hooks, event handlers, context, or browser APIs:
 
-**1. `button.styles.ts`**
+**`button.styles.ts`**
 
 ```typescript
 import type { InferComponentStylesConfig } from "@simplex/aqua-style";
@@ -698,15 +657,20 @@ import { cx } from "@simplex/aqua-style";
 import { createStyles } from "@/lib/aqua.config";
 
 export const ButtonStyles = createStyles({
-  classes: { root: cx("...") },
-  variants: { ... },
-  defaultVariants: { ... },
+  classes: { root: cx("inline-flex items-center") },
+  variants: {
+    size: {
+      sm: { root: cx("h-8 text-sm") },
+      lg: { root: cx("h-10 text-lg") },
+    },
+  },
+  defaultVariants: { size: "sm" },
 });
 
 export type ButtonStylesConfig = InferComponentStylesConfig<typeof ButtonStyles>;
 ```
 
-**2. `button.tsx`**
+**`button.tsx`**
 
 ```tsx
 import type { ButtonStylesConfig } from "./button.styles";
@@ -716,9 +680,8 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>, ButtonStylesConfig {}
 
 export function Button(props: ButtonProps) {
-  const { style, className, children, classes, variant, size, ...otherProps } = props;
-
-  const $classes = ButtonStyles({ classes, variants: { variant, size } }, className);
+  const { style, className, children, classes, size, ...otherProps } = props;
+  const $classes = ButtonStyles({ classes, variants: { size } }, className);
 
   return (
     <button {...otherProps} style={style} className={$classes.root}>
@@ -728,7 +691,7 @@ export function Button(props: ButtonProps) {
 }
 ```
 
-**3. `index.ts`**
+**`index.ts`**
 
 ```typescript
 export * from "./button";
@@ -737,54 +700,51 @@ export * from "./button.styles";
 
 #### Props
 
-Every component **must** accept `style` and `className` and forward them to the root element.
+Accept `style` and `className` on every component root element:
 
-**Native root** (`<button>`, `<div>`, etc.) — extend HTML attributes, spread `...otherProps`:
+**Native root** — extend HTML attributes, spread `...otherProps`:
 
 ```tsx
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>, ButtonStylesConfig {}
-
-export function Button(props: ButtonProps) {
-  const { style, className, children, classes, variant, size, ...otherProps } = props;
-  // ...
-  return (
-    <button {...otherProps} style={style} className={$classes.root}>
-      {children}
-    </button>
-  );
-}
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>, ButtonStylesConfig {}
 ```
 
-**Composite root** (wrapping another component) — declare `style` and `className` explicitly:
+**Composite root** — pick semantically relevant props from the wrapped component:
 
 ```tsx
-export interface ThemeToggleProps extends ThemeToggleStylesConfig {
+interface ThemeToggleProps
+  extends Pick<DropdownMenuProps, "open" | "onOpenChange">, ThemeToggleStylesConfig {
   style?: React.CSSProperties;
   className?: string;
 }
 ```
 
-**Ordering rules:**
+**Ordering:**
 
-- **`extends`**: Native HTML attributes first, then style config — `extends React.*HTMLAttributes<...>, StylesConfig`
-- **Destructuring**: Native props first (`style`, `className`, `children`, `disabled`), then custom props (`classes`, `variant`, `size`), ending with `...otherProps`
-- **JSX**: React special props (`key`, `ref`) first, then spread, then same order as destructuring — `<li key={id} {...otherProps} style={style} className={$classes.root}>`
+- `extends` — `HTMLAttributes` or `Pick<...>` → `StylesConfig`
+- Destructuring — `HTMLAttributes` or `Pick<...>` → `StylesConfig` → `...otherProps`
+- JSX — `{...otherProps}` → `key`/`ref` → `HTMLAttributes` or `Pick<...>` → `StylesConfig`
+
+**Function props** — use method shorthand:
+
+```typescript
+onError?(error: unknown): void;  // ✅
+onError?: (error: unknown) => void; // ❌
+```
 
 #### Body Order
 
-Inside a component function:
+Follow this order inside a component function:
 
 1. **Props** — destructuring
-2. **Static / derived** — `$classes`, constants from props
-3. **Custom hooks** — `useTheme`, `useRouter`, project-specific hooks
-4. **React hooks** — `useState`, `useRef`, `useMemo`, `useCallback`
+2. **Static / derived** — `$classes`, constants
+3. **Custom hooks** — `useTheme`, `useRouter`
+4. **React hooks** — `useState`, `useRef`, `useMemo`
 5. **Effects** — `useEffect`, `useLayoutEffect`
 
 ```tsx
-export function Example(props: ExampleProps) {
+function Example(props: ExampleProps) {
   // 1. props
-  const { style, className, children, classes, variant, ...otherProps } = props;
+  const { style, className, classes, variant, ...otherProps } = props;
 
   // 2. static / derived
   const $classes = ExampleStyles({ classes, variants: { variant } }, className);
@@ -800,10 +760,118 @@ export function Example(props: ExampleProps) {
     // ...
   }, []);
 
+  return <div {...otherProps} style={style} className={$classes.root} />;
+}
+```
+
+#### Stateful Component
+
+Support uncontrolled and controlled modes via `useControllableState`:
+
+```tsx
+interface ToggleProps extends ToggleStylesConfig {
+  style?: React.CSSProperties;
+  className?: string;
+  pressed?: boolean;
+  onPressedChange?(pressed: boolean): void;
+}
+
+function Toggle(props: ToggleProps) {
+  const { style, className, classes, pressed, onPressedChange, ...otherProps } = props;
+  const $classes = ToggleStyles({ classes }, className);
+
+  const [$pressed, $setPressed] = useControllableState({
+    value: pressed,
+    onChange: onPressedChange,
+  });
+
   return (
-    <div {...otherProps} style={style} className={$classes.root}>
-      {children}
+    <button {...otherProps} style={style} className={$classes.root} aria-pressed={$pressed} onClick={() => $setPressed(!$pressed)}>
+      ...
+    </button>
+  );
+}
+
+// uncontrolled
+<Toggle />
+
+// controlled
+<Toggle pressed={isOn} onPressedChange={setIsOn} />
+```
+
+Name the prop pair after what it represents: `open`/`onOpenChange`, `value`/`onValueChange`, `pressed`/`onPressedChange`.
+
+For multi-part components, use a `Root` to hold state and share via context:
+
+```tsx
+// accordion-root.tsx
+function AccordionRoot(props: AccordionRootProps) {
+  const { children, value, onValueChange, ...otherProps } = props;
+
+  const [$value, $setValue] = useControllableState({
+    value,
+    onChange: onValueChange,
+  });
+
+  return (
+    <AccordionContext value={$value} onValueChange={$setValue}>
+      <div {...otherProps}>{children}</div>
+    </AccordionContext>
+  );
+}
+
+// accordion-item.tsx
+function AccordionItem(props: AccordionItemProps) {
+  const { $value, setValue } = useAccordionContext();
+  // ...
+}
+
+// index.ts
+export * from "./accordion-root";
+export * from "./accordion-item";
+export * from "./accordion-trigger";
+export * from "./accordion-content";
+
+// usage
+<AccordionRoot value={active} onValueChange={setActive}>
+  <AccordionItem>
+    <AccordionTrigger>...</AccordionTrigger>
+    <AccordionContent>...</AccordionContent>
+  </AccordionItem>
+</AccordionRoot>;
+```
+
+#### Hooks
+
+Extract business logic into custom hooks. Keep only UI state in the component:
+
+```tsx
+// ✅ business logic in hook, UI state in component
+function ChatPanel(props: ChatPanelProps) {
+  const { messages, send, isLoading } = useChat(props.conversationId);
+  const [sidebarOpen, setSidebarOpen] = React.useState(false);
+
+  return (
+    <div className={$classes.root}>
+      <Sidebar open={sidebarOpen} onOpenChange={setSidebarOpen} />
+      <MessageList messages={messages} />
+      <MessageInput onSend={send} disabled={isLoading} />
     </div>
   );
+}
+
+// ❌ fetch, state, callbacks all in component
+function ChatPanel(props: ChatPanelProps) {
+  const [messages, setMessages] = React.useState([]);
+  const [isLoading, setIsLoading] = React.useState(false);
+
+  const send = React.useCallback(async (text: string) => {
+    setIsLoading(true);
+    const res = await fetch("/api/messages", { ... });
+    setMessages((prev) => [...prev, await res.json()]);
+    setIsLoading(false);
+  }, []);
+
+  // ...
 }
 ```
