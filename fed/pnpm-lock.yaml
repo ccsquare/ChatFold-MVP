@@ -29,6 +29,9 @@ importers:
       '@simplex/aqua-style':
         specifier: workspace:*
         version: link:../../packages/aqua-style
+      '@simplex/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@types/react':
         specifier: ^19.2.13
         version: 19.2.13
